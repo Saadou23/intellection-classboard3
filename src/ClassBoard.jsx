@@ -403,12 +403,28 @@ const branchNames = branchesArray.map(b => b.name) || [];
     const todaySessions = filterSessionsForDate(periodFilteredSessions, today);
     
     // Trier par heure
-    const sorted = todaySessions.sort((a, b) => a.startTime.localeCompare(b.startTime));
+    let sorted = todaySessions.sort((a, b) => a.startTime.localeCompare(b.startTime));
     
-    // AFFICHER TOUS LES COURS DE LA JOURNÉE (pas de filtre par temps)
-    // Les statuts (PRÉVU, EN COURS, TERMINÉ) s'afficheront automatiquement
+    // MASQUER LES COURS TERMINÉS sur l'affichage étudiant
+    if (view === 'display') {
+      const currentH = currentTime.getHours();
+      const currentM = currentTime.getMinutes();
+      const currentMinutes = currentH * 60 + currentM;
+      
+      sorted = sorted.filter(session => {
+        // Garder les cours avec statuts spéciaux (annulé, retardé, etc.)
+        if (session.status && ['cancelled', 'delayed', 'absent'].includes(session.status)) {
+          return true;
+        }
+        
+        // Masquer les cours terminés
+        const [endH, endM] = session.endTime.split(':').map(Number);
+        const endMinutes = endH * 60 + endM;
+        return currentMinutes < endMinutes;
+      });
+    }
     
-    // Pour l'affichage public/display : TOUTES les séances (pas de limite)
+    // Pour l'affichage public/display : TOUTES les séances actives (pas de limite)
     // Pour l'admin : limiter à 6 séances pour ne pas surcharger
     return (view === 'public' || view === 'display') ? sorted : sorted.slice(0, 6);
   };
