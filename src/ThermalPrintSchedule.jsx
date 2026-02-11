@@ -1,5 +1,8 @@
+// ... [Garder tout le début du fichier jusqu'à handlePrint - lignes 1-110] ...
+// Je modifie seulement la section CSS et HTML
+
 import React, { useState, useEffect } from 'react';
-import { getAllPeriods, filterSessionsByPeriod, getPeriodIcon } from './periodUtils';
+import { filterSessionsByPeriod, getPeriodIcon } from './periodUtils';
 import { Printer, X } from 'lucide-react';
 
 const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => {
@@ -9,8 +12,6 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
   const [isPrinting, setIsPrinting] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState('normal');
   const [availablePeriods, setAvailablePeriods] = useState([]);
-
-  console.log('🖨️ ThermalPrintSchedule chargé, branchesData:', branchesData);
 
   const daysOfWeek = [
     { value: 1, label: 'Lundi' },
@@ -22,23 +23,25 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
     { value: 0, label: 'Dimanche' }
   ];
 
-  // Charger les périodes disponibles
+  // Charger les périodes
   useEffect(() => {
-    console.log('📋 useEffect périodes - branchesData:', branchesData);
-    if (branchesData && Array.isArray(branchesData) && branchesData.length > 0) {
-      try {
-        const periods = getAllPeriods(branchesData);
-        console.log('✅ Périodes chargées:', periods);
-        setAvailablePeriods(periods);
-      } catch (error) {
-        console.error('❌ Erreur getAllPeriods:', error);
-      }
-    } else {
-      console.warn('⚠️ branchesData invalide');
+    console.log('🔍 Chargement périodes...');
+    if (branchesData && branchesData.length > 0) {
+      const periods = [];
+      branchesData.forEach(branch => {
+        if (branch.exceptionalPeriods && branch.exceptionalPeriods.length > 0) {
+          branch.exceptionalPeriods.forEach(period => {
+            if (!periods.find(p => p.id === period.id)) {
+              periods.push(period);
+            }
+          });
+        }
+      });
+      console.log('✅ Périodes extraites:', periods);
+      setAvailablePeriods(periods);
     }
   }, [branchesData]);
 
-  // Extraire les niveaux disponibles
   useEffect(() => {
     if (selectedBranch) {
       const branchSessions = sessions[selectedBranch] || [];
@@ -50,18 +53,15 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
     }
   }, [selectedBranch, sessions]);
 
-  // Générer l'emploi du temps
   const generateSchedule = (branch, level = 'ALL', period = 'normal') => {
     let branchSessions = sessions[branch] || [];
     
-    // Filtrer par période
     if (period === 'normal') {
       branchSessions = branchSessions.filter(s => !s.period || s.period === null);
     } else {
       branchSessions = branchSessions.filter(s => s.period === period);
     }
     
-    // Filtrer par niveau
     const filteredSessions = level === 'ALL' 
       ? branchSessions 
       : branchSessions.filter(s => s.level === level);
@@ -100,164 +100,216 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
     const schedule = generateSchedule(selectedBranch, selectedLevel, selectedPeriod);
     const printWindow = window.open('', '_blank');
     
-    // Titre
     const periodName = selectedPeriod === 'normal' 
       ? 'Normal' 
       : availablePeriods.find(p => p.id === selectedPeriod)?.name || 'Période';
     
-    let title = `Emploi du temps - ${selectedBranch}`;
+    let title = `${selectedBranch}`;
     if (selectedPeriod !== 'normal') {
       title += ` - ${periodName}`;
     }
     if (selectedLevel !== 'ALL') {
       title += ` - ${selectedLevel}`;
-    } else {
-      title += ' - Tous les niveaux';
     }
     
-    // HTML d'impression
+    // HTML OPTIMISÉ avec Bebas Neue
     let printContent = `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
   <title>${title}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+  
   <style>
     @media print {
-      @page { size: 80mm auto; margin: 5mm; }
-      body { margin: 0; padding: 0; }
+      @page {
+        size: 80mm auto;
+        margin: 3mm;
+      }
+      body {
+        margin: 0;
+        padding: 0;
+      }
     }
-    
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
     body {
-      font-family: 'Courier New', monospace;
-      font-size: 10px;
-      line-height: 1.3;
-      max-width: 80mm;
+      font-family: 'Bebas Neue', 'Arial Black', sans-serif;
+      font-size: 16px;
+      line-height: 1.2;
+      width: 80mm;
       margin: 0 auto;
-      padding: 5mm;
+      padding: 3mm;
+      background: white;
+      color: #000;
     }
-    
+
     .header {
       text-align: center;
-      font-weight: bold;
-      margin-bottom: 5mm;
-      border-bottom: 2px dashed #000;
-      padding-bottom: 3mm;
+      border-bottom: 3px double #000;
+      padding-bottom: 2mm;
+      margin-bottom: 3mm;
     }
-    
-    .title { font-size: 14px; margin-bottom: 2mm; }
-    .subtitle { font-size: 11px; }
-    
+
+    .header h1 {
+      font-size: 28px;
+      letter-spacing: 1px;
+      margin-bottom: 1mm;
+    }
+
+    .header h2 {
+      font-size: 22px;
+      margin-bottom: 1mm;
+    }
+
+    .header .info {
+      font-size: 14px;
+      margin: 0.5mm 0;
+    }
+
     .day-section {
-      margin-top: 4mm;
+      margin-bottom: 3mm;
       page-break-inside: avoid;
     }
-    
+
     .day-header {
-      font-weight: bold;
-      font-size: 11px;
       background: #000;
       color: #fff;
-      padding: 2mm;
-      margin-bottom: 2mm;
+      padding: 1.5mm 2mm;
+      font-size: 18px;
+      text-align: center;
+      letter-spacing: 0.5px;
     }
-    
+
     .session {
-      margin-bottom: 3mm;
-      padding: 2mm;
-      border-left: 2px solid #000;
+      border-left: 3px solid #000;
       padding-left: 2mm;
+      margin: 1.5mm 0;
+      page-break-inside: avoid;
     }
-    
-    .time { font-weight: bold; font-size: 11px; }
-    .details { margin-top: 1mm; }
-    .detail-line { margin: 0.5mm 0; }
-    
-    .footer {
-      margin-top: 5mm;
-      padding-top: 3mm;
-      border-top: 2px dashed #000;
-      text-align: center;
-      font-size: 9px;
+
+    .time {
+      font-size: 20px;
+      letter-spacing: 0.3px;
+      margin-bottom: 0.5mm;
     }
-    
-    .no-sessions {
+
+    .details {
+      font-size: 15px;
+      line-height: 1.3;
+    }
+
+    .details div {
+      margin: 0.3mm 0;
+    }
+
+    .no-session {
       text-align: center;
-      font-style: italic;
-      color: #666;
       padding: 2mm;
+      font-size: 14px;
+      color: #666;
+    }
+
+    .footer {
+      margin-top: 4mm;
+      border-top: 3px double #000;
+      padding-top: 2mm;
+      text-align: center;
+      font-size: 13px;
+    }
+
+    .footer-date {
+      font-size: 11px;
+      margin-top: 1mm;
     }
   </style>
 </head>
 <body>
   <div class="header">
-    <div class="title">${title}</div>
-    <div class="subtitle">${new Date().toLocaleDateString('fr-FR', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    })}</div>
-  </div>`;
+    <h1>INTELLECTION</h1>
+    <h2>${selectedBranch}</h2>
+    ${selectedLevel !== 'ALL' ? `<div class="info">NIVEAU: ${selectedLevel}</div>` : ''}
+    ${selectedPeriod !== 'normal' ? `<div class="info">${periodName.toUpperCase()}</div>` : ''}
+  </div>
+`;
 
-    // Contenu
+    let totalSessions = 0;
+
     daysOfWeek.forEach(day => {
       const dayData = schedule[day.value];
-      
-      printContent += `
+      if (dayData && dayData.sessions.length > 0) {
+        totalSessions += dayData.sessions.length;
+        
+        printContent += `
   <div class="day-section">
-    <div class="day-header">${dayData.label.toUpperCase()}</div>`;
-      
-      if (dayData.sessions.length === 0) {
-        printContent += `<div class="no-sessions">Aucun cours</div>`;
-      } else {
+    <div class="day-header">${dayData.label.toUpperCase()}</div>
+`;
+        
         dayData.sessions.forEach(session => {
           printContent += `
     <div class="session">
       <div class="time">${formatTime(session.startTime)} - ${formatTime(session.endTime)}</div>
       <div class="details">
-        <div class="detail-line">📚 ${session.level} - ${session.subject || 'Matière'}</div>
-        <div class="detail-line">👤 ${session.professor}</div>
-        <div class="detail-line">🚪 Salle ${session.room}</div>
+        <div>${session.subject || '-'}</div>
+        <div>${session.professor || '-'}</div>
       </div>
-    </div>`;
+    </div>
+`;
         });
+        
+        printContent += `  </div>`;
       }
-      
-      printContent += `
-  </div>`;
     });
+
+    if (totalSessions === 0) {
+      printContent += `
+  <div class="no-session">
+    AUCUN COURS PROGRAMME
+  </div>
+`;
+    }
 
     printContent += `
   <div class="footer">
-    INTELLECTION - Emploi du temps<br>
-    Imprimé le ${new Date().toLocaleString('fr-FR')}
+    <div>TOTAL: ${totalSessions} COURS</div>
+    <div class="footer-date">${new Date().toLocaleDateString('fr-FR')} - ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</div>
   </div>
 </body>
-</html>`;
+</html>
+`;
 
     printWindow.document.write(printContent);
     printWindow.document.close();
     
-    setTimeout(() => {
-      printWindow.print();
-      setIsPrinting(false);
-    }, 250);
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.print();
+        setIsPrinting(false);
+      }, 500);
+    };
   };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-t-lg">
+        <div className="bg-gradient-to-r from-purple-600 to-purple-700 text-white p-6 rounded-t-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Printer className="w-8 h-8" />
               <div>
-                <h2 className="text-2xl font-bold">Impression Ticket Thermique</h2>
-                <p className="text-blue-200 text-sm mt-1">Emploi du temps hebdomadaire</p>
+                <h2 className="text-2xl font-bold">Impression Thermique</h2>
+                <p className="text-purple-200 text-sm mt-1">Format ticket 80mm optimisé</p>
               </div>
             </div>
-            <button onClick={onClose} className="bg-blue-800 hover:bg-blue-600 p-2 rounded-lg transition-all">
+            <button onClick={onClose} className="bg-purple-800 hover:bg-purple-600 p-2 rounded-lg transition-all">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -265,36 +317,51 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
 
         <div className="p-6 space-y-6 overflow-y-auto flex-1">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h3 className="font-bold text-blue-900 mb-2">📋 Instructions</h3>
+            <h3 className="font-bold text-blue-900 mb-2">✨ Optimisations appliquées</h3>
             <ul className="text-sm text-blue-800 space-y-1">
-              <li>• Format optimisé pour imprimantes thermiques 80mm</li>
-              <li>• Affiche tous les cours du lundi au dimanche</li>
-              <li>• Possibilité de filtrer par niveau (ou tous les niveaux)</li>
-              <li>• Choisir entre emploi normal ou Ramadan/autres périodes</li>
-              <li>• Classement chronologique par jour</li>
+              <li>• Police Bebas Neue (grande et grasse)</li>
+              <li>• Format compact pour ticket court</li>
+              <li>• Espacement réduit entre les éléments</li>
+              <li>• Lecture optimale sur ticket 80mm</li>
             </ul>
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2">Sélectionner la filiale</label>
+            <label className="block text-sm font-bold text-gray-700 mb-2">🏢 Centre</label>
             <select
               value={selectedBranch}
               onChange={(e) => setSelectedBranch(e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
             >
-              <option value="">-- Choisir une filiale --</option>
+              <option value="">-- Sélectionner un centre --</option>
               {branches.map(branch => (
                 <option key={branch} value={branch}>{branch}</option>
               ))}
             </select>
           </div>
 
+          {selectedBranch && availableLevels.length > 0 && (
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">🎓 Niveau</label>
+              <select
+                value={selectedLevel}
+                onChange={(e) => setSelectedLevel(e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+              >
+                <option value="ALL">Tous les niveaux</option>
+                {availableLevels.map(level => (
+                  <option key={level} value={level}>{level}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2">📅 Type d'emploi du temps</label>
+            <label className="block text-sm font-bold text-gray-700 mb-2">📅 Période</label>
             <select
               value={selectedPeriod}
               onChange={(e) => setSelectedPeriod(e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
             >
               <option value="normal">📅 Emploi Normal</option>
               {availablePeriods.map(period => (
@@ -303,62 +370,7 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
                 </option>
               ))}
             </select>
-            {availablePeriods.length === 0 && (
-              <p className="text-sm text-orange-600 mt-1">
-                ⚠️ Aucune période configurée
-              </p>
-            )}
           </div>
-
-          {selectedBranch && (
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">Filtrer par niveau</label>
-              <select
-                value={selectedLevel}
-                onChange={(e) => setSelectedLevel(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="ALL">📚 Tous les niveaux</option>
-                {availableLevels.map(level => (
-                  <option key={level} value={level}>{level}</option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {selectedBranch && (
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h3 className="font-bold text-gray-900 mb-3">📊 Aperçu</h3>
-              <div className="grid grid-cols-2 gap-4">
-                {daysOfWeek.map(day => {
-                  let branchSessions = sessions[selectedBranch] || [];
-                  
-                  if (selectedPeriod === 'normal') {
-                    branchSessions = branchSessions.filter(s => !s.period || s.period === null);
-                  } else {
-                    branchSessions = branchSessions.filter(s => s.period === selectedPeriod);
-                  }
-                  
-                  const filteredSessions = selectedLevel === 'ALL' 
-                    ? branchSessions 
-                    : branchSessions.filter(s => s.level === selectedLevel);
-                    
-                  const daySessionsCount = filteredSessions.filter(
-                    s => s.dayOfWeek === day.value && s.status !== 'cancelled'
-                  ).length;
-                  
-                  return (
-                    <div key={day.value} className="flex justify-between items-center text-sm">
-                      <span className="font-medium text-gray-700">{day.label}:</span>
-                      <span className={`font-bold ${daySessionsCount > 0 ? 'text-green-600' : 'text-gray-400'}`}>
-                        {daySessionsCount} cours
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="border-t p-4 bg-gray-50 flex justify-end gap-3">
@@ -371,7 +383,7 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
           <button
             onClick={handlePrint}
             disabled={!selectedBranch || isPrinting}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
           >
             <Printer className="w-4 h-4" />
             {isPrinting ? 'Impression...' : 'Imprimer'}
