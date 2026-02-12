@@ -37,6 +37,7 @@ const ClassBoard = () => {
   const [showExceptionalSession, setShowExceptionalSession] = useState(false);
   const [professors, setProfessors] = useState([]);
   const [levels, setLevels] = useState([]);
+  const [availableRooms, setAvailableRooms] = useState([]);
   const [showSoundTester, setShowSoundTester] = useState(false);
   const [branches, setBranches] = useState(['Hay Salam', 'Doukkali', 'Saada']); // Valeurs par défaut
   const [scrollPosition, setScrollPosition] = useState(0);
@@ -217,6 +218,26 @@ const branchNames = branchesArray.map(b => b.name) || [];
     }
   }, [branchesData]);
 
+  // Charger les salles disponibles pour le centre sélectionné
+  useEffect(() => {
+    if (selectedBranch && branchesData.length > 0) {
+      const branchConfig = branchesData.find(b => b.name === selectedBranch);
+      if (branchConfig && branchConfig.rooms) {
+        // Générer la liste des salles : Salle 1, Salle 2, etc.
+        const roomsList = [];
+        for (let i = 1; i <= branchConfig.rooms; i++) {
+          roomsList.push(`Salle ${i}`);
+        }
+        setAvailableRooms(roomsList);
+        console.log(`🏢 ${selectedBranch} : ${branchConfig.rooms} salles disponibles`);
+      } else {
+        setAvailableRooms([]);
+      }
+    } else {
+      setAvailableRooms([]);
+    }
+  }, [selectedBranch, branchesData]);
+
   useEffect(() => {
     loadTimeOffset();
     loadGlobalSettings();
@@ -395,9 +416,11 @@ const branchNames = branchesArray.map(b => b.name) || [];
     
     // Détection automatique de la période active
     const activePeriodId = getActivePeriodId(branchesData);
+    console.log('🔍 AFFICHAGE ÉTUDIANT - Période active:', activePeriodId || 'Normal');
     
     // Filtrer par période AVANT de filtrer par date
     const periodFilteredSessions = filterSessionsByPeriod(branchSessions, activePeriodId);
+    console.log(`📚 Sessions après filtrage période: ${periodFilteredSessions.length}/${branchSessions.length}`);
     
     // Filtrer avec les règles intelligentes
     const todaySessions = filterSessionsForDate(periodFilteredSessions, today);
@@ -1139,14 +1162,18 @@ const branchNames = branchesArray.map(b => b.name) || [];
                       )}
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Salle</label>
-                      <input
-                        type="text"
+                      <SearchableSelect
+                        label="Salle"
+                        options={availableRooms}
                         value={formData.room}
-                        onChange={(e) => setFormData({ ...formData, room: e.target.value })}
-                        placeholder="Ex: A101"
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        onChange={(value) => setFormData({ ...formData, room: value })}
+                        placeholder={availableRooms.length > 0 ? "Sélectionner une salle" : "Aucune salle configurée"}
                       />
+                      {availableRooms.length === 0 && (
+                        <p className="text-xs text-orange-600 mt-1">
+                          ⚠️ Configurez d'abord les salles dans les paramètres (Gérer les filiales)
+                        </p>
+                      )}
                     </div>
 
                     {formData.status === 'absent' && (
