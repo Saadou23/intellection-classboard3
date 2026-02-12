@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { X, FileDown, Building2, User } from 'lucide-react';
-import { formatLevelDisplay } from './levelUtils';
+import { X, FileDown, Building2, User, GraduationCap } from 'lucide-react';
+import { formatLevelDisplay, sessionIncludesLevel, getSessionLevels } from './levelUtils';
 
 const PDFExportModal = ({ sessions, branches, branchesData, onClose }) => {
   console.log('🎯 PDFExportModal OUVERT !', { sessions, branches, branchesData });
   
-  const [exportType, setExportType] = useState('branch'); // 'branch' ou 'professor'
+  const [exportType, setExportType] = useState('branch'); // 'branch', 'professor', ou 'level'
   const [selectedBranch, setSelectedBranch] = useState('');
   const [selectedProfessor, setSelectedProfessor] = useState('');
+  const [selectedLevel, setSelectedLevel] = useState('');
   const [selectedPeriod, setSelectedPeriod] = useState('normal');
   const [availablePeriods, setAvailablePeriods] = useState([]);
   const [professors, setProfessors] = useState([]);
+  const [levels, setLevels] = useState([]);
   const [isGenerating, setIsGenerating] = useState(false);
 
   // Charger les périodes
@@ -48,6 +50,18 @@ const PDFExportModal = ({ sessions, branches, branchesData, onClose }) => {
     setProfessors(Array.from(allProfs).sort());
   }, [sessions]);
 
+  // Charger les niveaux (en gérant multi-niveaux)
+  useEffect(() => {
+    const allLevels = new Set();
+    Object.values(sessions).forEach(branchSessions => {
+      branchSessions.forEach(session => {
+        const sessionLevels = getSessionLevels(session);
+        sessionLevels.forEach(level => allLevels.add(level));
+      });
+    });
+    setLevels(Array.from(allLevels).sort());
+  }, [sessions]);
+
   const generatePDF = async () => {
     if (exportType === 'branch' && !selectedBranch) {
       alert('Veuillez sélectionner un centre');
@@ -55,6 +69,10 @@ const PDFExportModal = ({ sessions, branches, branchesData, onClose }) => {
     }
     if (exportType === 'professor' && !selectedProfessor) {
       alert('Veuillez sélectionner un professeur');
+      return;
+    }
+    if (exportType === 'level' && (!selectedBranch || !selectedLevel)) {
+      alert('Veuillez sélectionner un centre et un niveau');
       return;
     }
 
@@ -69,7 +87,7 @@ const PDFExportModal = ({ sessions, branches, branchesData, onClose }) => {
 
       if (exportType === 'branch') {
         filteredSessions = sessions[selectedBranch] || [];
-      } else {
+      } else if (exportType === 'professor') {
         // Par professeur : toutes les branches
         Object.entries(sessions).forEach(([branch, branchSessions]) => {
           branchSessions.forEach(session => {
@@ -77,6 +95,14 @@ const PDFExportModal = ({ sessions, branches, branchesData, onClose }) => {
               filteredSessions.push({ ...session, branch });
             }
           });
+        });
+      } else if (exportType === 'level') {
+        // Par niveau : une branche spécifique
+        const branchSessions = sessions[selectedBranch] || [];
+        branchSessions.forEach(session => {
+          if (sessionIncludesLevel(session, selectedLevel)) {
+            filteredSessions.push({ ...session, branch: selectedBranch });
+          }
         });
       }
 
@@ -105,9 +131,14 @@ const PDFExportModal = ({ sessions, branches, branchesData, onClose }) => {
         ? 'Normal' 
         : availablePeriods.find(p => p.id === selectedPeriod)?.name || 'Période';
 
-      let title = exportType === 'branch'
-        ? `Emploi du Temps - ${selectedBranch}`
-        : `Emploi du Temps - ${selectedProfessor}`;
+      let title;
+      if (exportType === 'branch') {
+        title = `Emploi du Temps - ${selectedBranch}`;
+      } else if (exportType === 'professor') {
+        title = `Emploi du Temps - ${selectedProfessor}`;
+      } else if (exportType === 'level') {
+        title = `Emploi du Temps - ${selectedBranch} - ${selectedLevel}`;
+      }
 
       if (periodName !== 'Normal') {
         title += ` - ${periodName}`;
@@ -145,24 +176,38 @@ const PDFExportModal = ({ sessions, branches, branchesData, onClose }) => {
         const tableData = daySessions.map(session => {
           const row = [
             `${session.startTime} - ${session.endTime}`,
-            formatLevelDisplay(session.level),
-            session.subject || '-',
           ];
+
+          // Colonne niveau seulement si ce n'est pas le mode level
+          if (exportType !== 'level') {
+            row.push(formatLevelDisplay(session.level));
+          }
+          
+          row.push(session.subject || '-');
 
           if (exportType === 'branch') {
             row.push(session.professor || '-');
             row.push(`Salle ${session.room}`);
-          } else {
+          } else if (exportType === 'professor') {
             row.push(session.branch || '-');
+            row.push(`Salle ${session.room}`);
+          } else if (exportType === 'level') {
+            // Mode level : pas de colonne niveau, ajouter prof et salle
+            row.push(session.professor || '-');
             row.push(`Salle ${session.room}`);
           }
 
           return row;
         });
 
-        const headers = exportType === 'branch'
-          ? ['Horaire', 'Niveau', 'Matière', 'Professeur', 'Salle']
-          : ['Horaire', 'Niveau', 'Matière', 'Centre', 'Salle'];
+        let headers;
+        if (exportType === 'branch') {
+          headers = ['Horaire', 'Niveau', 'Matière', 'Professeur', 'Salle'];
+        } else if (exportType === 'professor') {
+          headers = ['Horaire', 'Niveau', 'Matière', 'Centre', 'Salle'];
+        } else if (exportType === 'level') {
+          headers = ['Horaire', 'Matière', 'Professeur', 'Salle'];
+        }
 
         doc.autoTable({
           startY: yPosition,
@@ -187,9 +232,15 @@ const PDFExportModal = ({ sessions, branches, branchesData, onClose }) => {
       });
 
       // Sauvegarder
-      const filterName = exportType === 'branch' 
-        ? selectedBranch.replace(/ /g, '_')
-        : selectedProfessor.replace(/ /g, '_');
+      let filterName;
+      if (exportType === 'branch') {
+        filterName = selectedBranch.replace(/ /g, '_');
+      } else if (exportType === 'professor') {
+        filterName = selectedProfessor.replace(/ /g, '_');
+      } else if (exportType === 'level') {
+        filterName = `${selectedBranch.replace(/ /g, '_')}_${selectedLevel.replace(/ /g, '_')}`;
+      }
+      
       const filename = `Emploi_${filterName}_${periodName.replace(/ /g, '_')}.pdf`;
       
       doc.save(filename);
@@ -226,7 +277,7 @@ const PDFExportModal = ({ sessions, branches, branchesData, onClose }) => {
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <h3 className="font-bold text-blue-900 mb-2">📋 Instructions</h3>
             <ul className="text-sm text-blue-800 space-y-1">
-              <li>• Choisissez le type d'export (par centre ou par professeur)</li>
+              <li>• Choisissez le type d'export (centre, professeur ou niveau)</li>
               <li>• Sélectionnez la période (Normal ou Ramadan)</li>
               <li>• Le PDF sera généré automatiquement</li>
             </ul>
@@ -235,7 +286,7 @@ const PDFExportModal = ({ sessions, branches, branchesData, onClose }) => {
           {/* Type d'export */}
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-2">Type d'export</label>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <button
                 onClick={() => setExportType('branch')}
                 className={`p-4 border-2 rounded-lg transition-all ${
@@ -258,6 +309,17 @@ const PDFExportModal = ({ sessions, branches, branchesData, onClose }) => {
                 <User className="w-6 h-6 mx-auto mb-2 text-purple-600" />
                 <div className="font-semibold">Par Professeur</div>
               </button>
+              <button
+                onClick={() => setExportType('level')}
+                className={`p-4 border-2 rounded-lg transition-all ${
+                  exportType === 'level'
+                    ? 'border-green-500 bg-green-50'
+                    : 'border-gray-300 hover:border-green-300'
+                }`}
+              >
+                <GraduationCap className="w-6 h-6 mx-auto mb-2 text-green-600" />
+                <div className="font-semibold">Par Niveau</div>
+              </button>
             </div>
           </div>
 
@@ -279,7 +341,7 @@ const PDFExportModal = ({ sessions, branches, branchesData, onClose }) => {
           </div>
 
           {/* Sélection centre */}
-          {exportType === 'branch' && (
+          {(exportType === 'branch' || exportType === 'level') && (
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2">🏢 Centre</label>
               <select
@@ -290,6 +352,23 @@ const PDFExportModal = ({ sessions, branches, branchesData, onClose }) => {
                 <option value="">-- Sélectionner un centre --</option>
                 {branches.map(branch => (
                   <option key={branch} value={branch}>{branch}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Sélection niveau */}
+          {exportType === 'level' && (
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">🎓 Niveau</label>
+              <select
+                value={selectedLevel}
+                onChange={(e) => setSelectedLevel(e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+              >
+                <option value="">-- Sélectionner un niveau --</option>
+                {levels.map(level => (
+                  <option key={level} value={level}>{level}</option>
                 ))}
               </select>
             </div>
