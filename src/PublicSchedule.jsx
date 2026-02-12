@@ -91,6 +91,8 @@ const PublicSchedule = () => {
 
   const loadScheduleData = async (branch, level, period = 'normal') => {
     setLoading(true);
+    console.log('📊 loadScheduleData appelée avec:', { branch, level, period });
+    
     try {
       const allSessions = [];
 
@@ -100,21 +102,27 @@ const PublicSchedule = () => {
         
         if (docSnap.exists()) {
           const branchSessions = docSnap.data().sessions || [];
+          console.log(`📚 ${branchSessions.length} sessions trouvées pour ${branch}`);
           branchSessions.forEach(session => {
             allSessions.push({ ...session, branch });
           });
         }
       }
 
+      console.log(`🔍 Filtrage période: ${period}`);
       let filteredSessions = allSessions;
       if (period === 'normal') {
         filteredSessions = filteredSessions.filter(s => !s.period || s.period === null);
+        console.log(`✅ Sessions normales: ${filteredSessions.length}/${allSessions.length}`);
       } else {
         filteredSessions = filteredSessions.filter(s => s.period === period);
+        console.log(`🌙 Sessions période ${period}: ${filteredSessions.length}/${allSessions.length}`);
       }
       
       if (level) {
+        const beforeLevel = filteredSessions.length;
         filteredSessions = filteredSessions.filter(s => sessionIncludesLevel(s, level));
+        console.log(`🎓 Filtrage niveau ${level}: ${filteredSessions.length}/${beforeLevel}`);
       }
 
       filteredSessions.sort((a, b) => {
@@ -122,6 +130,7 @@ const PublicSchedule = () => {
         return a.startTime.localeCompare(b.startTime);
       });
 
+      console.log(`✅ Sessions finales affichées: ${filteredSessions.length}`);
       setSessions(filteredSessions);
     } catch (error) {
       console.error('Erreur chargement:', error);
@@ -130,10 +139,13 @@ const PublicSchedule = () => {
     }
   };
 
-  const handleWizardComplete = () => {
+  const handleWizardComplete = (periodToUse) => {
+    const finalPeriod = periodToUse || selectedPeriod;
+    console.log('🎯 handleWizardComplete appelée avec période:', finalPeriod);
     setFilters({ branch: tempBranch, level: tempLevel });
+    setSelectedPeriod(finalPeriod);
     setShowWizard(false);
-    loadScheduleData(tempBranch, tempLevel, selectedPeriod);
+    loadScheduleData(tempBranch, tempLevel, finalPeriod);
   };
 
   const handleReset = () => {
@@ -235,7 +247,7 @@ const PublicSchedule = () => {
               
               <div className="space-y-3">
                 <button
-                  onClick={() => { setSelectedPeriod('normal'); handleWizardComplete(); }}
+                  onClick={() => handleWizardComplete('normal')}
                   className="w-full p-6 border-2 border-blue-500 bg-blue-50 rounded-xl hover:bg-blue-100 transition-all transform hover:scale-105"
                 >
                   <div className="flex items-center gap-4">
@@ -250,7 +262,7 @@ const PublicSchedule = () => {
                 {availablePeriods.map(period => (
                   <button
                     key={period.id}
-                    onClick={() => { setSelectedPeriod(period.id); handleWizardComplete(); }}
+                    onClick={() => handleWizardComplete(period.id)}
                     className="w-full p-6 border-2 border-purple-500 bg-purple-50 rounded-xl hover:bg-purple-100 transition-all transform hover:scale-105"
                   >
                     <div className="flex items-center gap-4">
