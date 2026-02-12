@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, FileDown, Building2, User } from 'lucide-react';
+import { formatLevelDisplay } from './levelUtils';
 
 const PDFExportModal = ({ sessions, branches, branchesData, onClose }) => {
   console.log('🎯 PDFExportModal OUVERT !', { sessions, branches, branchesData });
@@ -144,7 +145,7 @@ const PDFExportModal = ({ sessions, branches, branchesData, onClose }) => {
         const tableData = daySessions.map(session => {
           const row = [
             `${session.startTime} - ${session.endTime}`,
-            session.level || '-',
+            formatLevelDisplay(session.level),
             session.subject || '-',
           ];
 

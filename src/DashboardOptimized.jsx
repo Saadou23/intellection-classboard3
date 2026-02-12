@@ -125,7 +125,13 @@ const DashboardOptimized = ({ sessions, onBack }) => {
     const levelsSet = new Set();
     Object.values(sessions).forEach(branchSessions => {
       branchSessions.forEach(session => {
-        if (session.level) levelsSet.add(session.level);
+        if (session.level) {
+          // Gérer les niveaux multiples "1BAC + 2BAC"
+          const sessionLevels = session.level.includes(' + ') 
+            ? session.level.split(' + ')
+            : [session.level];
+          sessionLevels.forEach(level => levelsSet.add(level));
+        }
       });
     });
     return Array.from(levelsSet).sort();

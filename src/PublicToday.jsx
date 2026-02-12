@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, MapPin, BookOpen, User, RefreshCw } from 'lucide-react';
 import { db } from './firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, getDoc } from 'firebase/firestore';
+import { getActivePeriodId } from './periodUtils';
+import { formatLevelDisplay } from './levelUtils';
 
 const PublicToday = () => {
   const [sessions, setSessions] = useState([]);
@@ -10,6 +12,7 @@ const PublicToday = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedBranch, setSelectedBranch] = useState(null);
   const [selectedLevel, setSelectedLevel] = useState(null);
+  const [branchesData, setBranchesData] = useState([]);
 
   const branches = ['Hay Salam', 'Doukkali', 'Saada'];
 
@@ -78,6 +81,25 @@ const PublicToday = () => {
     if (branchParam) {
       setSelectedBranch(branchParam);
     }
+
+    // Charger branchesData pour détection période
+    const loadBranchesData = async () => {
+      try {
+        const branchesRef = doc(db, 'settings', 'branches');
+        const branchesSnap = await getDoc(branchesRef);
+        
+        if (branchesSnap.exists()) {
+          const data = branchesSnap.data();
+          const branchesArray = data.branches || [];
+          setBranchesData(branchesArray);
+          console.log('✅ BranchesData chargé pour détection période');
+        }
+      } catch (error) {
+        console.error('❌ Erreur chargement branchesData:', error);
+      }
+    };
+    
+    loadBranchesData();
   }, []);
 
   useEffect(() => {
@@ -91,7 +113,23 @@ const PublicToday = () => {
         const branchSessions = docSnap.data().sessions || [];
         const today = currentTime.getDay();
         
-        const todaySessions = branchSessions
+        // DÉTECTION AUTOMATIQUE DE LA PÉRIODE ACTIVE
+        const activePeriodId = getActivePeriodId(branchesData);
+        console.log('🔍 Période active détectée:', activePeriodId || 'Normal');
+        
+        // Filtrer par période AVANT de filtrer par jour
+        let periodFilteredSessions = branchSessions;
+        if (activePeriodId) {
+          // Période active (ex: Ramadan) → Afficher seulement les sessions Ramadan
+          periodFilteredSessions = branchSessions.filter(s => s.period === activePeriodId);
+          console.log(`🌙 Mode Ramadan actif - ${periodFilteredSessions.length} sessions Ramadan`);
+        } else {
+          // Pas de période active → Afficher seulement les sessions normales
+          periodFilteredSessions = branchSessions.filter(s => !s.period || s.period === null);
+          console.log(`📅 Mode Normal - ${periodFilteredSessions.length} sessions normales`);
+        }
+        
+        const todaySessions = periodFilteredSessions
           .filter(s => {
             if (s.isExceptional && s.specificDate) {
               return s.specificDate === currentTime.toISOString().split('T')[0];
@@ -100,14 +138,14 @@ const PublicToday = () => {
           })
           .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
-        console.log('📚 Sessions chargées:', todaySessions.length);
+        console.log('📚 Sessions aujourd\'hui:', todaySessions.length);
         setAllSessions(todaySessions);
         setLoading(false);
       }
     });
 
     return () => unsubscribe();
-  }, [selectedBranch]);
+  }, [selectedBranch, branchesData]);
 
   const isSessionOngoing = (session) => {
     const [startH, startM] = session.startTime.split(':').map(Number);
@@ -282,7 +320,7 @@ const PublicToday = () => {
                       {/* Niveau */}
                       <div className="md:col-span-2">
                         <div className="font-bold text-xl text-gray-800">
-                          {session.level}
+                          {formatLevelDisplay(session.level)}
                         </div>
                       </div>
 

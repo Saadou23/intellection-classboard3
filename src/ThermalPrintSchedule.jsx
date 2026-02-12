@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { filterSessionsByPeriod, getPeriodIcon } from './periodUtils';
+import { sessionIncludesLevel, getSessionLevels } from './levelUtils';
 import { Printer, X } from 'lucide-react';
 
 const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => {
@@ -45,7 +46,13 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
   useEffect(() => {
     if (selectedBranch) {
       const branchSessions = sessions[selectedBranch] || [];
-      const levels = [...new Set(branchSessions.map(s => s.level))].sort();
+      // Extraire tous les niveaux en gérant les multi-niveaux
+      const levelsSet = new Set();
+      branchSessions.forEach(s => {
+        const sessionLevels = getSessionLevels(s);
+        sessionLevels.forEach(level => levelsSet.add(level));
+      });
+      const levels = [...levelsSet].sort();
       setAvailableLevels(levels);
       setSelectedLevel('ALL');
     } else {
@@ -64,7 +71,7 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
     
     const filteredSessions = level === 'ALL' 
       ? branchSessions 
-      : branchSessions.filter(s => s.level === level);
+      : branchSessions.filter(s => sessionIncludesLevel(s, level));
     
     let schedule = {};
     daysOfWeek.forEach(day => {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getAllPeriods, getPeriodIcon } from './periodUtils';
+import { sessionIncludesLevel, getSessionLevels } from './levelUtils';
 import { Calendar, Clock, MapPin, BookOpen, User, Home, Moon } from 'lucide-react';
 import { db } from './firebase';
 import { doc, getDoc } from 'firebase/firestore';
@@ -74,7 +75,13 @@ const PublicSchedule = () => {
       
       if (docSnap.exists()) {
         const branchSessions = docSnap.data().sessions || [];
-        const levels = [...new Set(branchSessions.map(s => s.level))].sort();
+        // Extraire tous les niveaux en gérant multi-niveaux
+        const levelsSet = new Set();
+        branchSessions.forEach(s => {
+          const sessionLevels = getSessionLevels(s);
+          sessionLevels.forEach(level => levelsSet.add(level));
+        });
+        const levels = [...levelsSet].sort();
         setAllLevels(levels);
       }
     } catch (error) {
@@ -100,34 +107,14 @@ const PublicSchedule = () => {
       }
 
       let filteredSessions = allSessions;
-      
-      console.log('📊 Total sessions chargées:', allSessions.length);
-      console.log('📊 Sessions avec period:', allSessions.filter(s => s.period).length);
-      console.log('📊 Sessions sans period:', allSessions.filter(s => !s.period).length);
-      
-      // Debug détaillé des sessions avec période
-      const sessionsWithPeriod = allSessions.filter(s => s.period);
-      console.log('📋 Détail des sessions avec période:');
-      sessionsWithPeriod.forEach((s, i) => {
-        console.log(`  [${i}] period="${s.period}" | ${s.dayOfWeek} | ${s.startTime}-${s.endTime} | ${s.level} | ${s.professor}`);
-      });
-      
       if (period === 'normal') {
-        // Emploi normal : sessions SANS période OU avec period explicitement null
-        filteredSessions = filteredSessions.filter(s => {
-          return !s.period || s.period === null || s.period === undefined || s.period === '';
-        });
-        console.log('🔵 Sessions normales filtrées:', filteredSessions.length);
+        filteredSessions = filteredSessions.filter(s => !s.period || s.period === null);
       } else {
-        // Période spécifique : UNIQUEMENT les sessions avec cet ID exact
-        filteredSessions = filteredSessions.filter(s => {
-          return s.period && s.period === period;
-        });
-        console.log('🌙 Sessions période', period, 'filtrées:', filteredSessions.length);
+        filteredSessions = filteredSessions.filter(s => s.period === period);
       }
       
       if (level) {
-        filteredSessions = filteredSessions.filter(s => s.level === level);
+        filteredSessions = filteredSessions.filter(s => sessionIncludesLevel(s, level));
       }
 
       filteredSessions.sort((a, b) => {
@@ -143,12 +130,10 @@ const PublicSchedule = () => {
     }
   };
 
-  const handleWizardComplete = (periodId) => {
-    console.log('✅ Wizard terminé avec période:', periodId);
+  const handleWizardComplete = () => {
     setFilters({ branch: tempBranch, level: tempLevel });
-    setSelectedPeriod(periodId);
     setShowWizard(false);
-    loadScheduleData(tempBranch, tempLevel, periodId);
+    loadScheduleData(tempBranch, tempLevel, selectedPeriod);
   };
 
   const handleReset = () => {
@@ -250,9 +235,7 @@ const PublicSchedule = () => {
               
               <div className="space-y-3">
                 <button
-                  onClick={() => { 
-                    handleWizardComplete('normal'); 
-                  }}
+                  onClick={() => { setSelectedPeriod('normal'); handleWizardComplete(); }}
                   className="w-full p-6 border-2 border-blue-500 bg-blue-50 rounded-xl hover:bg-blue-100 transition-all transform hover:scale-105"
                 >
                   <div className="flex items-center gap-4">
@@ -267,9 +250,7 @@ const PublicSchedule = () => {
                 {availablePeriods.map(period => (
                   <button
                     key={period.id}
-                    onClick={() => { 
-                      handleWizardComplete(period.id); 
-                    }}
+                    onClick={() => { setSelectedPeriod(period.id); handleWizardComplete(); }}
                     className="w-full p-6 border-2 border-purple-500 bg-purple-50 rounded-xl hover:bg-purple-100 transition-all transform hover:scale-105"
                   >
                     <div className="flex items-center gap-4">

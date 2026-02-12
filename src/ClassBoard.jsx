@@ -5,6 +5,7 @@ import { doc, setDoc, getDoc, onSnapshot } from 'firebase/firestore';
 import Dashboard from './DashboardOptimized';
 import SettingsManager from './SettingsManager';
 import SearchableSelect from './SearchableSelect';
+import MultiLevelSelect from './MultiLevelSelect';
 import BranchManager from './BranchManager';
 import ConflictDetector, { hasConflicts } from './ConflictDetector';
 import ExceptionalSessionManager from './ExceptionalSessionManager';
@@ -76,7 +77,7 @@ useSessionNotifications(sessions, selectedBranch, currentTime, soundEnabled);
     dayOfWeek: new Date().getDay(),
     startTime: '19:00',
     endTime: '20:30',
-    level: '',
+    levels: [], // Changé de 'level' à 'levels' en tableau
     subject: '',
     professor: '',
     room: '',
@@ -332,32 +333,73 @@ const branchNames = branchesArray.map(b => b.name) || [];
       return;
     }
 
-    // Vérifier les conflits critiques
-    const sessionToCheck = {
-      ...formData,
-      id: editingSession?.id,
-      period: periodMode
-    };
-
-    if (hasConflicts(sessions, sessionToCheck, selectedBranch)) {
-      alert('⛔ Impossible d\'enregistrer : Des conflits critiques ont été détectés.\n\n' +
-            'Veuillez résoudre les conflits affichés en rouge avant de sauvegarder.');
+    // Vérifier qu'au moins un niveau est sélectionné
+    if (!formData.levels || formData.levels.length === 0) {
+      alert('⚠️ Veuillez sélectionner au moins un niveau');
       return;
     }
 
-    const newSession = {
-      ...formData,
-      id: editingSession?.id || Date.now().toString(),
-      period: periodMode
-    };
-
     const branchSessions = sessions[selectedBranch] || [];
-    const updatedSessions = editingSession
-      ? branchSessions.map(s => s.id === editingSession.id ? newSession : s)
-      : [...branchSessions, newSession];
 
-    // Sauvegarder immédiatement dans Firebase
-    await saveBranchData(selectedBranch, updatedSessions);
+    if (editingSession) {
+      // MODE ÉDITION : Mettre à jour la session existante
+      // On garde un seul niveau pour l'édition (le premier sélectionné)
+      const sessionToCheck = {
+        ...formData,
+        level: formData.levels[0], // Utiliser le premier niveau pour la compatibilité
+        id: editingSession.id,
+        period: periodMode
+      };
+
+      if (hasConflicts(sessions, sessionToCheck, selectedBranch)) {
+        alert('⛔ Impossible d\'enregistrer : Des conflits critiques ont été détectés.\n\n' +
+              'Veuillez résoudre les conflits affichés en rouge avant de sauvegarder.');
+        return;
+      }
+
+      const updatedSession = {
+        ...formData,
+        level: formData.levels.join(' + '), // Combiner les niveaux : "1BAC + 2BAC"
+        id: editingSession.id,
+        period: periodMode
+      };
+
+      const updatedSessions = branchSessions.map(s => 
+        s.id === editingSession.id ? updatedSession : s
+      );
+
+      await saveBranchData(selectedBranch, updatedSessions);
+      
+    } else {
+      // MODE AJOUT : Créer une session par niveau
+      const sessionsToAdd = [];
+
+      for (const level of formData.levels) {
+        const sessionToCheck = {
+          ...formData,
+          level: level,
+          id: `${Date.now()}-${level}`,
+          period: periodMode
+        };
+
+        if (hasConflicts(sessions, sessionToCheck, selectedBranch)) {
+          alert(`⛔ Conflit détecté pour ${level}.\n\nVeuillez résoudre les conflits avant de sauvegarder.`);
+          return;
+        }
+
+        sessionsToAdd.push({
+          ...formData,
+          level: level,
+          id: `${Date.now()}-${level}`,
+          period: periodMode
+        });
+      }
+
+      const updatedSessions = [...branchSessions, ...sessionsToAdd];
+      await saveBranchData(selectedBranch, updatedSessions);
+
+      alert(`✅ ${sessionsToAdd.length} cours créé(s) avec succès !`);
+    }
     
     setFormData(formInitialState);
     setEditingSession(null);
@@ -391,11 +433,14 @@ const branchNames = branchesArray.map(b => b.name) || [];
   };
 
   const editSession = (session) => {
+    // Convertir level en tableau levels
+    const levelsArray = session.level ? session.level.split(' + ') : [];
+    
     setFormData({
       dayOfWeek: session.dayOfWeek,
       startTime: session.startTime,
       endTime: session.endTime,
-      level: session.level,
+      levels: levelsArray, // Convertir en tableau
       subject: session.subject,
       professor: session.professor,
       room: session.room,
@@ -1122,13 +1167,10 @@ const branchNames = branchesArray.map(b => b.name) || [];
                       />
                     </div>
                     <div>
-                      <SearchableSelect
-                        label="Filière/Niveau"
-                        options={levels}
-                        value={formData.level}
-                        onChange={(value) => setFormData({ ...formData, level: value })}
-                        placeholder={levels.length > 0 ? "Sélectionner un niveau" : "Aucun niveau configuré"}
-                        required
+                      <MultiLevelSelect
+                        levels={levels}
+                        selectedLevels={formData.levels}
+                        onChange={(selectedLevels) => setFormData({ ...formData, levels: selectedLevels })}
                       />
                       {levels.length === 0 && (
                         <p className="text-xs text-orange-600 mt-1">
