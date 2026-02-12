@@ -6,6 +6,8 @@ const AvailableRoomsViewer = ({ sessions, branches, branchesData, onClose }) => 
   const [selectedDay, setSelectedDay] = useState(new Date().getDay());
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('10:30');
+  const [selectedPeriod, setSelectedPeriod] = useState('normal');
+  const [availablePeriods, setAvailablePeriods] = useState([]);
 
   const daysOfWeek = [
     { value: 0, label: 'Dimanche' },
@@ -16,6 +18,23 @@ const AvailableRoomsViewer = ({ sessions, branches, branchesData, onClose }) => 
     { value: 5, label: 'Vendredi' },
     { value: 6, label: 'Samedi' }
   ];
+
+  // Charger les périodes disponibles
+  useEffect(() => {
+    if (branchesData && branchesData.length > 0) {
+      const periods = [];
+      branchesData.forEach(branch => {
+        if (branch.exceptionalPeriods && branch.exceptionalPeriods.length > 0) {
+          branch.exceptionalPeriods.forEach(period => {
+            if (!periods.find(p => p.id === period.id)) {
+              periods.push(period);
+            }
+          });
+        }
+      });
+      setAvailablePeriods(periods);
+    }
+  }, [branchesData]);
 
   const normalizeRoomName = (room) => {
     if (!room) return null;
@@ -65,6 +84,15 @@ const AvailableRoomsViewer = ({ sessions, branches, branchesData, onClose }) => 
       const normalizedRoom = normalizeRoomName(session.room);
       if (normalizedRoom !== room) return false;
       
+      // Filtrer par période
+      if (selectedPeriod === 'normal') {
+        // Emploi normal : sessions sans period
+        if (session.period) return false;
+      } else {
+        // Période spécifique : sessions avec ce period
+        if (session.period !== selectedPeriod) return false;
+      }
+      
       return timesOverlap(startTime, endTime, session.startTime, session.endTime);
     });
   };
@@ -90,7 +118,7 @@ const AvailableRoomsViewer = ({ sessions, branches, branchesData, onClose }) => 
         </div>
 
         <div className="p-6 border-b bg-gray-50">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2">🏢 Centre</label>
               <select
@@ -105,7 +133,23 @@ const AvailableRoomsViewer = ({ sessions, branches, branchesData, onClose }) => 
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">📅 Jour</label>
+              <label className="block text-sm font-bold text-gray-700 mb-2">📅 Période</label>
+              <select
+                value={selectedPeriod}
+                onChange={(e) => setSelectedPeriod(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="normal">📅 Emploi Normal</option>
+                {availablePeriods.map(period => (
+                  <option key={period.id} value={period.id}>
+                    🌙 {period.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">📆 Jour</label>
               <select
                 value={selectedDay}
                 onChange={(e) => setSelectedDay(parseInt(e.target.value))}
@@ -140,7 +184,7 @@ const AvailableRoomsViewer = ({ sessions, branches, branchesData, onClose }) => 
 
           <div className="mt-4 text-center bg-indigo-50 border border-indigo-200 rounded-lg p-3">
             <p className="text-indigo-900 font-semibold">
-              🔍 Recherche : {daysOfWeek.find(d => d.value === selectedDay)?.label} de {startTime} à {endTime}
+              🔍 Recherche : {selectedPeriod === 'normal' ? 'Normal' : availablePeriods.find(p => p.id === selectedPeriod)?.name || 'Période'} - {daysOfWeek.find(d => d.value === selectedDay)?.label} de {startTime} à {endTime}
             </p>
           </div>
         </div>
