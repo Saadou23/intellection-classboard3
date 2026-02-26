@@ -51,11 +51,12 @@ const PublicToday = () => {
   useEffect(() => {
     if (allSessions.length === 0) return;
     const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
-    
+
     const filtered = allSessions.filter(session => {
-      if (session.status && ['cancelled', 'delayed', 'absent'].includes(session.status)) return true;
       const [endH, endM] = session.endTime.split(':').map(Number);
-      return currentMinutes < (endH * 60 + endM);
+      const endMinutes = endH * 60 + endM;
+      // Masquer toutes les séances terminées (peu importe leur statut)
+      return currentMinutes < endMinutes;
     });
 
     const finalFiltered = selectedLevel ? filtered.filter(s => s.level === selectedLevel) : filtered;

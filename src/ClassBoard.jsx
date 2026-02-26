@@ -522,14 +522,11 @@ const branchNames = branchesArray.map(b => b.name) || [];
     const currentMinutes = currentH * 60 + currentM;
     
     sorted = sorted.filter(session => {
-      // Garder les cours avec statuts spéciaux (annulé, retardé, etc.)
-      if (session.status && ['cancelled', 'delayed', 'absent'].includes(session.status)) {
-        return true;
-      }
-      
-      // Masquer les cours terminés
       const [endH, endM] = session.endTime.split(':').map(Number);
       const endMinutes = endH * 60 + endM;
+
+      // Masquer tous les cours terminés (peu importe leur statut)
+      // Statuts spéciaux redeviennent 'normal' après la fin
       return currentMinutes < endMinutes;
     });
   }
@@ -557,31 +554,31 @@ const branchNames = branchesArray.map(b => b.name) || [];
   };
 
   const getSessionStatus = (session) => {
-    // Statuts manuels prioritaires (sauf 'normal' qui est juste l'absence de problème)
-    if (session.status === 'cancelled' || session.status === 'delayed' || session.status === 'absent') {
-      return session.status;
-    }
-    
-    // Pour les sessions avec status 'normal' ou undefined, calculer le statut dynamique
     const [startHour, startMin] = session.startTime.split(':').map(Number);
     const [endHour, endMin] = session.endTime.split(':').map(Number);
     const currentHour = currentTime.getHours();
     const currentMin = currentTime.getMinutes();
-    
+
     const currentMinutes = currentHour * 60 + currentMin;
     const startMinutes = startHour * 60 + startMin;
     const endMinutes = endHour * 60 + endMin;
-    
-    // TERMINÉ si l'heure actuelle dépasse ou égale l'heure de fin
+
+    // Vérifier d'abord si la séance est terminée
     if (currentMinutes >= endMinutes) {
+      // Si terminée, retourner 'finished' indépendamment du statut
       return 'finished';
     }
-    
+
+    // Avant la fin : utiliser les statuts manuels
+    if (session.status === 'cancelled' || session.status === 'delayed' || session.status === 'absent') {
+      return session.status;
+    }
+
     // EN COURS si l'heure actuelle est entre le début et la fin
     if (currentMinutes >= startMinutes && currentMinutes < endMinutes) {
       return 'ongoing';
     }
-    
+
     // PRÉVU si avant le début
     return 'normal';
   };
