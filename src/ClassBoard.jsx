@@ -37,6 +37,8 @@ const ClassBoard = () => {
   const [showExceptionalSession, setShowExceptionalSession] = useState(false);
   const [professors, setProfessors] = useState([]);
   const [levels, setLevels] = useState([]);
+  const [subjects, setSubjects] = useState([]);
+  const [maxGroups, setMaxGroups] = useState(6);
   const [availableRooms, setAvailableRooms] = useState([]);
   const [showSoundTester, setShowSoundTester] = useState(false);
   const [branches, setBranches] = useState(['Hay Salam', 'Doukkali', 'Saada']); // Valeurs par défaut
@@ -78,6 +80,7 @@ useSessionNotifications(sessions, selectedBranch, currentTime, soundEnabled);
     endTime: '20:30',
     levels: [], // Changé de 'level' à 'levels' en tableau
     subject: '',
+    groupe: '',
     professor: '',
     room: '',
     status: 'normal',
@@ -120,6 +123,8 @@ useSessionNotifications(sessions, selectedBranch, currentTime, soundEnabled);
         const data = docSnap.data();
         setProfessors(data.professors || []);
         setLevels(data.levels || []);
+        setSubjects(data.subjects || []);
+        setMaxGroups(data.maxGroups || 6);
       }
     } catch (error) {
       console.log('Pas de paramètres globaux');
@@ -795,7 +800,12 @@ const branchNames = branchesArray.map(b => b.name) || [];
                             {session.level}
                           </div>
                           <div className="col-span-2 text-sm break-words leading-tight">
-                            {session.subject}
+                            <div>{session.subject}</div>
+                            {session.groupe && (
+                              <div className="text-xs text-blue-500 font-medium mt-0.5">
+                                {session.groupe}
+                              </div>
+                            )}
                           </div>
                           <div className="col-span-2 text-sm break-words leading-tight">
                             {session.professor}
@@ -918,7 +928,7 @@ onClick={() => setShowAvailableRooms(true)}
               className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
             >
               <Sliders className="w-4 h-4" />
-              Profs & Niveaux
+              Profs, Niveaux Profs & Niveaux Matières
             </button>
            
             <button
@@ -1202,14 +1212,34 @@ onClick={() => setShowAvailableRooms(true)}
                       )}
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Matière</label>
-                      <input
-                        type="text"
+                      <SearchableSelect
+                        label="Matière"
+                        options={subjects}
                         value={formData.subject}
-                        onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                        placeholder="Ex: Mathématiques"
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        onChange={(value) => setFormData({ ...formData, subject: value })}
+                        placeholder={subjects.length > 0 ? "Sélectionner une matière" : "Aucune matière configurée"}
+                        required
                       />
+                      {subjects.length === 0 && (
+                        <p className="text-xs text-orange-600 mt-1">
+                          ⚠️ Configurez d'abord les matières dans les paramètres
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Groupe <span className="text-gray-400 text-xs">(optionnel)</span>
+                      </label>
+                      <select
+                        value={formData.groupe}
+                        onChange={(e) => setFormData({ ...formData, groupe: e.target.value })}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">-- Aucun groupe --</option>
+                        {Array.from({ length: maxGroups }, (_, i) => (
+                          <option key={i + 1} value={`G${i + 1}`}>Groupe {i + 1}</option>
+                        ))}
+                      </select>
                     </div>
                     <div>
                       <SearchableSelect
@@ -1597,6 +1627,8 @@ onClick={() => setShowAvailableRooms(true)}
           selectedBranch={selectedBranch}
           professors={professors}
           levels={levels}
+          subjects={subjects}
+          maxGroups={maxGroups}
           onAddSession={addExceptionalSession}
           onClose={() => setShowExceptionalSession(false)}
         />

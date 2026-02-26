@@ -336,7 +336,7 @@ const PublicSchedule = () => {
                     <div className="space-y-3">
                       {daySessions.map((session, idx) => (
                         <div key={idx} className="bg-gray-50 rounded-lg p-4 hover:shadow-md transition-shadow">
-                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                             <div className="flex items-center gap-2">
                               <Clock className="w-5 h-5 text-blue-600" />
                               <span className="font-semibold">{session.startTime} - {session.endTime}</span>
@@ -344,6 +344,13 @@ const PublicSchedule = () => {
                             <div className="flex items-center gap-2">
                               <BookOpen className="w-5 h-5 text-green-600" />
                               <span>{session.level} - {session.subject}</span>
+                            </div>
+                            <div className="flex items-center justify-center">
+                              {session.groupe && (
+                                <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+                                  {session.groupe}
+                                </span>
+                              )}
                             </div>
                             <div className="flex items-center gap-2">
                               <User className="w-5 h-5 text-purple-600" />

@@ -6,6 +6,8 @@ const ExceptionalSessionManager = ({
   selectedBranch, 
   professors, 
   levels, 
+  subjects,
+  maxGroups,
   onAddSession,
   onClose 
 }) => {
@@ -97,6 +99,7 @@ const ExceptionalSessionManager = ({
       endTime: '20:30',
       level: '',
       subject: '',
+      groupe: '',
       professor: '',
       room: '',
       reason: '',
@@ -220,19 +223,39 @@ const ExceptionalSessionManager = ({
 
             {/* Matière */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Matière *
-              </label>
-              <input
-                type="text"
+              <SearchableSelect
+                label="Matière *"
+                options={subjects}
                 value={formData.subject}
-                onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                placeholder="Ex: Mathématiques"
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                onChange={(value) => setFormData({ ...formData, subject: value })}
+                placeholder={subjects.length > 0 ? "Sélectionner une matière" : "Aucune matière configurée"}
+                required
               />
+              {subjects.length === 0 && (
+                <p className="text-xs text-orange-600 mt-1">
+                  ⚠️ Configurez d'abord les matières dans les paramètres
+                </p>
+              )}
             </div>
 
-            {/* Professeur */}
+            {/* Groupe */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Groupe <span className="text-gray-400 text-xs">(optionnel)</span>
+              </label>
+              <select
+                value={formData.groupe}
+                onChange={(e) => setFormData({ ...formData, groupe: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                <option value="">-- Aucun groupe --</option>
+                {Array.from({ length: maxGroups }, (_, i) => (
+                  <option key={i + 1} value={`G${i + 1}`}>Groupe {i + 1}</option>
+                ))}
+              </select>
+            </div>
+
+                        {/* Professeur */}
             <div>
               <SearchableSelect
                 label="Professeur *"

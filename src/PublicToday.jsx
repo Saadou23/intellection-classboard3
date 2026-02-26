@@ -296,11 +296,18 @@ const PublicToday = () => {
                           </span>
                         </div>
 
-                        <div className="grid md:grid-cols-2 gap-3 text-gray-700">
+                        <div className="grid md:grid-cols-3 gap-3 text-gray-700">
                           {session.professor && (
                             <div className="flex items-center gap-2">
                               <User className="w-5 h-5 text-gray-400" />
                               <span className="text-lg">{session.professor}</span>
+                            </div>
+                          )}
+                          {session.groupe && (
+                            <div className="flex items-center gap-2">
+                              <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+                                {session.groupe}
+                              </span>
                             </div>
                           )}
                           {session.room && (

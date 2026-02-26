@@ -183,7 +183,7 @@ const PDFExportModal = ({ sessions, branches, branchesData, onClose }) => {
             row.push(formatLevelDisplay(session.level));
           }
           
-          row.push(session.subject || '-');
+          row.push((session.subject || '-') + (session.groupe ? ' · ' + session.groupe : ''));
 
           if (exportType === 'branch') {
             row.push(session.professor || '-');
