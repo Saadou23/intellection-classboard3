@@ -17,6 +17,9 @@ import useSessionNotifications from './useSessionNotifications';
 import SoundSystem from './SoundSystem';
 import ThermalPrintSchedule from './ThermalPrintSchedule';
 import PDFExportModal from './PDFExportModal';
+import DisciplineBoard from './DisciplineBoard';
+import ProfPresenceModal from './ProfPresenceModal';
+import { loadTodayRecords, createDisciplineRecord } from './disciplineService';
 import { Volume2, VolumeX, Eye } from 'lucide-react';
 const ClassBoard = () => {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -49,6 +52,10 @@ const [showAvailableRooms, setShowAvailableRooms] = useState(false);
 const [soundEnabled, setSoundEnabled] = useState(true);
 const [showThermalPrint, setShowThermalPrint] = useState(false);
   const [showPDFExport, setShowPDFExport] = useState(false);
+  const [showDisciplineBoard, setShowDisciplineBoard] = useState(false);
+  const [presenceRecordId, setPresenceRecordId] = useState(null);
+  const [showPresenceModal, setShowPresenceModal] = useState(false);
+  const [presenceRecord, setPresenceRecord] = useState(null);
   const [periodMode, setPeriodMode] = useState(null); // null = normal, "ramadan-2025" = période
   const [availablePeriods, setAvailablePeriods] = useState([]);
   const [showPeriodSelector, setShowPeriodSelector] = useState(false);
@@ -897,6 +904,18 @@ const branchNames = branchesArray.map(b => b.name) || [];
     return <Dashboard sessions={sessions} onBack={() => setView('admin')} />;
   }
 
+  // Si on est sur le tableau de discipline
+  if (showDisciplineBoard) {
+    return (
+      <DisciplineBoard
+        sessions={sessions}
+        branches={branchesData}
+        selectedBranch={selectedBranch}
+        onBack={() => setShowDisciplineBoard(false)}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-blue-900 text-white p-4 shadow-lg">
@@ -948,6 +967,12 @@ onClick={() => setShowAvailableRooms(true)}
             >
               <FileDown className="w-4 h-4" />
               📄 Export PDF
+            </button>
+            <button
+              onClick={() => setShowDisciplineBoard(true)}
+              className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
+            >
+              📊 Discipline
             </button>
             <button
               onClick={() => setShowTimeSettings(!showTimeSettings)}
@@ -1546,6 +1571,13 @@ onClick={() => setShowAvailableRooms(true)}
                         <td className="px-4 py-3 text-sm">
                           <div className="flex gap-2">
                             <button
+                              onClick={() => setShowDisciplineBoard(true)}
+                              className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs font-medium transition-all"
+                              title="Pointer présence/absence"
+                            >
+                              📍
+                            </button>
+                            <button
                               onClick={() => editSession(session)}
                               className="text-blue-600 hover:text-blue-800"
                             >
@@ -1650,7 +1682,22 @@ onClick={() => setShowAvailableRooms(true)}
           onClose={() => setShowPDFExport(false)}
         />
       )}
-      
+
+      {/* Modal de pointage présence */}
+      {showPresenceModal && presenceRecord && (
+        <ProfPresenceModal
+          record={presenceRecord}
+          onClose={() => {
+            setShowPresenceModal(false);
+            setPresenceRecord(null);
+          }}
+          onSuccess={() => {
+            setShowPresenceModal(false);
+            setPresenceRecord(null);
+          }}
+        />
+      )}
+
     </div>
   );
 };
