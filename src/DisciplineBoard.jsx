@@ -103,8 +103,8 @@ const DisciplineBoard = ({ sessions, branches, selectedBranch, onBack }) => {
       // Filter sessions based on period (same logic as PublicToday)
       let periodFilteredSessions;
       if (isInExceptionalPeriod) {
-        // In exceptional period: show ONLY sessions for this period
-        periodFilteredSessions = branchSessions.filter(s => s.period === activePeriodId);
+        // In exceptional period: show sessions for this period OR normal sessions (for other branches)
+        periodFilteredSessions = branchSessions.filter(s => s.period === activePeriodId || !s.period || s.period === null || s.period === '');
         console.log('DEBUG - Filtering for period:', activePeriodId, '| Found:', periodFilteredSessions.length);
       } else {
         // Not in exceptional period: show ONLY normal sessions

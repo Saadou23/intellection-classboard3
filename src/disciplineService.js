@@ -222,8 +222,6 @@ export async function loadTodayRecords(branch) {
     const querySnapshot = await getDocs(q);
     const records = querySnapshot.docs.map(doc => doc.data());
 
-    console.log('DEBUG loadTodayRecords - Today:', today, '| Branch:', branch, '| Records found:', records.length);
-
     // Sort client-side by startTime_planned
     return records.sort((a, b) => {
       const timeA = a.startTime_planned || '';

@@ -487,47 +487,27 @@ const branchNames = branchesArray.map(b => b.name) || [];
       
       const isActive = todayDate >= startDate && todayDate <= endDate;
       
-      if (isActive) {
-        console.log(`✅ Période active trouvée pour ${selectedBranch}:`, period.name, period.id);
-      }
-      
       return isActive;
     });
-    
+
     activePeriodId = activePeriod ? activePeriod.id : null;
   }
-  
-  console.log(`🔍 AFFICHAGE ÉTUDIANT - Branche: ${selectedBranch}, Période: ${activePeriodId || 'Normal'}`);
-  
+
   // Filtrer par période AVANT de filtrer par date
   const periodFilteredSessions = filterSessionsByPeriod(branchSessions, activePeriodId);
-  console.log(`📚 Sessions après filtrage période: ${periodFilteredSessions.length}/${branchSessions.length}`);
-  
-  // Afficher quelques exemples pour debug
-  if (periodFilteredSessions.length > 0) {
-    console.log('📝 Exemple session:', {
-      subject: periodFilteredSessions[0].subject,
-      level: periodFilteredSessions[0].level,
-      period: periodFilteredSessions[0].period || 'normal',
-      dayOfWeek: periodFilteredSessions[0].dayOfWeek
-    });
-  } else {
-    console.warn('⚠️ AUCUNE session après filtrage période !');
-    console.log('💡 Vérifiez que les sessions ont le champ "period":', activePeriodId);
-  }
-  
+
   // Filtrer avec les règles intelligentes
   const todaySessions = filterSessionsForDate(periodFilteredSessions, today);
-  
+
   // Trier par heure
   let sorted = todaySessions.sort((a, b) => a.startTime.localeCompare(b.startTime));
-  
+
   // MASQUER LES COURS TERMINÉS sur l'affichage étudiant
   if (view === 'display') {
     const currentH = currentTime.getHours();
     const currentM = currentTime.getMinutes();
     const currentMinutes = currentH * 60 + currentM;
-    
+
     sorted = sorted.filter(session => {
       const [endH, endM] = session.endTime.split(':').map(Number);
       const endMinutes = endH * 60 + endM;
@@ -537,8 +517,6 @@ const branchNames = branchesArray.map(b => b.name) || [];
       return currentMinutes < endMinutes;
     });
   }
-  
-  console.log(`✅ Sessions finales à afficher: ${sorted.length}`);
   
   // Pour l'affichage public/display : TOUTES les séances actives (pas de limite)
   // Pour l'admin : limiter à 6 séances pour ne pas surcharger
