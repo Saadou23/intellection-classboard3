@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Calendar, Clock, MapPin, BookOpen, User, RefreshCw } from 'lucide-react';
 import { db } from './firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { formatLevelDisplay } from './levelUtils';
+import VideoCarousel from './VideoCarousel';
+import { getVideos, getDefaultVideos } from './videoService';
 
 const PublicToday = () => {
   const [sessions, setSessions] = useState([]);
@@ -14,6 +16,13 @@ const PublicToday = () => {
   const [availablePeriods, setAvailablePeriods] = useState([]);
   const [selectedPeriod, setSelectedPeriod] = useState('auto');
   const [debugInfo, setDebugInfo] = useState('');
+
+  // Video Carousel states
+  const [videos, setVideos] = useState([]);
+  const [showVideoCarousel, setShowVideoCarousel] = useState(false);
+  const [videoLoadingError, setVideoLoadingError] = useState(false);
+  const inactivityTimerRef = useRef(null);
+  const advertisementTimerRef = useRef(null);
 
   const branches = ['Hay Salam', 'Doukkali', 'Saada'];
   const daysOfWeek = [
@@ -43,10 +52,64 @@ const PublicToday = () => {
     return activePeriod;
   };
 
+  // Load videos on mount
+  useEffect(() => {
+    const loadVideos = async () => {
+      try {
+        const fetchedVideos = await getVideos();
+        if (fetchedVideos.length > 0) {
+          setVideos(fetchedVideos);
+        } else {
+          // Use default sample videos if none in Firebase
+          setVideos(getDefaultVideos());
+        }
+      } catch (error) {
+        console.error('Erreur chargement vidéos:', error);
+        setVideoLoadingError(true);
+        setVideos(getDefaultVideos());
+      }
+    };
+    loadVideos();
+  }, []);
+
+  // Timer for current time
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Inactivity and Advertisement timers
+  useEffect(() => {
+    const resetInactivityTimer = () => {
+      // Clear existing timers
+      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+      if (advertisementTimerRef.current) clearTimeout(advertisementTimerRef.current);
+
+      // Screensaver: Show video if no sessions or all sessions ended
+      const hasActiveSessions = sessions.length > 0;
+
+      if (!hasActiveSessions && videos.length > 0 && !showVideoCarousel) {
+        // Show screensaver after 2 minutes of inactivity
+        inactivityTimerRef.current = setTimeout(() => {
+          setShowVideoCarousel(true);
+        }, 2 * 60 * 1000); // 2 minutes
+      }
+
+      // Advertisement: Show video every 10 minutes even if content is displayed
+      if (hasActiveSessions && videos.length > 0 && !showVideoCarousel) {
+        advertisementTimerRef.current = setTimeout(() => {
+          setShowVideoCarousel(true);
+        }, 10 * 60 * 1000); // 10 minutes
+      }
+    };
+
+    resetInactivityTimer();
+
+    return () => {
+      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+      if (advertisementTimerRef.current) clearTimeout(advertisementTimerRef.current);
+    };
+  }, [sessions, videos, showVideoCarousel]);
 
   useEffect(() => {
     if (allSessions.length === 0) return;
@@ -146,6 +209,10 @@ const PublicToday = () => {
   const getUniqueLevels = () => [...new Set(allSessions.map(s => s.level))].sort();
   const today = daysOfWeek.find(d => d.value === currentTime.getDay());
 
+  const handleCloseVideoCarousel = () => {
+    setShowVideoCarousel(false);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-900 to-blue-700 flex items-center justify-center">
@@ -178,7 +245,18 @@ const PublicToday = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-900 to-blue-700 p-4">
+    <>
+      {/* Video Carousel */}
+      {videos.length > 0 && (
+        <VideoCarousel
+          videos={videos}
+          isVisible={showVideoCarousel}
+          onClose={handleCloseVideoCarousel}
+        />
+      )}
+
+      {/* Main Content */}
+      <div className="min-h-screen bg-gradient-to-br from-blue-900 to-blue-700 p-4">
       <div className="max-w-7xl mx-auto">
         {/* HEADER AVEC SÉLECTEURS */}
         <div className="bg-white rounded-2xl shadow-2xl mb-6 overflow-hidden">
@@ -327,7 +405,8 @@ const PublicToday = () => {
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </>
   );
 };
 
