@@ -489,3 +489,91 @@ export function getSummaryStats(records) {
     averageRetard: averageRetard
   };
 }
+
+/**
+ * Format penalties with points and severity
+ * @param {Object} record - The discipline record
+ * @returns {Array} Array of formatted penalties
+ */
+export function formatPenalties(record) {
+  const penalties = [];
+
+  if (record.status === 'ABSENT') {
+    penalties.push({
+      type: 'ABSENCE',
+      label: 'Absence non justifiée',
+      points: -15,
+      severity: 'ÉLEVÉ',
+      description: 'Absence complète'
+    });
+  } else if (record.status === 'COMPLETED') {
+    // Retard penalties
+    if (record.retardMinutes !== null && record.retardMinutes > 0) {
+      let points = 0;
+      let type = '';
+      let label = '';
+
+      if (record.retardMinutes > 30) {
+        points = -7;
+        type = 'RETARD_GRAVE';
+        label = `Retard grave (${record.retardMinutes} min)`;
+      } else if (record.retardMinutes > 15) {
+        points = -5;
+        type = 'RETARD_MOYEN';
+        label = `Retard moyen (${record.retardMinutes} min)`;
+      } else if (record.retardMinutes > 5) {
+        points = -3;
+        type = 'RETARD_LEGER';
+        label = `Retard léger (${record.retardMinutes} min)`;
+      }
+
+      if (points !== 0) {
+        penalties.push({
+          type,
+          label,
+          points,
+          severity: record.retardMinutes > 30 ? 'ÉLEVÉ' : record.retardMinutes > 15 ? 'MOYEN' : 'FAIBLE',
+          description: `Arrivée à ${record.startTime_actual} (prévu: ${record.startTime_planned})`
+        });
+      }
+    }
+
+    // Early end penalty
+    if (record.earlyEndMinutes !== null && record.earlyEndMinutes > 10) {
+      penalties.push({
+        type: 'FIN_ANTICIPÉE',
+        label: `Fin anticipée (${record.earlyEndMinutes} min)`,
+        points: -10,
+        severity: 'MOYEN',
+        description: `Départ à ${record.endTime_actual} (prévu: ${record.endTime_planned})`
+      });
+    }
+
+    // Insufficient volume penalty
+    if (record.volumePercentage !== null && record.volumePercentage < 80) {
+      penalties.push({
+        type: 'VOLUME_INSUFFISANT',
+        label: `Volume insuffisant (${record.volumePercentage}%)`,
+        points: -8,
+        severity: 'ÉLEVÉ',
+        description: `${record.volumeActual} min / ${record.volumePlanned} min prévus`
+      });
+    }
+  }
+
+  return penalties;
+}
+
+/**
+ * Get severity color for display
+ * @param {string} severity - 'FAIBLE' | 'MOYEN' | 'ÉLEVÉ'
+ * @returns {Object} Color classes
+ */
+export function getSeverityColor(severity) {
+  const colors = {
+    'FAIBLE': 'bg-yellow-50 border-yellow-200 text-yellow-800',
+    'MOYEN': 'bg-orange-50 border-orange-200 text-orange-800',
+    'ÉLEVÉ': 'bg-red-50 border-red-200 text-red-800'
+  };
+  return colors[severity] || colors['FAIBLE'];
+}

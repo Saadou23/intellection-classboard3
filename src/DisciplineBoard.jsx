@@ -17,7 +17,9 @@ import {
   getDateRange,
   getUniqueProfessors,
   getSummaryStats,
-  createDisciplineRecord
+  createDisciplineRecord,
+  formatPenalties,
+  getSeverityColor
 } from './disciplineService';
 import { db } from './firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
@@ -45,7 +47,7 @@ const DisciplineBoard = ({ sessions, branches, selectedBranch, onBack }) => {
 
   // Load statistics when period or professor changes
   useEffect(() => {
-    if (activeTab === 'statistics' && selectedBranch) {
+    if ((activeTab === 'statistics' || activeTab === 'details') && selectedBranch) {
       loadStatisticsData();
     }
   }, [activeTab, selectedPeriod, selectedBranch]);
@@ -347,6 +349,228 @@ const DisciplineBoard = ({ sessions, branches, selectedBranch, onBack }) => {
     );
   };
 
+  // Render DETAILS tab
+  const renderDetailsTab = () => {
+    if (loading) {
+      return (
+        <div className="text-center py-8 text-gray-600">
+          Chargement en cours...
+        </div>
+      );
+    }
+
+    const profRecords = selectedProfessor
+      ? allRecords.filter(r => r.professorName === selectedProfessor)
+      : [];
+
+    if (profRecords.length === 0) {
+      return (
+        <div className="space-y-6">
+          <div className="bg-white rounded-lg shadow p-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Professeur
+              </label>
+              <select
+                value={selectedProfessor}
+                onChange={(e) => setSelectedProfessor(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled
+              >
+                <option>Aucun enregistrement trouvé</option>
+              </select>
+            </div>
+          </div>
+          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+            <p className="text-yellow-800">
+              ⚠️ Aucun enregistrement de discipline trouvé pour la période sélectionnée.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    // Sort records by date (newest first)
+    const sortedRecords = [...profRecords].sort((a, b) => {
+      return (b.date || '').localeCompare(a.date || '');
+    });
+
+    return (
+      <div className="space-y-6">
+        {/* Filters */}
+        <div className="bg-white rounded-lg shadow p-4 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Professeur
+              </label>
+              <select
+                value={selectedProfessor}
+                onChange={(e) => setSelectedProfessor(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {professors.map(prof => (
+                  <option key={prof} value={prof}>
+                    {prof}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Période
+              </label>
+              <select
+                value={selectedPeriod}
+                onChange={(e) => setSelectedPeriod(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="week">Semaine</option>
+                <option value="month">Mois</option>
+                <option value="semester">Semestre</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Detailed hours table */}
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="bg-gray-100 px-6 py-3 border-b border-gray-200">
+            <h3 className="font-bold text-lg">📅 Détail des Horaires - {selectedProfessor}</h3>
+            <p className="text-sm text-gray-600">({sortedRecords.length} séances)</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Date</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Matière</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Heure Prévue</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Heure Entrée</th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">Retard</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Heure Sortie</th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">Volume</th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">Statut</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedRecords.map((record, idx) => {
+                  const statusBadge = getStatusBadge(record.status);
+                  const retardBadge = getRetardBadge(record.retardMinutes);
+
+                  return (
+                    <tr key={idx} className="border-b border-gray-200 hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                        {new Date(record.date).toLocaleDateString('fr-FR', {
+                          weekday: 'short',
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric'
+                        })}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600">
+                        {record.subject} ({record.level})
+                      </td>
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                        {record.startTime_planned} - {record.endTime_planned}
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        {record.startTime_actual ? (
+                          <span className="font-medium text-blue-600">{record.startTime_actual}</span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${retardBadge.color}`}>
+                          {retardBadge.icon} {retardBadge.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        {record.endTime_actual ? (
+                          <span className="font-medium text-blue-600">{record.endTime_actual}</span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-center text-sm">
+                        {record.volumePercentage !== null ? (
+                          <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                            record.volumePercentage >= 80 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                          }`}>
+                            {record.volumePercentage}%
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${statusBadge.color}`}>
+                          {statusBadge.icon} {statusBadge.label}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Penalties breakdown */}
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="bg-gray-100 px-6 py-3 border-b border-gray-200">
+            <h3 className="font-bold text-lg">⚖️ Détail des Pénalités</h3>
+          </div>
+          <div className="p-6 space-y-4">
+            {sortedRecords.length === 0 ? (
+              <p className="text-gray-600">Aucune pénalité à afficher</p>
+            ) : (
+              sortedRecords.map((record, idx) => {
+                const penalties = formatPenalties(record);
+
+                if (penalties.length === 0 && record.status === 'COMPLETED') {
+                  return (
+                    <div key={idx} className="bg-green-50 border-l-4 border-green-400 p-4">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-medium text-green-800">
+                            {new Date(record.date).toLocaleDateString('fr-FR')} - {record.subject} ({record.level})
+                          </p>
+                          <p className="text-sm text-green-700">✅ Aucune pénalité</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                return penalties.map((penalty, pidx) => (
+                  <div key={`${idx}-${pidx}`} className={`border-l-4 p-4 rounded-r ${getSeverityColor(penalty.severity)}`}>
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-sm">
+                            {new Date(record.date).toLocaleDateString('fr-FR')} - {record.subject} ({record.level})
+                          </p>
+                        </div>
+                        <p className="font-semibold text-base mt-1">{penalty.label}</p>
+                        <p className="text-sm mt-1 opacity-90">{penalty.description}</p>
+                      </div>
+                      <div className="text-right ml-4">
+                        <p className="font-bold text-lg">{penalty.points}</p>
+                        <p className="text-xs font-medium mt-1">{penalty.severity}</p>
+                      </div>
+                    </div>
+                  </div>
+                ));
+              })
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Render STATISTICS tab
   const renderStatisticsTab = () => {
     if (loading) {
@@ -630,6 +854,16 @@ const DisciplineBoard = ({ sessions, branches, selectedBranch, onBack }) => {
             📅 Aujourd'hui
           </button>
           <button
+            onClick={() => setActiveTab('details')}
+            className={`py-4 px-2 font-medium border-b-2 transition-all ${
+              activeTab === 'details'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            ⏰ Détails Horaires
+          </button>
+          <button
             onClick={() => setActiveTab('statistics')}
             className={`py-4 px-2 font-medium border-b-2 transition-all ${
               activeTab === 'statistics'
@@ -644,6 +878,7 @@ const DisciplineBoard = ({ sessions, branches, selectedBranch, onBack }) => {
         {/* Content */}
         <div className="p-6">
           {activeTab === 'today' && renderTodayTab()}
+          {activeTab === 'details' && renderDetailsTab()}
           {activeTab === 'statistics' && renderStatisticsTab()}
         </div>
       </div>
