@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Calendar, Clock, MapPin, BookOpen, User, RefreshCw } from 'lucide-react';
+import { Calendar, Clock, MapPin, BookOpen, User, RefreshCw, Download } from 'lucide-react';
 import { db } from './firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { formatLevelDisplay } from './levelUtils';
 import VideoCarousel from './VideoCarousel';
+import QRCodeGenerator from './QRCodeGenerator';
 import { getVideos, getDefaultVideos } from './videoService';
 
 const PublicToday = () => {
@@ -404,6 +405,45 @@ const PublicToday = () => {
             })}
           </div>
         )}
+
+        {/* QR Codes Footer */}
+        <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-blue-900 via-blue-900 to-transparent pt-8 pb-4 px-4">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center justify-between gap-4 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 p-4">
+              {/* Left QR - PlayStore */}
+              <div className="flex flex-col items-center gap-2">
+                <QRCodeGenerator
+                  url="https://play.google.com/store/apps/details?id=com.intellection.mobile"
+                  size={100}
+                  label="Android"
+                />
+                <div className="flex items-center gap-1 text-white text-xs font-semibold bg-blue-600/50 px-2 py-1 rounded">
+                  <Download className="w-3 h-3" />
+                  Play Store
+                </div>
+              </div>
+
+              {/* Center - Branding */}
+              <div className="text-center text-white flex-1">
+                <h3 className="text-sm font-bold">📱 Téléchargez l'app</h3>
+                <p className="text-xs text-blue-200">Intellection ClassBoard</p>
+              </div>
+
+              {/* Right QR - AppStore */}
+              <div className="flex flex-col items-center gap-2">
+                <QRCodeGenerator
+                  url="https://apps.apple.com/ma/app/intellection-classboard/id6758705463?l=ar"
+                  size={100}
+                  label="iOS"
+                />
+                <div className="flex items-center gap-1 text-white text-xs font-semibold bg-black/50 px-2 py-1 rounded">
+                  <Download className="w-3 h-3" />
+                  App Store
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
       </div>
     </>

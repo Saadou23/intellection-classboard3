@@ -51,18 +51,54 @@ const VideoCarousel = ({ videos, onClose, isVisible }) => {
 
   if (!isVisible || !currentVideo) return null;
 
+  // Check if it's a YouTube URL
+  const isYouTube = currentVideo.url?.includes('youtube.com') || currentVideo.url?.includes('youtu.be') || currentVideo.url?.includes('youtube-nocookie.com');
+  const isVimeo = currentVideo.url?.includes('vimeo.com');
+
   return (
     <div className="fixed inset-0 bg-black z-50 flex items-center justify-center overflow-hidden">
       {/* Video Container */}
       <div className="relative w-full h-full flex items-center justify-center bg-black">
-        {/* Video */}
-        <video
-          ref={videoRef}
-          src={currentVideo.url}
-          className="w-full h-full object-contain"
-          autoPlay
-          playsInline
-        />
+        {/* Video - Different rendering for different sources */}
+        {isYouTube ? (
+          <iframe
+            ref={videoRef}
+            src={currentVideo.url}
+            className="w-full h-full"
+            frameBorder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+            onLoad={() => {
+              // Reset progress when iframe loads
+              setProgress(0);
+            }}
+          />
+        ) : isVimeo ? (
+          <iframe
+            src={currentVideo.url}
+            className="w-full h-full"
+            frameBorder="0"
+            allow="autoplay; fullscreen; picture-in-picture"
+            allowFullScreen
+          />
+        ) : (
+          <video
+            ref={videoRef}
+            src={currentVideo.url}
+            className="w-full h-full object-contain"
+            autoPlay
+            playsInline
+            onEnded={() => {
+              setCurrentVideoIndex((prev) => (prev + 1) % videos.length);
+              setProgress(0);
+            }}
+            onTimeUpdate={(e) => {
+              if (e.target.duration) {
+                setProgress((e.target.currentTime / e.target.duration) * 100);
+              }
+            }}
+          />
+        )}
 
         {/* Overlay Gradient */}
         <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent pointer-events-none" />
