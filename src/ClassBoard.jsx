@@ -350,6 +350,12 @@ const branchNames = branchesArray.map(b => b.name) || [];
       return;
     }
 
+    // Vérifier que le groupe est sélectionné (OBLIGATOIRE)
+    if (!formData.groupe || formData.groupe.trim() === '') {
+      alert('⚠️ Veuillez sélectionner un groupe');
+      return;
+    }
+
     const branchSessions = sessions[selectedBranch] || [];
 
     if (editingSession) {
@@ -371,6 +377,8 @@ const branchNames = branchesArray.map(b => b.name) || [];
       const updatedSession = {
         ...formData,
         level: formData.levels.join(' + '), // Combiner les niveaux : "1BAC + 2BAC"
+        groupe: formData.groupe,  // 📌 Ajouter explicitement le groupe
+        filiale: selectedBranch,  // 📌 SYNC: Ajouter centre/filiale
         id: editingSession.id,
         period: periodMode
       };
@@ -401,6 +409,8 @@ const branchNames = branchesArray.map(b => b.name) || [];
         sessionsToAdd.push({
           ...formData,
           level: level,
+          groupe: formData.groupe,  // 📌 Ajouter explicitement le groupe
+          filiale: selectedBranch,  // 📌 SYNC: Ajouter centre/filiale
           id: `${Date.now()}-${level}`,
           period: periodMode
         });
@@ -453,6 +463,7 @@ const branchNames = branchesArray.map(b => b.name) || [];
       endTime: session.endTime,
       levels: levelsArray, // Convertir en tableau
       subject: session.subject,
+      groupe: session.groupe || '', // 📌 AJOUTER: Charger le groupe existant
       professor: session.professor,
       room: session.room,
       status: session.status,
@@ -1228,14 +1239,15 @@ onClick={() => setShowAvailableRooms(true)}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Groupe <span className="text-gray-400 text-xs">(optionnel)</span>
+                        Groupe <span className="text-red-500">*</span>
                       </label>
                       <select
                         value={formData.groupe}
                         onChange={(e) => setFormData({ ...formData, groupe: e.target.value })}
                         className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
                       >
-                        <option value="">-- Aucun groupe --</option>
+                        <option value="">-- Sélectionner un groupe --</option>
                         {Array.from({ length: maxGroups }, (_, i) => (
                           <option key={i + 1} value={`G${i + 1}`}>Groupe {i + 1}</option>
                         ))}

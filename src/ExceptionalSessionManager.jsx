@@ -19,6 +19,7 @@ const ExceptionalSessionManager = ({
     endTime: '20:30',
     level: '',
     subject: '',
+    groupe: '', // 📌 AJOUTÉ: Groupe (obligatoire)
     professor: '',
     room: '',
     reason: '', // Raison de la séance (rattrapage, supplémentaire, etc.)
@@ -74,6 +75,11 @@ const ExceptionalSessionManager = ({
       return;
     }
 
+    if (!formData.groupe || formData.groupe.trim() === '') {
+      alert('⚠️ Veuillez sélectionner un groupe');
+      return;
+    }
+
     // Calculer dayOfWeek depuis la date
     const selectedDate = new Date(formData.date + 'T00:00:00');
     const dayOfWeek = selectedDate.getDay();
@@ -82,6 +88,7 @@ const ExceptionalSessionManager = ({
     const exceptionalSession = {
       ...formData,
       dayOfWeek: dayOfWeek,
+      filiale: selectedBranch,  // 📌 SYNC: Ajouter centre/filiale
       id: `exceptional_${Date.now()}`,
       isExceptional: true,
       specificDate: formData.date,

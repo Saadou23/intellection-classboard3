@@ -1,11 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Calendar, Clock, MapPin, BookOpen, User, RefreshCw, Download } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Calendar, Clock, MapPin, BookOpen, User, RefreshCw } from 'lucide-react';
 import { db } from './firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { formatLevelDisplay } from './levelUtils';
-import VideoCarousel from './VideoCarousel';
-import QRCodeGenerator from './QRCodeGenerator';
-import { getVideos, getDefaultVideos } from './videoService';
 
 const PublicToday = () => {
   const [sessions, setSessions] = useState([]);
@@ -17,13 +14,6 @@ const PublicToday = () => {
   const [availablePeriods, setAvailablePeriods] = useState([]);
   const [selectedPeriod, setSelectedPeriod] = useState('auto');
   const [debugInfo, setDebugInfo] = useState('');
-
-  // Video Carousel states
-  const [videos, setVideos] = useState([]);
-  const [showVideoCarousel, setShowVideoCarousel] = useState(false);
-  const [videoLoadingError, setVideoLoadingError] = useState(false);
-  const inactivityTimerRef = useRef(null);
-  const advertisementTimerRef = useRef(null);
 
   const branches = ['Hay Salam', 'Doukkali', 'Saada'];
   const daysOfWeek = [
@@ -53,64 +43,11 @@ const PublicToday = () => {
     return activePeriod;
   };
 
-  // Load videos on mount
-  useEffect(() => {
-    const loadVideos = async () => {
-      try {
-        const fetchedVideos = await getVideos();
-        if (fetchedVideos.length > 0) {
-          setVideos(fetchedVideos);
-        } else {
-          // Use default sample videos if none in Firebase
-          setVideos(getDefaultVideos());
-        }
-      } catch (error) {
-        console.error('Erreur chargement vidéos:', error);
-        setVideoLoadingError(true);
-        setVideos(getDefaultVideos());
-      }
-    };
-    loadVideos();
-  }, []);
-
   // Timer for current time
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
-
-  // Inactivity and Advertisement timers
-  useEffect(() => {
-    const resetInactivityTimer = () => {
-      // Clear existing timers
-      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
-      if (advertisementTimerRef.current) clearTimeout(advertisementTimerRef.current);
-
-      // Screensaver: Show video if no sessions or all sessions ended
-      const hasActiveSessions = sessions.length > 0;
-
-      if (!hasActiveSessions && videos.length > 0 && !showVideoCarousel) {
-        // Show screensaver after 2 minutes of inactivity
-        inactivityTimerRef.current = setTimeout(() => {
-          setShowVideoCarousel(true);
-        }, 2 * 60 * 1000); // 2 minutes
-      }
-
-      // Advertisement: Show video every 10 minutes even if content is displayed
-      if (hasActiveSessions && videos.length > 0 && !showVideoCarousel) {
-        advertisementTimerRef.current = setTimeout(() => {
-          setShowVideoCarousel(true);
-        }, 10 * 60 * 1000); // 10 minutes
-      }
-    };
-
-    resetInactivityTimer();
-
-    return () => {
-      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
-      if (advertisementTimerRef.current) clearTimeout(advertisementTimerRef.current);
-    };
-  }, [sessions, videos, showVideoCarousel]);
 
   useEffect(() => {
     if (allSessions.length === 0) return;
@@ -161,14 +98,23 @@ const PublicToday = () => {
           periodToUse = selectedPeriod;
           debug += `👆 Mode MANUEL → ${periodToUse}\n`;
         }
-        
+
         let periodFilteredSessions;
         if (periodToUse === 'normal') {
           periodFilteredSessions = branchSessions.filter(s => !s.period || s.period === null || s.period === '');
           debug += `📅 Sessions normales: ${periodFilteredSessions.length}\n`;
         } else {
+          // FIX: Rechercher les sessions avec la période spécifiée
           periodFilteredSessions = branchSessions.filter(s => s.period === periodToUse);
           debug += `🌙 Sessions période "${periodToUse}": ${periodFilteredSessions.length}\n`;
+
+          // Si aucune session trouvée pour cette période ET qu'on a une période active détectée
+          // C'est peut-être un problème de configuration des sessions
+          if (periodFilteredSessions.length === 0 && detectedPeriod) {
+            debug += `⚠️ ALERTE: Aucune session trouvée pour la période "${periodToUse}"\n`;
+            debug += `📊 Sessions disponibles avec period: ${branchSessions.filter(s => s.period).map(s => s.period).join(', ') || 'aucune'}\n`;
+            debug += `📋 Sessions sans period: ${branchSessions.filter(s => !s.period).length}\n`;
+          }
         }
         
         const todaySessions = periodFilteredSessions
@@ -210,10 +156,6 @@ const PublicToday = () => {
   const getUniqueLevels = () => [...new Set(allSessions.map(s => s.level))].sort();
   const today = daysOfWeek.find(d => d.value === currentTime.getDay());
 
-  const handleCloseVideoCarousel = () => {
-    setShowVideoCarousel(false);
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-900 to-blue-700 flex items-center justify-center">
@@ -246,18 +188,7 @@ const PublicToday = () => {
   }
 
   return (
-    <>
-      {/* Video Carousel */}
-      {videos.length > 0 && (
-        <VideoCarousel
-          videos={videos}
-          isVisible={showVideoCarousel}
-          onClose={handleCloseVideoCarousel}
-        />
-      )}
-
-      {/* Main Content */}
-      <div className="min-h-screen bg-gradient-to-br from-blue-900 to-blue-700 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-900 to-blue-700 p-4">
       <div className="max-w-7xl mx-auto">
         {/* HEADER AVEC SÉLECTEURS */}
         <div className="bg-white rounded-2xl shadow-2xl mb-6 overflow-hidden">
@@ -405,48 +336,8 @@ const PublicToday = () => {
             })}
           </div>
         )}
-
-        {/* QR Codes Footer */}
-        <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-blue-900 via-blue-900 to-transparent pt-8 pb-4 px-4">
-          <div className="max-w-7xl mx-auto">
-            <div className="flex items-center justify-between gap-4 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 p-4">
-              {/* Left QR - PlayStore */}
-              <div className="flex flex-col items-center gap-2">
-                <QRCodeGenerator
-                  url="https://play.google.com/store/apps/details?id=com.intellection.mobile"
-                  size={100}
-                  label="Android"
-                />
-                <div className="flex items-center gap-1 text-white text-xs font-semibold bg-blue-600/50 px-2 py-1 rounded">
-                  <Download className="w-3 h-3" />
-                  Play Store
-                </div>
-              </div>
-
-              {/* Center - Branding */}
-              <div className="text-center text-white flex-1">
-                <h3 className="text-sm font-bold">📱 Téléchargez l'app</h3>
-                <p className="text-xs text-blue-200">Intellection ClassBoard</p>
-              </div>
-
-              {/* Right QR - AppStore */}
-              <div className="flex flex-col items-center gap-2">
-                <QRCodeGenerator
-                  url="https://apps.apple.com/ma/app/intellection-classboard/id6758705463?l=ar"
-                  size={100}
-                  label="iOS"
-                />
-                <div className="flex items-center gap-1 text-white text-xs font-semibold bg-black/50 px-2 py-1 rounded">
-                  <Download className="w-3 h-3" />
-                  App Store
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
-      </div>
-    </>
+    </div>
   );
 };
 
