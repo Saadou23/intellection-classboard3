@@ -266,7 +266,7 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
       <div class="time">${formatTime(session.startTime)} - ${formatTime(session.endTime)}</div>
       <div class="details">
         <div>${session.subject || '-'}</div>
-        <div>${session.professor || '-'}</div>
+        <div>${session.professor || '-'} - Groupe: ${session.groupe || '-'}</div>
       </div>
     </div>
 `;

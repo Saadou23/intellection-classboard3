@@ -1,48 +1,75 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, Users, BookOpen } from 'lucide-react';
 import { db } from './firebase';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDocs, collection } from 'firebase/firestore';
 
-const ProfessorSettingsManager = ({ professors = [], onClose }) => {
+const ProfessorSettingsManager = ({ onClose }) => {
+  const [professorsList, setProfessorsList] = useState([]);
   const [professorSettings, setProfessorSettings] = useState({});
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
 
   useEffect(() => {
-    loadProfessorSettings();
+    loadProfessorsFromDB();
   }, []);
 
-  const loadProfessorSettings = async () => {
+  const loadProfessorsFromDB = async () => {
     try {
-      const docRef = doc(db, 'settings', 'professorSettings');
-      const docSnap = await getDoc(docRef);
-
-      if (docSnap.exists()) {
-        setProfessorSettings(docSnap.data());
-      } else {
-        // Initialize with all professors disabled
-        const initialSettings = {};
-        professors.forEach(prof => {
-          initialSettings[prof] = {
-            name: prof,
-            individualLessonsEnabled: false
-          };
-        });
-        setProfessorSettings(initialSettings);
-      }
+      // Charger les profs DIRECTEMENT de la collection professors avec leurs vrais doc.id
+      const profsSnapshot = await getDocs(collection(db, 'professors'));
+      const profsList = profsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name || doc.data().username || doc.id,
+        ...doc.data()
+      }));
+      setProfessorsList(profsList);
+      await loadProfessorSettings(profsList);
     } catch (error) {
-      console.error('Erreur de chargement:', error);
+      console.error('Erreur chargement profs:', error);
       setMessage('❌ Erreur de chargement');
     }
   };
 
-  const toggleIndividualLessons = (professor) => {
+  const loadProfessorSettings = async (profsList) => {
+    try {
+      // Charger depuis professor_preferences collection
+      const prefsSnapshot = await getDocs(collection(db, 'professor_preferences'));
+      const settingsData = {};
+
+      prefsSnapshot.docs.forEach(doc => {
+        const docId = doc.id;
+        const pref = doc.data();
+        settingsData[docId] = {
+          id: docId,
+          name: pref.name || pref.professorId || docId,
+          adhereIndividualLessons: pref.adhereIndividualLessons || false
+        };
+      });
+
+      // Ajouter les profs de la collection professors qui n'ont pas d'entrée
+      profsList.forEach(prof => {
+        if (!settingsData[prof.id]) {
+          settingsData[prof.id] = {
+            id: prof.id,
+            name: prof.name,
+            adhereIndividualLessons: false
+          };
+        }
+      });
+
+      setProfessorSettings(settingsData);
+    } catch (error) {
+      console.error('Erreur de chargement settings:', error);
+      setMessage('❌ Erreur de chargement');
+    }
+  };
+
+  const toggleIndividualLessons = (profId) => {
     setProfessorSettings(prev => ({
       ...prev,
-      [professor]: {
-        ...prev[professor],
-        name: professor,
-        individualLessonsEnabled: !((prev[professor]?.individualLessonsEnabled) || false)
+      [profId]: {
+        ...prev[profId],
+        adhereIndividualLessons: !((prev[profId]?.adhereIndividualLessons) || false)
       }
     }));
   };
@@ -51,7 +78,22 @@ const ProfessorSettingsManager = ({ professors = [], onClose }) => {
     setSaving(true);
     setMessage('');
     try {
-      await setDoc(doc(db, 'settings', 'professorSettings'), professorSettings, { merge: true });
+      // Sauvegarder dans professor_preferences collection ET dans professors collection
+      for (const [profId, settings] of Object.entries(professorSettings)) {
+        // 1. Sauvegarder dans professor_preferences
+        const prefsDocRef = doc(db, 'professor_preferences', profId);
+        await setDoc(prefsDocRef, {
+          professorId: profId,
+          name: settings.name,
+          adhereIndividualLessons: settings.adhereIndividualLessons || false
+        }, { merge: true });
+
+        // 2. AUSSI ajouter le champ directement dans professors collection
+        const profDocRef = doc(db, 'professors', profId);
+        await setDoc(profDocRef, {
+          individualCoursesEnabled: settings.adhereIndividualLessons || false
+        }, { merge: true });
+      }
       setMessage('✅ Paramètres sauvegardés avec succès !');
       setTimeout(() => setMessage(''), 3000);
     } catch (error) {
@@ -62,7 +104,7 @@ const ProfessorSettingsManager = ({ professors = [], onClose }) => {
     }
   };
 
-  const enabledCount = Object.values(professorSettings).filter(s => s.individualLessonsEnabled).length;
+  const enabledCount = Object.values(professorSettings).filter(s => s.adhereIndividualLessons).length;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -89,28 +131,31 @@ const ProfessorSettingsManager = ({ professors = [], onClose }) => {
           {/* Stats */}
           <div className="bg-purple-50 border-l-4 border-purple-600 p-4 mb-6 rounded">
             <p className="text-purple-900 font-semibold">
-              {enabledCount} sur {professors.length} professeur(s) avec cours individuels activés
+              {enabledCount} sur {professorsList.length} professeur(s) avec cours individuels activés
             </p>
           </div>
 
           {/* Professors List */}
           <div className="space-y-3">
-            {professors.length === 0 ? (
+            {professorsList.length === 0 ? (
               <p className="text-gray-500 text-center py-8">Aucun professeur trouvé</p>
             ) : (
-              professors.map((professor) => {
-                const settings = professorSettings[professor] || { individualLessonsEnabled: false };
+              professorsList.map((professor) => {
+                const settings = professorSettings[professor.id] || { adhereIndividualLessons: false };
                 return (
                   <div
-                    key={professor}
+                    key={professor.id}
                     className="flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
                   >
                     <div className="flex items-center gap-3 flex-1">
                       <Users className="w-5 h-5 text-gray-600" />
                       <div>
-                        <p className="font-medium text-gray-800">{professor}</p>
+                        <p className="font-medium text-gray-800">{professor.name}</p>
                         <p className="text-sm text-gray-500">
-                          {settings.individualLessonsEnabled
+                          ID: {professor.id}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {settings.adhereIndividualLessons
                             ? '✅ Cours individuels activés'
                             : '❌ Cours individuels désactivés'}
                         </p>
@@ -119,14 +164,14 @@ const ProfessorSettingsManager = ({ professors = [], onClose }) => {
 
                     {/* Toggle Button */}
                     <button
-                      onClick={() => toggleIndividualLessons(professor)}
+                      onClick={() => toggleIndividualLessons(professor.id)}
                       className={`px-6 py-2 rounded-lg font-medium transition-all ${
-                        settings.individualLessonsEnabled
+                        settings.adhereIndividualLessons
                           ? 'bg-green-600 text-white hover:bg-green-700'
                           : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
                       }`}
                     >
-                      {settings.individualLessonsEnabled ? 'Activé' : 'Désactivé'}
+                      {settings.adhereIndividualLessons ? 'Activé' : 'Désactivé'}
                     </button>
                   </div>
                 );

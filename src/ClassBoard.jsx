@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Save, X, Monitor, Settings, AlertCircle, Maximize, Clock, BarChart3, Sliders, Building2, Calendar, Printer, Moon, FileDown, MapPin, BookOpen } from 'lucide-react';import { db } from './firebase';
+import { Plus, Edit2, Trash2, Save, X, Monitor, Settings, AlertCircle, Maximize, Clock, BarChart3, Sliders, Building2, Calendar, Printer, Moon, FileDown, MapPin, BookOpen, Users } from 'lucide-react';import { db } from './firebase';
 import { doc, setDoc, getDoc, onSnapshot } from 'firebase/firestore';
 import Dashboard from './DashboardOptimized';
 import SettingsManager from './SettingsManager';
@@ -20,6 +20,7 @@ import PDFExportModal from './PDFExportModal';
 import DisciplineBoard from './DisciplineBoard';
 import ProfPresenceModal from './ProfPresenceModal';
 import ProfessorSettingsManager from './ProfessorSettingsManager';
+import StudentIndividualLessonsManager from './StudentIndividualLessonsManager';
 import { loadTodayRecords, createDisciplineRecord } from './disciplineService';
 import { Volume2, VolumeX, Eye } from 'lucide-react';
 const ClassBoard = () => {
@@ -38,6 +39,7 @@ const ClassBoard = () => {
   const [showTimeSettings, setShowTimeSettings] = useState(false);
   const [showSettingsManager, setShowSettingsManager] = useState(false);
   const [showProfessorSettings, setShowProfessorSettings] = useState(false);
+  const [showStudentIndividualLessons, setShowStudentIndividualLessons] = useState(false);
   const [showBranchManager, setShowBranchManager] = useState(false);
   const [showExceptionalSession, setShowExceptionalSession] = useState(false);
   const [professors, setProfessors] = useState([]);
@@ -942,7 +944,14 @@ onClick={() => setShowAvailableRooms(true)}
               className="bg-pink-600 hover:bg-pink-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
             >
               <BookOpen className="w-4 h-4" />
-              Cours Individuels
+              Professeurs - Cours Individuels
+            </button>
+            <button
+              onClick={() => setShowStudentIndividualLessons(true)}
+              className="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
+            >
+              <Users className="w-4 h-4" />
+              Étudiants - Accès Cours Individuels
             </button>
 
             <button
@@ -1610,11 +1619,18 @@ onClick={() => setShowAvailableRooms(true)}
         />
       )}
 
-      {/* Modal de gestion des cours individuels */}
+      {/* Modal de gestion des cours individuels pour les profs */}
       {showProfessorSettings && (
         <ProfessorSettingsManager
           professors={professors}
           onClose={() => setShowProfessorSettings(false)}
+        />
+      )}
+
+      {/* Modal de gestion de l'accès aux cours individuels pour les étudiants */}
+      {showStudentIndividualLessons && (
+        <StudentIndividualLessonsManager
+          onClose={() => setShowStudentIndividualLessons(false)}
         />
       )}
 
