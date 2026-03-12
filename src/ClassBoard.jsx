@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Save, X, Monitor, Settings, AlertCircle, Maximize, Clock, BarChart3, Sliders, Building2, Calendar, Printer, Moon, FileDown, MapPin } from 'lucide-react';import { db } from './firebase';
+import { Plus, Edit2, Trash2, Save, X, Monitor, Settings, AlertCircle, Maximize, Clock, BarChart3, Sliders, Building2, Calendar, Printer, Moon, FileDown, MapPin, BookOpen } from 'lucide-react';import { db } from './firebase';
 import { doc, setDoc, getDoc, onSnapshot } from 'firebase/firestore';
 import Dashboard from './DashboardOptimized';
 import SettingsManager from './SettingsManager';
@@ -19,6 +19,7 @@ import ThermalPrintSchedule from './ThermalPrintSchedule';
 import PDFExportModal from './PDFExportModal';
 import DisciplineBoard from './DisciplineBoard';
 import ProfPresenceModal from './ProfPresenceModal';
+import ProfessorSettingsManager from './ProfessorSettingsManager';
 import { loadTodayRecords, createDisciplineRecord } from './disciplineService';
 import { Volume2, VolumeX, Eye } from 'lucide-react';
 const ClassBoard = () => {
@@ -36,6 +37,7 @@ const ClassBoard = () => {
   const [timeOffset, setTimeOffset] = useState(0);
   const [showTimeSettings, setShowTimeSettings] = useState(false);
   const [showSettingsManager, setShowSettingsManager] = useState(false);
+  const [showProfessorSettings, setShowProfessorSettings] = useState(false);
   const [showBranchManager, setShowBranchManager] = useState(false);
   const [showExceptionalSession, setShowExceptionalSession] = useState(false);
   const [professors, setProfessors] = useState([]);
@@ -935,7 +937,14 @@ onClick={() => setShowAvailableRooms(true)}
               <Sliders className="w-4 h-4" />
               Profs, Niveaux Profs & Niveaux Matières
             </button>
-           
+            <button
+              onClick={() => setShowProfessorSettings(true)}
+              className="bg-pink-600 hover:bg-pink-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
+            >
+              <BookOpen className="w-4 h-4" />
+              Cours Individuels
+            </button>
+
             <button
               onClick={() => setView('dashboard')}
               className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
@@ -1593,13 +1602,22 @@ onClick={() => setShowAvailableRooms(true)}
 
       {/* Modal de gestion des paramètres */}
       {showSettingsManager && (
-        <SettingsManager 
+        <SettingsManager
           onClose={() => {
             setShowSettingsManager(false);
             loadGlobalSettings(); // Recharger après modification
-          }} 
+          }}
         />
       )}
+
+      {/* Modal de gestion des cours individuels */}
+      {showProfessorSettings && (
+        <ProfessorSettingsManager
+          professors={professors}
+          onClose={() => setShowProfessorSettings(false)}
+        />
+      )}
+
 {/* Modal Test Sons */}
 {showSoundTester && (
   <SoundTester onClose={() => setShowSoundTester(false)} />
