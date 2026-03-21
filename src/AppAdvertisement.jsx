@@ -3,7 +3,7 @@ import { X, Calendar, Bell, BookOpen, Zap, Download } from 'lucide-react';
 import { db } from './firebase';
 import { onSnapshot, collection } from 'firebase/firestore';
 
-const AppAdvertisement = () => {
+const AppAdvertisement = ({ onAdVisibilityChange }) => {
   const [showAd, setShowAd] = useState(false);
   const [shouldRender, setShouldRender] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -42,6 +42,13 @@ const AppAdvertisement = () => {
     }
   ];
 
+  // Notifier le parent quand la pub s'affiche/disparaît
+  useEffect(() => {
+    if (onAdVisibilityChange) {
+      onAdVisibilityChange(showAd);
+    }
+  }, [showAd, onAdVisibilityChange]);
+
   useEffect(() => {
     // Afficher la pub toutes les 10 minutes
     const showAdvertisement = () => {
@@ -52,6 +59,7 @@ const AppAdvertisement = () => {
       // Auto-progression des slides
       const intervals = [];
       for (let i = 0; i < slides.length + 1; i++) {
+        const delay = i < slides.length ? i * 3000 : slides.length * 3000;
         intervals.push(
           setTimeout(() => {
             if (i < slides.length) {
@@ -59,15 +67,15 @@ const AppAdvertisement = () => {
             } else {
               setCurrentSlide(slides.length);
             }
-          }, i * 3000)
+          }, delay)
         );
       }
 
-      // Fermer après tout
+      // Fermer après tout - Le dernier slide (QR) reste 15 secondes
       const closeTimer = setTimeout(() => {
         setShowAd(false);
         setTimeout(() => setShouldRender(false), 500);
-      }, (slides.length + 1) * 3000 + 3000);
+      }, slides.length * 3000 + 15000);
 
       return () => {
         intervals.forEach(t => clearTimeout(t));
@@ -98,6 +106,7 @@ const AppAdvertisement = () => {
             // Auto-progression des slides
             const intervals = [];
             for (let i = 0; i < slides.length + 1; i++) {
+              const delay = i < slides.length ? i * 3000 : slides.length * 3000;
               intervals.push(
                 setTimeout(() => {
                   if (i < slides.length) {
@@ -105,15 +114,15 @@ const AppAdvertisement = () => {
                   } else {
                     setCurrentSlide(slides.length);
                   }
-                }, i * 3000)
+                }, delay)
               );
             }
 
-            // Fermer après tout
+            // Fermer après tout - Le dernier slide (QR) reste 15 secondes
             const closeTimer = setTimeout(() => {
               setShowAd(false);
               setTimeout(() => setShouldRender(false), 500);
-            }, (slides.length + 1) * 3000 + 3000);
+            }, slides.length * 3000 + 15000);
 
             return () => {
               intervals.forEach(t => clearTimeout(t));
@@ -184,33 +193,33 @@ const AppAdvertisement = () => {
         </div>
 
         {/* Slides */}
-        <div className="w-full h-full flex items-center justify-center">
+        <div className="w-full h-full flex items-end justify-center pb-8">
           {/* Slide 0-3: Features */}
           {currentSlide < slides.length && (
-            <div className="teaser-slide text-center text-white px-8 max-w-3xl">
-              {/* Logo with white overlay */}
-              <div className="mb-12 flex justify-center">
-                <div className="relative w-32 h-32">
-                  <img
-                    src="/logo-intellection.png"
-                    alt="Intellection"
-                    className="w-full h-full object-contain"
-                  />
-                  <div className="absolute inset-0 bg-white/30 rounded-lg"></div>
+            <div className="teaser-slide text-center text-white px-8 max-w-4xl">
+              {/* Content + Logo in vertical layout */}
+              <div className="flex flex-col items-center justify-center">
+                <div className="flex flex-col items-center mb-4">
+                  {React.createElement(slides[currentSlide].icon, {
+                    className: `w-40 h-40 mb-3 text-${slides[currentSlide].color}-500`
+                  })}
+                  <h2 className="text-5xl font-black tracking-tight leading-tight text-center">
+                    {slides[currentSlide].title}
+                  </h2>
                 </div>
-              </div>
-
-              {/* Feature Icon */}
-              {React.createElement(slides[currentSlide].icon, {
-                className: `w-24 h-24 mx-auto mb-8 text-${slides[currentSlide].color}-500`
-              })}
-              <h2 className="text-6xl font-black mb-6 tracking-tight leading-tight">
-                {slides[currentSlide].title}
-              </h2>
-              <p className="text-2xl text-gray-300 leading-relaxed">
+                <p className="text-xl text-gray-300 leading-relaxed max-w-2xl mx-auto mb-4">
                 {slides[currentSlide].description}
               </p>
-              <div className="mt-8 flex justify-center gap-2">
+
+                {/* Logo at bottom */}
+                <img
+                  src="/logo-intellection.png"
+                  alt="Intellection"
+                  className="w-56 h-56 object-contain drop-shadow-2xl mb-3"
+                  style={{ filter: 'drop-shadow(0 20px 40px rgba(255,255,255,0.2))' }}
+                />
+              </div>
+              <div className="mt-2 flex justify-center gap-2">
                 {slides.map((_, idx) => (
                   <div
                     key={idx}
@@ -225,71 +234,73 @@ const AppAdvertisement = () => {
 
           {/* Slide Final: Download */}
           {currentSlide === slides.length && (
-            <div className="teaser-slide w-full">
-              <div className="max-w-5xl mx-auto px-8">
-                {/* Header */}
-                <div className="text-center mb-12">
-                  {/* Logo with white overlay */}
-                  <div className="mb-8 flex justify-center">
-                    <div className="relative w-40 h-40">
-                      <img
-                        src="/logo-intellection.png"
-                        alt="Intellection"
-                        className="w-full h-full object-contain"
-                      />
-                      <div className="absolute inset-0 bg-white/30 rounded-lg"></div>
-                    </div>
-                  </div>
-
-                  <h2 className="text-6xl font-black text-white mb-4 tracking-tight">
+            <div className="teaser-slide w-full py-4">
+              <div className="max-w-6xl mx-auto px-8">
+                {/* Header - Title */}
+                <div className="text-center mb-4">
+                  <h2 className="text-5xl font-black text-white tracking-tight leading-tight">
                     INTELLECTION<br />CLASSBOARD
                   </h2>
-                  <p className="text-2xl text-gray-400">L'app indispensable de vos études</p>
+                  <p className="text-lg text-gray-300 mt-1">L'app indispensable de vos études</p>
                 </div>
 
                 {/* Download Section */}
-                <div className="grid lg:grid-cols-2 gap-8 max-w-3xl mx-auto">
+                <div className="grid lg:grid-cols-2 gap-5 max-w-3xl mx-auto mb-4">
                   {/* Apple */}
-                  <div className="bg-white rounded-3xl p-8 flex flex-col items-center hover:scale-105 transition">
-                    <img
-                      src="/app-store-logo.png"
-                      alt="Apple App Store"
-                      className="w-32 h-32 object-contain mb-6"
-                    />
-                    <h3 className="text-2xl font-bold text-gray-900 mb-6">App Store</h3>
-                    <div className="bg-gray-100 p-4 rounded-2xl mb-6 border-4 border-gray-200">
+                  <div className="bg-white rounded-2xl p-5 flex flex-col items-center hover:scale-105 transition">
+                    <div className="flex items-center gap-3 mb-2 w-full">
+                      <img
+                        src="/app-store-logo.png"
+                        alt="Apple App Store"
+                        className="w-14 h-14 object-contain"
+                      />
+                      <h3 className="text-xl font-bold text-gray-900">App Store</h3>
+                    </div>
+                    <div className="bg-gray-100 p-3 rounded-lg mb-2 border-3 border-gray-300">
                       <img
                         src={appleQRCode}
                         alt="Apple QR Code"
-                        className="w-56 h-56"
+                        className="w-44 h-44"
                       />
                     </div>
-                    <p className="text-gray-700 font-semibold">Scannez pour télécharger</p>
+                    <p className="text-gray-700 font-semibold text-sm">Scannez pour télécharger</p>
                   </div>
 
                   {/* Android */}
-                  <div className="bg-white rounded-3xl p-8 flex flex-col items-center hover:scale-105 transition">
-                    <img
-                      src="/google-play-logo.png"
-                      alt="Google Play Store"
-                      className="w-32 h-32 object-contain mb-6"
-                    />
-                    <h3 className="text-2xl font-bold text-gray-900 mb-6">Google Play</h3>
-                    <div className="bg-gray-100 p-4 rounded-2xl mb-6 border-4 border-gray-200">
+                  <div className="bg-white rounded-2xl p-5 flex flex-col items-center hover:scale-105 transition">
+                    <div className="flex items-center gap-3 mb-2 w-full">
+                      <img
+                        src="/google-play-logo.png"
+                        alt="Google Play Store"
+                        className="w-14 h-14 object-contain"
+                      />
+                      <h3 className="text-xl font-bold text-gray-900">Google Play</h3>
+                    </div>
+                    <div className="bg-gray-100 p-3 rounded-lg mb-2 border-3 border-gray-300">
                       <img
                         src={androidQRCode}
                         alt="Android QR Code"
-                        className="w-56 h-56"
+                        className="w-44 h-44"
                       />
                     </div>
-                    <p className="text-gray-700 font-semibold">Scannez pour télécharger</p>
+                    <p className="text-gray-700 font-semibold text-sm">Scannez pour télécharger</p>
                   </div>
                 </div>
 
+                {/* Logo at bottom */}
+                <div className="flex justify-center">
+                  <img
+                    src="/logo-intellection.png"
+                    alt="Intellection"
+                    className="w-48 h-48 object-contain drop-shadow-2xl mt-2 mb-2"
+                    style={{ filter: 'drop-shadow(0 20px 40px rgba(255,255,255,0.2))' }}
+                  />
+                </div>
+
                 {/* Footer */}
-                <div className="text-center mt-12">
-                  <p className="text-gray-400 text-lg">
-                    Disponible sur iOS et Android · Gratuit · Sans engagement
+                <div className="text-center mt-1">
+                  <p className="text-gray-400 text-xs">
+                    iOS · Android · Gratuit · Sans engagement
                   </p>
                 </div>
               </div>

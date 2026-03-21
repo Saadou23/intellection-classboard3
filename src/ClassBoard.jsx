@@ -53,6 +53,7 @@ const ClassBoard = () => {
   const [showMessage, setShowMessage] = useState(false);
   const [currentMessage, setCurrentMessage] = useState('');
   const [allMessages, setAllMessages] = useState([]);
+  const [isAdDisplayed, setIsAdDisplayed] = useState(false);
   const [branches, setBranches] = useState(['Hay Salam', 'Doukkali', 'Saada']); // Valeurs par défaut
   const [scrollPosition, setScrollPosition] = useState(0);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(false);
@@ -818,7 +819,7 @@ const branchNames = branchesArray.map(b => b.name) || [];
             </div>
 
             {/* Publicité Application Mobile */}
-            <AppAdvertisement />
+            <AppAdvertisement onAdVisibilityChange={setIsAdDisplayed} />
 
             <div className="bg-blue-700 py-2 px-6">
               <div className="flex justify-between items-center">
@@ -842,7 +843,7 @@ const branchNames = branchesArray.map(b => b.name) || [];
               </div>
             </div>
 
-            {showMessage && currentMessage && (
+            {showMessage && currentMessage && !isAdDisplayed && (
               <>
                 <style>{`
                   @keyframes fadeInScale {
