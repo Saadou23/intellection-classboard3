@@ -9,6 +9,8 @@ const MessageManager = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [launchingAd, setLaunchingAd] = useState(false);
+  const [adSuccess, setAdSuccess] = useState(false);
 
   // Charger les messages depuis Firebase
   useEffect(() => {
@@ -65,6 +67,24 @@ const MessageManager = () => {
     setMessages(messages.filter(msg => msg.id !== id));
   };
 
+  // Lancer la publicité
+  const launchAdvertisement = async () => {
+    setLaunchingAd(true);
+    try {
+      await addDoc(collection(db, 'advertisement_trigger'), {
+        triggeredAt: new Date(),
+        type: 'mobile_app'
+      });
+      setAdSuccess(true);
+      setTimeout(() => setAdSuccess(false), 3000);
+    } catch (error) {
+      console.error('Erreur:', error);
+      alert('❌ Erreur lors du lancement');
+    } finally {
+      setLaunchingAd(false);
+    }
+  };
+
   // Déclencher une annonce immédiatement
   const triggerAnnouncement = async (message) => {
     try {
@@ -96,6 +116,12 @@ const MessageManager = () => {
       {success && (
         <div className="bg-green-100 border-l-4 border-green-600 p-4 mb-4 rounded">
           <p className="text-green-700 font-medium">✅ Messages sauvegardés avec succès!</p>
+        </div>
+      )}
+
+      {adSuccess && (
+        <div className="bg-blue-100 border-l-4 border-blue-600 p-4 mb-4 rounded">
+          <p className="text-blue-700 font-medium">🚀 Publicité lancée! Elle s'affiche pendant 15 secondes.</p>
         </div>
       )}
 
@@ -183,28 +209,52 @@ const MessageManager = () => {
         </p>
       </div>
 
-      {/* Bouton de sauvegarde */}
-      <button
-        onClick={saveMessages}
-        disabled={saving}
-        className={`w-full py-3 rounded-lg font-bold text-white flex items-center justify-center gap-2 transition ${
-          saving
-            ? 'bg-gray-400 cursor-not-allowed'
-            : 'bg-green-600 hover:bg-green-700'
-        }`}
-      >
-        {saving ? (
-          <>
-            <span className="animate-spin">⏳</span>
-            Sauvegarde en cours...
-          </>
-        ) : (
-          <>
-            <Save className="w-5 h-5" />
-            Sauvegarder tous les messages
-          </>
-        )}
-      </button>
+      {/* Boutons d'action */}
+      <div className="grid grid-cols-2 gap-4">
+        <button
+          onClick={saveMessages}
+          disabled={saving}
+          className={`py-3 rounded-lg font-bold text-white flex items-center justify-center gap-2 transition ${
+            saving
+              ? 'bg-gray-400 cursor-not-allowed'
+              : 'bg-green-600 hover:bg-green-700'
+          }`}
+        >
+          {saving ? (
+            <>
+              <span className="animate-spin">⏳</span>
+              Sauvegarde...
+            </>
+          ) : (
+            <>
+              <Save className="w-5 h-5" />
+              Sauvegarder
+            </>
+          )}
+        </button>
+
+        <button
+          onClick={launchAdvertisement}
+          disabled={launchingAd}
+          className={`py-3 rounded-lg font-bold text-white flex items-center justify-center gap-2 transition ${
+            launchingAd
+              ? 'bg-gray-400 cursor-not-allowed'
+              : 'bg-blue-600 hover:bg-blue-700'
+          }`}
+        >
+          {launchingAd ? (
+            <>
+              <span className="animate-spin">⏳</span>
+              Lancement...
+            </>
+          ) : (
+            <>
+              <Send className="w-5 h-5" />
+              🚀 Lancer pub
+            </>
+          )}
+        </button>
+      </div>
     </div>
   );
 };
