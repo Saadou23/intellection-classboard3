@@ -6,6 +6,7 @@ import StudentExamPortal from './StudentExamPortal';
 import ExamAdmin from './ExamAdmin';
 import ProfessorExamCreator from './ProfessorExamCreator';
 import PrivacyPolicy from './PrivacyPolicy';
+import Dashboard from './Dashboard';
 import './App.css';
 
 function App() {
@@ -33,6 +34,10 @@ function App() {
 
   if (path === '/privacy-policy') {
     return <PrivacyPolicy />;
+  }
+
+  if (path === '/dashboard' || path === '/admin/dashboard') {
+    return <Dashboard sessions={{}} />;
   }
 
   return <ClassBoard />;

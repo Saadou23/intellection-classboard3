@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, MapPin, BookOpen, User, RefreshCw } from 'lucide-react';
 import { db } from './firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, getDoc } from 'firebase/firestore';
 import { formatLevelDisplay } from './levelUtils';
 
 const PublicToday = () => {
@@ -14,6 +14,10 @@ const PublicToday = () => {
   const [availablePeriods, setAvailablePeriods] = useState([]);
   const [selectedPeriod, setSelectedPeriod] = useState('auto');
   const [debugInfo, setDebugInfo] = useState('');
+  const [showMessage, setShowMessage] = useState(true);
+  const [messageCounter, setMessageCounter] = useState(0);
+  const [messages, setMessages] = useState([]);
+  const [currentMessage, setCurrentMessage] = useState('');
 
   const branches = ['Hay Salam', 'Doukkali', 'Saada'];
   const daysOfWeek = [
@@ -48,6 +52,46 @@ const PublicToday = () => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Charger les messages depuis Firebase
+  useEffect(() => {
+    const loadMessages = async () => {
+      try {
+        const docRef = doc(db, 'settings', 'publicTodayMessages');
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const msgs = docSnap.data().messages || [];
+          setMessages(msgs);
+          if (msgs.length > 0) {
+            setCurrentMessage(msgs[Math.floor(Math.random() * msgs.length)].text);
+          }
+        }
+      } catch (error) {
+        console.error('Erreur chargement messages:', error);
+      }
+    };
+    loadMessages();
+  }, []);
+
+  // Message every 15 minutes - displayed for 1 minute
+  useEffect(() => {
+    if (messages.length === 0) return;
+
+    const messageTimer = setInterval(() => {
+      setShowMessage(true);
+      setMessageCounter(prev => prev + 1);
+      // Sélectionner un message aléatoire
+      const randomMsg = messages[Math.floor(Math.random() * messages.length)];
+      setCurrentMessage(randomMsg.text);
+
+      // Auto-hide after 1 minute (60 seconds)
+      setTimeout(() => {
+        setShowMessage(false);
+      }, 60 * 1000); // 1 minute
+    }, 15 * 60 * 1000); // 15 minutes
+
+    return () => clearInterval(messageTimer);
+  }, [messages]);
 
   useEffect(() => {
     if (allSessions.length === 0) return;
@@ -189,6 +233,17 @@ const PublicToday = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-900 to-blue-700 p-4">
+      {/* MESSAGE QUI S'AFFICHE TOUS LES 15 MINUTES */}
+      {showMessage && currentMessage && (
+        <div className="fixed top-4 left-4 right-4 z-50 max-w-2xl mx-auto animate-bounce">
+          <div className="bg-yellow-400 border-4 border-yellow-600 rounded-xl shadow-2xl p-4 text-center">
+            <p className="text-lg font-bold text-gray-900">
+              📢 {currentMessage}
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto">
         {/* HEADER AVEC SÉLECTEURS */}
         <div className="bg-white rounded-2xl shadow-2xl mb-6 overflow-hidden">

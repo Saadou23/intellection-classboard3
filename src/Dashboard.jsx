@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart3, TrendingUp, AlertCircle, Calendar, Clock, Building2, FileDown, ArrowLeft, Printer } from 'lucide-react';
 import ThermalPrintSchedule from './ThermalPrintSchedule';
+import MessageManager from './MessageManager';
+import AdvertisementManager from './AdvertisementManager';
 
 const Dashboard = ({ sessions, onBack }) => {
   const [selectedPeriod, setSelectedPeriod] = useState('week'); // day, week, month
@@ -192,6 +194,12 @@ const Dashboard = ({ sessions, onBack }) => {
       </div>
 
       <div className="max-w-7xl mx-auto p-6 space-y-6">
+        {/* Gestion des Messages */}
+        <MessageManager />
+
+        {/* Gestion de la Publicité */}
+        <AdvertisementManager />
+
         {/* Vue d'ensemble */}
         <div className="bg-white rounded-xl shadow-lg p-6">
           <h2 className="text-2xl font-bold mb-6 flex items-center gap-2 text-gray-800">

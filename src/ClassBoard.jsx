@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Save, X, Monitor, Settings, AlertCircle, Maximize, Clock, BarChart3, Sliders, Building2, Calendar, Printer, Moon, FileDown, MapPin, BookOpen, Users } from 'lucide-react';import { db } from './firebase';
-import { doc, setDoc, getDoc, onSnapshot } from 'firebase/firestore';
+import { Plus, Edit2, Trash2, Save, X, Monitor, Settings, AlertCircle, Maximize, Clock, BarChart3, Sliders, Building2, Calendar, Printer, Moon, FileDown, MapPin, BookOpen, Users, Bell, MessageSquare } from 'lucide-react';import { db } from './firebase';
+import { doc, setDoc, getDoc, onSnapshot, collection, deleteDoc } from 'firebase/firestore';
 import Dashboard from './DashboardOptimized';
 import SettingsManager from './SettingsManager';
 import SearchableSelect from './SearchableSelect';
@@ -21,6 +21,8 @@ import DisciplineBoard from './DisciplineBoard';
 import ProfPresenceModal from './ProfPresenceModal';
 import ProfessorSettingsManager from './ProfessorSettingsManager';
 import StudentIndividualLessonsManager from './StudentIndividualLessonsManager';
+import MessageManager from './MessageManager';
+import AppAdvertisement from './AppAdvertisement';
 import { loadTodayRecords, createDisciplineRecord } from './disciplineService';
 import { Volume2, VolumeX, Eye } from 'lucide-react';
 const ClassBoard = () => {
@@ -48,6 +50,9 @@ const ClassBoard = () => {
   const [maxGroups, setMaxGroups] = useState(6);
   const [availableRooms, setAvailableRooms] = useState([]);
   const [showSoundTester, setShowSoundTester] = useState(false);
+  const [showMessage, setShowMessage] = useState(false);
+  const [currentMessage, setCurrentMessage] = useState('');
+  const [allMessages, setAllMessages] = useState([]);
   const [branches, setBranches] = useState(['Hay Salam', 'Doukkali', 'Saada']); // Valeurs par défaut
   const [scrollPosition, setScrollPosition] = useState(0);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(false);
@@ -65,6 +70,7 @@ const [showThermalPrint, setShowThermalPrint] = useState(false);
   const [showPeriodSelector, setShowPeriodSelector] = useState(false);
   const [viewPeriodFilter, setViewPeriodFilter] = useState(null); // null = toutes, "normal" = normales, "period-id" = période spécifique
   const [viewDayFilter, setViewDayFilter] = useState(null); // null = tous les jours, 0-6 = jour spécifique
+  const [showMessageManager, setShowMessageManager] = useState(false);
 // Hook pour les notifications sonores
 useSessionNotifications(sessions, selectedBranch, currentTime, soundEnabled);
   const daysOfWeek = [
@@ -320,6 +326,91 @@ const branchNames = branchesArray.map(b => b.name) || [];
       if (pauseTimeout) clearTimeout(pauseTimeout);
     };
   }, [view, selectedBranch, sessions]);
+
+  // Load messages from Firebase
+  useEffect(() => {
+    const loadMessages = async () => {
+      try {
+        const docRef = doc(db, 'settings', 'publicTodayMessages');
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+          setAllMessages(docSnap.data().messages || []);
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des messages:', error);
+      }
+    };
+
+    loadMessages();
+
+    // Listen for announcement triggers
+    const unsubscribe = onSnapshot(
+      collection(db, 'announcement_trigger'),
+      (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'added') {
+            const triggerData = change.doc.data();
+            setCurrentMessage({
+              text: triggerData.text,
+              createdAt: triggerData.createdAt
+            });
+            setShowMessage(true);
+
+            // Hide message after 1 minute (60000ms)
+            const hideTimeout = setTimeout(() => {
+              setShowMessage(false);
+            }, 60000);
+
+            // Delete the trigger doc after 1 minute
+            const deleteTimeout = setTimeout(() => {
+              deleteDoc(doc(db, 'announcement_trigger', change.doc.id)).catch(err =>
+                console.error('Erreur suppression trigger:', err)
+              );
+            }, 65000);
+
+            return () => {
+              clearTimeout(hideTimeout);
+              clearTimeout(deleteTimeout);
+            };
+          }
+        });
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  // Display message every 15 minutes for 1 minute
+  useEffect(() => {
+    if (allMessages.length === 0) return;
+
+    // Show message immediately on first load
+    const randomMessage = allMessages[Math.floor(Math.random() * allMessages.length)];
+    setCurrentMessage(randomMessage);
+    setShowMessage(true);
+
+    // Hide message after 1 minute
+    const hideTimeout = setTimeout(() => {
+      setShowMessage(false);
+    }, 60000); // 1 minute
+
+    // Show new message every 15 minutes
+    const intervalId = setInterval(() => {
+      const newRandomMessage = allMessages[Math.floor(Math.random() * allMessages.length)];
+      setCurrentMessage(newRandomMessage);
+      setShowMessage(true);
+
+      setTimeout(() => {
+        setShowMessage(false);
+      }, 60000); // 1 minute
+    }, 900000); // 15 minutes
+
+    return () => {
+      clearTimeout(hideTimeout);
+      clearInterval(intervalId);
+    };
+  }, [allMessages]);
 
   // ========== HANDLERS ==========
   const handleLogin = () => {
@@ -726,6 +817,9 @@ const branchNames = branchesArray.map(b => b.name) || [];
               </div>
             </div>
 
+            {/* Publicité Application Mobile */}
+            <AppAdvertisement />
+
             <div className="bg-blue-700 py-2 px-6">
               <div className="flex justify-between items-center">
                 <div className="text-xl font-bold tracking-wide">
@@ -747,6 +841,68 @@ const branchNames = branchesArray.map(b => b.name) || [];
                 <div className="col-span-2">STATUT</div>
               </div>
             </div>
+
+            {showMessage && currentMessage && (
+              <>
+                {/* URGENT Banner */}
+                <style>{`
+                  @keyframes urgentFlash {
+                    0%, 100% { background-color: rgb(220, 38, 38); }
+                    50% { background-color: rgb(153, 27, 27); }
+                  }
+                  @keyframes shimmer {
+                    0% { box-shadow: -1000px 0 100px rgba(255, 255, 255, 0.5); }
+                    100% { box-shadow: 1000px 0 100px rgba(255, 255, 255, 0.5); }
+                  }
+                  .urgent-banner {
+                    animation: urgentFlash 0.8s infinite, shimmer 2s infinite;
+                  }
+                `}</style>
+                <div className="urgent-banner bg-red-700 border-t-4 border-b-4 border-yellow-400 py-4 px-8 text-center relative overflow-hidden">
+                  <div className="absolute inset-0 opacity-30">
+                    <div className="absolute top-0 left-0 w-full h-full" style={{
+                      backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255,255,255,.05) 2px, rgba(255,255,255,.05) 4px)'
+                    }}></div>
+                  </div>
+                  <div className="relative flex items-center justify-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <Bell className="w-10 h-10 text-yellow-300 animate-bounce" />
+                      <Bell className="w-10 h-10 text-yellow-300 animate-bounce" style={{ animationDelay: '0.2s' }} />
+                      <Bell className="w-10 h-10 text-yellow-300 animate-bounce" style={{ animationDelay: '0.4s' }} />
+                    </div>
+                    <span className="text-5xl font-black text-yellow-300 tracking-widest drop-shadow-lg">
+                      URGENT
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <Bell className="w-10 h-10 text-yellow-300 animate-bounce" style={{ animationDelay: '0.4s' }} />
+                      <Bell className="w-10 h-10 text-yellow-300 animate-bounce" style={{ animationDelay: '0.2s' }} />
+                      <Bell className="w-10 h-10 text-yellow-300 animate-bounce" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Message Banner */}
+                <div className="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 border-b-2 border-yellow-500 py-8 px-8 text-center relative">
+                  <p className="text-white font-bold text-3xl mb-6 leading-relaxed drop-shadow-lg">
+                    {currentMessage.text}
+                  </p>
+                  <div className="border-t border-gray-700 pt-4 mt-4 flex items-center justify-center gap-8">
+                    <p className="text-gray-300 text-sm">
+                      {currentMessage.createdAt}
+                    </p>
+                    <p className="text-yellow-400 text-lg font-bold italic">
+                      — l'administration
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowMessage(false)}
+                    className="absolute top-3 right-3 text-gray-400 hover:text-white bg-gray-700/50 hover:bg-gray-600 p-2 rounded-full transition"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+              </>
+            )}
 
             <div 
               className="flex-1 overflow-hidden relative"
@@ -909,6 +1065,24 @@ const branchNames = branchesArray.map(b => b.name) || [];
     );
   }
 
+  // Si on est sur la gestion des messages
+  if (showMessageManager) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-7xl mx-auto">
+          <button
+            onClick={() => setShowMessageManager(false)}
+            className="mb-6 flex items-center gap-2 text-blue-900 hover:text-blue-700 font-semibold"
+          >
+            <X className="w-5 h-5" />
+            Retour
+          </button>
+          <MessageManager />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-blue-900 text-white p-4 shadow-lg">
@@ -954,6 +1128,13 @@ onClick={() => setShowAvailableRooms(true)}
               Étudiants - Accès Cours Individuels
             </button>
 
+            <button
+              onClick={() => setShowMessageManager(true)}
+              className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
+            >
+              <MessageSquare className="w-4 h-4" />
+              Gestion des Messages
+            </button>
             <button
               onClick={() => setView('dashboard')}
               className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
