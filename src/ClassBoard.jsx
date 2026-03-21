@@ -844,62 +844,51 @@ const branchNames = branchesArray.map(b => b.name) || [];
 
             {showMessage && currentMessage && (
               <>
-                {/* URGENT Banner */}
                 <style>{`
-                  @keyframes urgentFlash {
-                    0%, 100% { background-color: rgb(220, 38, 38); }
-                    50% { background-color: rgb(153, 27, 27); }
+                  @keyframes slideDown {
+                    from {
+                      opacity: 0;
+                      transform: translateY(-20px);
+                    }
+                    to {
+                      opacity: 1;
+                      transform: translateY(0);
+                    }
                   }
-                  @keyframes shimmer {
-                    0% { box-shadow: -1000px 0 100px rgba(255, 255, 255, 0.5); }
-                    100% { box-shadow: 1000px 0 100px rgba(255, 255, 255, 0.5); }
-                  }
-                  .urgent-banner {
-                    animation: urgentFlash 0.8s infinite, shimmer 2s infinite;
+                  .message-container {
+                    animation: slideDown 0.5s ease-out;
                   }
                 `}</style>
-                <div className="urgent-banner bg-red-700 border-t-4 border-b-4 border-yellow-400 py-4 px-8 text-center relative overflow-hidden">
-                  <div className="absolute inset-0 opacity-30">
-                    <div className="absolute top-0 left-0 w-full h-full" style={{
-                      backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255,255,255,.05) 2px, rgba(255,255,255,.05) 4px)'
-                    }}></div>
-                  </div>
-                  <div className="relative flex items-center justify-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <Bell className="w-10 h-10 text-yellow-300 animate-bounce" />
-                      <Bell className="w-10 h-10 text-yellow-300 animate-bounce" style={{ animationDelay: '0.2s' }} />
-                      <Bell className="w-10 h-10 text-yellow-300 animate-bounce" style={{ animationDelay: '0.4s' }} />
-                    </div>
-                    <span className="text-5xl font-black text-yellow-300 tracking-widest drop-shadow-lg">
-                      URGENT
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <Bell className="w-10 h-10 text-yellow-300 animate-bounce" style={{ animationDelay: '0.4s' }} />
-                      <Bell className="w-10 h-10 text-yellow-300 animate-bounce" style={{ animationDelay: '0.2s' }} />
-                      <Bell className="w-10 h-10 text-yellow-300 animate-bounce" />
-                    </div>
-                  </div>
-                </div>
 
-                {/* Message Banner */}
-                <div className="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 border-b-2 border-yellow-500 py-8 px-8 text-center relative">
-                  <p className="text-white font-bold text-3xl mb-6 leading-relaxed drop-shadow-lg">
-                    {currentMessage.text}
-                  </p>
-                  <div className="border-t border-gray-700 pt-4 mt-4 flex items-center justify-center gap-8">
-                    <p className="text-gray-300 text-sm">
-                      {currentMessage.createdAt}
-                    </p>
-                    <p className="text-yellow-400 text-lg font-bold italic">
-                      — l'administration
-                    </p>
-                  </div>
+                <div className="message-container bg-gradient-to-r from-red-700 via-red-600 to-red-700 py-6 px-8">
+                  {/* Close button */}
                   <button
                     onClick={() => setShowMessage(false)}
-                    className="absolute top-3 right-3 text-gray-400 hover:text-white bg-gray-700/50 hover:bg-gray-600 p-2 rounded-full transition"
+                    className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-full transition"
                   >
-                    <X className="w-6 h-6" />
+                    <X className="w-5 h-5 text-white" />
                   </button>
+
+                  {/* Content */}
+                  <div className="max-w-4xl mx-auto text-center">
+                    {/* URGENT Label */}
+                    <div className="inline-block mb-3 px-4 py-2 bg-white/20 backdrop-blur rounded-full border border-white/30">
+                      <p className="text-white font-black text-sm tracking-wider">⚠️ ANNONCE IMPORTANTE</p>
+                    </div>
+
+                    {/* Message */}
+                    <p className="text-white font-bold text-2xl mb-4 leading-relaxed drop-shadow-lg">
+                      {currentMessage.text}
+                    </p>
+
+                    {/* Footer */}
+                    <div className="flex items-center justify-center gap-3 text-white/80 text-sm">
+                      <span className="text-white/60">•</span>
+                      <span>{currentMessage.createdAt}</span>
+                      <span className="text-white/60">•</span>
+                      <span className="font-semibold">Direction de l'établissement</span>
+                    </div>
+                  </div>
                 </div>
               </>
             )}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Download } from 'lucide-react';
+import { X, Calendar, Clock, AlertCircle, BookOpen, Smartphone } from 'lucide-react';
 import { db } from './firebase';
 import { onSnapshot, collection } from 'firebase/firestore';
 
@@ -10,8 +10,8 @@ const AppAdvertisement = () => {
   const appleUrl = 'https://apps.apple.com/ma/app/intellection-classboard/id6758705463?l=ar';
   const androidUrl = 'https://play.google.com/store/apps/details?id=com.intellection.mobile';
 
-  const appleQRCode = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(appleUrl)}`;
-  const androidQRCode = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(androidUrl)}`;
+  const appleQRCode = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(appleUrl)}`;
+  const androidQRCode = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(androidUrl)}`;
 
   useEffect(() => {
     // Afficher la pub aléatoirement (30% de chance)
@@ -65,7 +65,7 @@ const AppAdvertisement = () => {
         @keyframes slideInDown {
           from {
             opacity: 0;
-            transform: translateY(-30px);
+            transform: translateY(-20px);
           }
           to {
             opacity: 1;
@@ -79,175 +79,158 @@ const AppAdvertisement = () => {
           }
           to {
             opacity: 0;
-            transform: translateY(-30px);
+            transform: translateY(-20px);
           }
         }
-        @keyframes pulse-glow {
-          0%, 100% {
-            box-shadow: 0 0 30px rgba(59, 130, 246, 0.6), inset 0 0 20px rgba(255,255,255,0.1);
-          }
-          50% {
-            box-shadow: 0 0 50px rgba(59, 130, 246, 0.9), inset 0 0 30px rgba(255,255,255,0.15);
-          }
-        }
-        @keyframes shimmer {
-          0% {
-            background-position: -1000px 0;
-          }
-          100% {
-            background-position: 1000px 0;
-          }
-        }
-        @keyframes float {
-          0%, 100% {
-            transform: translateY(0px);
-          }
-          50% {
-            transform: translateY(-8px);
-          }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
         }
         .ad-container {
           animation: ${showAd ? 'slideInDown' : 'slideOutUp'} 0.5s ease-out forwards;
         }
-        .app-card {
-          animation: pulse-glow 3s ease-in-out infinite;
+        .feature-card {
+          animation: fadeIn 0.6s ease-out forwards;
         }
-        .qr-container {
-          animation: float 3s ease-in-out infinite;
+        .qr-box {
+          transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
-        .shimmer-bg {
-          background: linear-gradient(
-            90deg,
-            rgba(255, 255, 255, 0) 0%,
-            rgba(255, 255, 255, 0.2) 50%,
-            rgba(255, 255, 255, 0) 100%
-          );
-          background-size: 1000px 100%;
-          animation: shimmer 3s infinite;
+        .qr-box:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
         }
       `}</style>
 
-      {/* Banner principal - Identité Intellection */}
-      <div className="ad-container bg-gradient-to-r from-black via-gray-900 to-red-950 py-6 px-6 text-white relative overflow-hidden border-b-4 border-red-700">
-        {/* Arrière-plan animé avec plus de présence */}
-        <div className="absolute inset-0 opacity-40">
-          <div className="absolute inset-0" style={{
-            backgroundImage: 'linear-gradient(135deg, rgba(220, 38, 38, 0.15) 0%, transparent 50%)',
-          }}></div>
-          <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-l from-red-900/20 via-transparent to-transparent"></div>
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-red-700/10 rounded-full blur-3xl"></div>
-        </div>
+      {/* Banner principal - Style Apple Professional */}
+      <div className="ad-container bg-white py-8 px-6 text-gray-900 relative overflow-hidden">
+        {/* Bouton fermer */}
+        <button
+          onClick={() => {
+            setShowAd(false);
+            setTimeout(() => setShouldRender(false), 500);
+          }}
+          className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full transition"
+        >
+          <X className="w-5 h-5 text-gray-600" />
+        </button>
 
-        {/* Contenu */}
-        <div className="relative z-10 max-w-7xl mx-auto">
-          {/* Bouton fermer */}
-          <button
-            onClick={() => {
-              setShowAd(false);
-              setTimeout(() => setShouldRender(false), 500);
-            }}
-            className="absolute top-3 right-3 p-2 hover:bg-white/20 rounded-full transition hover:scale-110"
-          >
-            <X className="w-6 h-6" />
-          </button>
-
-          {/* Titre et description */}
-          <div className="text-center mb-6">
-            <div className="inline-block mb-2 px-4 py-1.5 bg-red-700/50 border-2 border-red-500 rounded-full backdrop-blur-sm">
-              <p className="text-red-100 text-xs font-black tracking-widest">✨ APPLICATION OFFICIELLE ✨</p>
-            </div>
-            <h2 className="text-5xl font-black mb-1 tracking-wider text-white drop-shadow-lg" style={{textShadow: '0 2px 8px rgba(220, 38, 38, 0.5)'}}>
-              INTELLECTION
+        <div className="max-w-5xl mx-auto">
+          {/* Header */}
+          <div className="text-center mb-10">
+            <p className="text-sm font-semibold text-red-600 mb-3 tracking-wide">INTELLECTION CLASSBOARD</p>
+            <h2 className="text-5xl font-black mb-4 tracking-tight">
+              L'app indispensable<br />de vos études
             </h2>
-            <h3 className="text-3xl font-bold mb-3 text-red-400 tracking-wide">
-              CLASSBOARD
-            </h3>
-            <p className="text-lg font-semibold text-gray-100 mb-3 max-w-3xl mx-auto leading-relaxed">
-              📱 Emploi du temps · Notifications · Suivi temps réel
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
+              Restez connecté avec votre emploi du temps, vos notifications et vos cours
             </p>
-            <div className="flex items-center justify-center gap-4">
-              <div className="h-0.5 w-8 bg-gradient-to-r from-transparent to-red-600 rounded-full"></div>
-              <span className="text-white font-bold text-sm tracking-wider">GRATUIT • RAPIDE • SÉCURISÉ</span>
-              <div className="h-0.5 w-8 bg-gradient-to-l from-transparent to-red-600 rounded-full"></div>
+          </div>
+
+          {/* Features Grid */}
+          <div className="grid md:grid-cols-2 gap-6 mb-10">
+            {/* Feature 1 */}
+            <div className="feature-card bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-2xl p-6 border border-blue-200">
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-blue-600 rounded-lg">
+                  <Calendar className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-1">Consultation emploi du temps</h3>
+                  <p className="text-sm text-gray-700">Accédez facilement à votre emploi du temps à tout moment</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Feature 2 */}
+            <div className="feature-card bg-gradient-to-br from-red-50 to-red-100/50 rounded-2xl p-6 border border-red-200" style={{animationDelay: '0.1s'}}>
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-red-600 rounded-lg">
+                  <AlertCircle className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-1">Notifications immédiates</h3>
+                  <p className="text-sm text-gray-700">Soyez alerté des absences professeurs et retards</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Feature 3 */}
+            <div className="feature-card bg-gradient-to-br from-green-50 to-green-100/50 rounded-2xl p-6 border border-green-200" style={{animationDelay: '0.2s'}}>
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-green-600 rounded-lg">
+                  <Clock className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-1">Suivi en temps réel</h3>
+                  <p className="text-sm text-gray-700">Consultez vos emplois du temps en direct</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Feature 4 */}
+            <div className="feature-card bg-gradient-to-br from-purple-50 to-purple-100/50 rounded-2xl p-6 border border-purple-200" style={{animationDelay: '0.3s'}}>
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-purple-600 rounded-lg">
+                  <BookOpen className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-1">Demande de cours</h3>
+                  <p className="text-sm text-gray-700">Demandez et gérez vos cours individuels facilement</p>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Cartes QR - Taille optimisée */}
-          <div className="grid lg:grid-cols-2 gap-5 max-w-4xl mx-auto mb-5">
-            {/* Apple */}
-            <div className="app-card bg-gradient-to-br from-gray-950/80 to-black/80 backdrop-blur-xl rounded-2xl p-5 border-2 border-red-700 hover:border-red-500 shadow-lg hover:shadow-red-900/50 transition">
-              <div className="flex flex-col items-center gap-3">
-                {/* Logo Apple Store */}
-                <div className="p-2 rounded-xl shadow-lg bg-white/5">
-                  <img
-                    src="/app-store-logo.png"
-                    alt="Apple App Store"
-                    className="w-24 h-24 object-contain drop-shadow-lg"
-                  />
-                </div>
-                <div className="text-center">
-                  <h3 className="text-xl font-bold text-white">Apple Store</h3>
-                </div>
-                {/* QR Code */}
-                <div className="qr-container bg-white p-2 rounded-lg shadow-lg border-2 border-white">
+          {/* Download Section */}
+          <div className="bg-gray-900 rounded-3xl p-8 mb-8">
+            <h3 className="text-2xl font-bold text-white text-center mb-8">Téléchargez maintenant</h3>
+            <div className="grid lg:grid-cols-2 gap-8 max-w-3xl mx-auto">
+              {/* Apple */}
+              <div className="qr-box bg-white rounded-2xl p-6 flex flex-col items-center">
+                <img
+                  src="/app-store-logo.png"
+                  alt="Apple App Store"
+                  className="w-20 h-20 object-contain mb-4"
+                />
+                <h4 className="font-bold text-gray-900 mb-4">App Store</h4>
+                <div className="bg-gray-100 p-2 rounded-lg mb-3">
                   <img
                     src={appleQRCode}
                     alt="Apple QR Code"
-                    className="w-48 h-48"
+                    className="w-40 h-40"
                   />
                 </div>
+                <p className="text-xs text-gray-600 text-center">Scannez pour télécharger</p>
               </div>
-            </div>
 
-            {/* Android */}
-            <div className="app-card bg-gradient-to-br from-gray-950/80 to-black/80 backdrop-blur-xl rounded-2xl p-5 border-2 border-red-700 hover:border-red-500 shadow-lg hover:shadow-red-900/50 transition">
-              <div className="flex flex-col items-center gap-3">
-                {/* Logo Google Play */}
-                <div className="p-2 rounded-xl shadow-lg bg-white/5">
-                  <img
-                    src="/google-play-logo.png"
-                    alt="Google Play Store"
-                    className="w-24 h-24 object-contain drop-shadow-lg"
-                  />
-                </div>
-                <div className="text-center">
-                  <h3 className="text-xl font-bold text-white">Google Play</h3>
-                </div>
-                {/* QR Code */}
-                <div className="qr-container bg-white p-2 rounded-lg shadow-lg border-2 border-white">
+              {/* Android */}
+              <div className="qr-box bg-white rounded-2xl p-6 flex flex-col items-center">
+                <img
+                  src="/google-play-logo.png"
+                  alt="Google Play Store"
+                  className="w-20 h-20 object-contain mb-4"
+                />
+                <h4 className="font-bold text-gray-900 mb-4">Google Play</h4>
+                <div className="bg-gray-100 p-2 rounded-lg mb-3">
                   <img
                     src={androidQRCode}
                     alt="Android QR Code"
-                    className="w-48 h-48"
+                    className="w-40 h-40"
                   />
                 </div>
+                <p className="text-xs text-gray-600 text-center">Scannez pour télécharger</p>
               </div>
             </div>
           </div>
 
-          {/* Avantages */}
-          <div className="grid grid-cols-3 gap-3 max-w-3xl mx-auto text-center mt-4">
-            <div className="bg-red-900/30 backdrop-blur border border-red-600/40 p-3 rounded-lg hover:border-red-500 transition">
-              <div className="text-3xl mb-1">📱</div>
-              <p className="text-sm font-bold text-white">Interface</p>
-              <p className="text-xs text-gray-400">Moderne</p>
-            </div>
-            <div className="bg-red-900/30 backdrop-blur border border-red-600/40 p-3 rounded-lg hover:border-red-500 transition">
-              <div className="text-3xl mb-1">🔔</div>
-              <p className="text-sm font-bold text-white">Alertes</p>
-              <p className="text-xs text-gray-400">Instant</p>
-            </div>
-            <div className="bg-red-900/30 backdrop-blur border border-red-600/40 p-3 rounded-lg hover:border-red-500 transition">
-              <div className="text-3xl mb-1">⚡</div>
-              <p className="text-sm font-bold text-white">Rapide</p>
-              <p className="text-xs text-gray-400">Optimisé</p>
-            </div>
+          {/* Bottom CTA */}
+          <div className="text-center">
+            <p className="text-sm text-gray-600">
+              Disponible sur iOS et Android · Gratuit
+            </p>
           </div>
         </div>
       </div>
-
-      {/* Ligne décoration - Intellection Red */}
-      <div className="shimmer-bg h-1 bg-gradient-to-r from-transparent via-red-600 to-transparent"></div>
     </div>
   );
 };
