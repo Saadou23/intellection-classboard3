@@ -845,22 +845,40 @@ const branchNames = branchesArray.map(b => b.name) || [];
             {showMessage && currentMessage && (
               <>
                 <style>{`
-                  @keyframes slideDown {
+                  @keyframes fadeInScale {
                     from {
                       opacity: 0;
-                      transform: translateY(-20px);
+                      transform: scale(0.95);
                     }
                     to {
                       opacity: 1;
-                      transform: translateY(0);
+                      transform: scale(1);
                     }
                   }
                   .message-container {
-                    animation: slideDown 0.5s ease-out;
+                    animation: fadeInScale 0.5s ease-out;
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    z-index: 50;
+                    max-width: 90vw;
+                    width: auto;
+                    max-height: 80vh;
+                    border-radius: 16px;
+                    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+                  }
+                  .message-overlay {
+                    position: fixed;
+                    inset: 0;
+                    background: rgba(0,0,0,0.4);
+                    z-index: 40;
                   }
                 `}</style>
 
-                <div className="message-container bg-gradient-to-r from-red-700 via-red-600 to-red-700 py-6 px-8">
+                <div className="message-overlay" onClick={() => setShowMessage(false)}></div>
+
+                <div className="message-container bg-gradient-to-r from-red-700 via-red-600 to-red-700 py-8 px-8">
                   {/* Close button */}
                   <button
                     onClick={() => setShowMessage(false)}

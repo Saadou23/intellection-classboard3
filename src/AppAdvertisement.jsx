@@ -43,9 +43,8 @@ const AppAdvertisement = () => {
   ];
 
   useEffect(() => {
-    // Afficher la pub aléatoirement (30% de chance)
-    const randomShow = Math.random() < 0.3;
-    if (randomShow) {
+    // Afficher la pub toutes les 10 minutes
+    const showAdvertisement = () => {
       setShouldRender(true);
       setShowAd(true);
       setCurrentSlide(0);
@@ -58,7 +57,6 @@ const AppAdvertisement = () => {
             if (i < slides.length) {
               setCurrentSlide(i);
             } else {
-              // Dernier écran avec QR codes
               setCurrentSlide(slides.length);
             }
           }, i * 3000)
@@ -75,8 +73,16 @@ const AppAdvertisement = () => {
         intervals.forEach(t => clearTimeout(t));
         clearTimeout(closeTimer);
       };
-    }
-  }, []);
+    };
+
+    // Afficher immédiatement au chargement
+    showAdvertisement();
+
+    // Puis toutes les 10 minutes (600000ms)
+    const recurringInterval = setInterval(showAdvertisement, 600000);
+
+    return () => clearInterval(recurringInterval);
+  }, [slides.length]);
 
   // Écouter les triggers admin
   useEffect(() => {
@@ -182,6 +188,19 @@ const AppAdvertisement = () => {
           {/* Slide 0-3: Features */}
           {currentSlide < slides.length && (
             <div className="teaser-slide text-center text-white px-8 max-w-3xl">
+              {/* Logo with white overlay */}
+              <div className="mb-12 flex justify-center">
+                <div className="relative w-32 h-32">
+                  <img
+                    src="/logo-intellection.png"
+                    alt="Intellection"
+                    className="w-full h-full object-contain"
+                  />
+                  <div className="absolute inset-0 bg-white/30 rounded-lg"></div>
+                </div>
+              </div>
+
+              {/* Feature Icon */}
               {React.createElement(slides[currentSlide].icon, {
                 className: `w-24 h-24 mx-auto mb-8 text-${slides[currentSlide].color}-500`
               })}
@@ -210,6 +229,18 @@ const AppAdvertisement = () => {
               <div className="max-w-5xl mx-auto px-8">
                 {/* Header */}
                 <div className="text-center mb-12">
+                  {/* Logo with white overlay */}
+                  <div className="mb-8 flex justify-center">
+                    <div className="relative w-40 h-40">
+                      <img
+                        src="/logo-intellection.png"
+                        alt="Intellection"
+                        className="w-full h-full object-contain"
+                      />
+                      <div className="absolute inset-0 bg-white/30 rounded-lg"></div>
+                    </div>
+                  </div>
+
                   <h2 className="text-6xl font-black text-white mb-4 tracking-tight">
                     INTELLECTION<br />CLASSBOARD
                   </h2>
