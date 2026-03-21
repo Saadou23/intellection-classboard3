@@ -1,17 +1,46 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock, AlertCircle, BookOpen, Smartphone } from 'lucide-react';
+import { X, Calendar, Bell, BookOpen, Zap, Download } from 'lucide-react';
 import { db } from './firebase';
 import { onSnapshot, collection } from 'firebase/firestore';
 
 const AppAdvertisement = () => {
   const [showAd, setShowAd] = useState(false);
   const [shouldRender, setShouldRender] = useState(false);
+  const [currentSlide, setCurrentSlide] = useState(0);
 
   const appleUrl = 'https://apps.apple.com/ma/app/intellection-classboard/id6758705463?l=ar';
   const androidUrl = 'https://play.google.com/store/apps/details?id=com.intellection.mobile';
 
-  const appleQRCode = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(appleUrl)}`;
-  const androidQRCode = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(androidUrl)}`;
+  const appleQRCode = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(appleUrl)}`;
+  const androidQRCode = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(androidUrl)}`;
+
+  // Slides teaser
+  const slides = [
+    {
+      icon: Calendar,
+      color: 'blue',
+      title: 'Consultez vos emplois du temps',
+      description: 'Accédez instantanément à votre emploi du temps complet'
+    },
+    {
+      icon: Bell,
+      color: 'red',
+      title: 'Recevez les notifications',
+      description: 'Soyez alerté des absences ou retards des professeurs'
+    },
+    {
+      icon: BookOpen,
+      color: 'purple',
+      title: 'Demandez des cours individuels',
+      description: 'Accédez aux supports de cours et exercices électroniques'
+    },
+    {
+      icon: Zap,
+      color: 'amber',
+      title: 'Restez connectés',
+      description: 'Suivi en temps réel de votre scolarité'
+    }
+  ];
 
   useEffect(() => {
     // Afficher la pub aléatoirement (30% de chance)
@@ -19,14 +48,33 @@ const AppAdvertisement = () => {
     if (randomShow) {
       setShouldRender(true);
       setShowAd(true);
+      setCurrentSlide(0);
 
-      // Fermer automatiquement après 15 secondes
-      const autoCloseTimer = setTimeout(() => {
+      // Auto-progression des slides
+      const intervals = [];
+      for (let i = 0; i < slides.length + 1; i++) {
+        intervals.push(
+          setTimeout(() => {
+            if (i < slides.length) {
+              setCurrentSlide(i);
+            } else {
+              // Dernier écran avec QR codes
+              setCurrentSlide(slides.length);
+            }
+          }, i * 3000)
+        );
+      }
+
+      // Fermer après tout
+      const closeTimer = setTimeout(() => {
         setShowAd(false);
         setTimeout(() => setShouldRender(false), 500);
-      }, 15000);
+      }, (slides.length + 1) * 3000 + 3000);
 
-      return () => clearTimeout(autoCloseTimer);
+      return () => {
+        intervals.forEach(t => clearTimeout(t));
+        clearTimeout(closeTimer);
+      };
     }
   }, []);
 
@@ -39,21 +87,39 @@ const AppAdvertisement = () => {
           if (change.type === 'added') {
             setShouldRender(true);
             setShowAd(true);
+            setCurrentSlide(0);
 
-            // Fermer automatiquement après 15 secondes
-            const autoCloseTimer = setTimeout(() => {
+            // Auto-progression des slides
+            const intervals = [];
+            for (let i = 0; i < slides.length + 1; i++) {
+              intervals.push(
+                setTimeout(() => {
+                  if (i < slides.length) {
+                    setCurrentSlide(i);
+                  } else {
+                    setCurrentSlide(slides.length);
+                  }
+                }, i * 3000)
+              );
+            }
+
+            // Fermer après tout
+            const closeTimer = setTimeout(() => {
               setShowAd(false);
               setTimeout(() => setShouldRender(false), 500);
-            }, 15000);
+            }, (slides.length + 1) * 3000 + 3000);
 
-            return () => clearTimeout(autoCloseTimer);
+            return () => {
+              intervals.forEach(t => clearTimeout(t));
+              clearTimeout(closeTimer);
+            };
           }
         });
       }
     );
 
     return () => unsubscribe();
-  }, []);
+  }, [slides.length]);
 
   if (!shouldRender) {
     return null;
@@ -62,173 +128,142 @@ const AppAdvertisement = () => {
   return (
     <div className="relative w-full">
       <style>{`
-        @keyframes slideInDown {
+        @keyframes fadeInScale {
           from {
             opacity: 0;
-            transform: translateY(-20px);
+            transform: scale(0.95);
           }
           to {
             opacity: 1;
-            transform: translateY(0);
+            transform: scale(1);
           }
         }
-        @keyframes slideOutUp {
+        @keyframes fadeOutScale {
           from {
             opacity: 1;
-            transform: translateY(0);
+            transform: scale(1);
           }
           to {
             opacity: 0;
-            transform: translateY(-20px);
+            transform: scale(0.95);
           }
         }
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
+        .teaser-slide {
+          animation: fadeInScale 0.8s ease-out forwards;
         }
-        .ad-container {
-          animation: ${showAd ? 'slideInDown' : 'slideOutUp'} 0.5s ease-out forwards;
-        }
-        .feature-card {
-          animation: fadeIn 0.6s ease-out forwards;
-        }
-        .qr-box {
-          transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-        .qr-box:hover {
-          transform: translateY(-4px);
-          box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+        .teaser-exit {
+          animation: fadeOutScale 0.5s ease-out forwards;
         }
       `}</style>
 
-      {/* Banner principal - Style Apple Professional */}
-      <div className="ad-container bg-white py-8 px-6 text-gray-900 relative overflow-hidden">
+      {/* Teaser Cinématique */}
+      <div className="bg-gradient-to-br from-gray-950 via-gray-900 to-black min-h-screen flex items-center justify-center relative overflow-hidden">
         {/* Bouton fermer */}
         <button
           onClick={() => {
             setShowAd(false);
             setTimeout(() => setShouldRender(false), 500);
           }}
-          className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full transition"
+          className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full transition z-50"
         >
-          <X className="w-5 h-5 text-gray-600" />
+          <X className="w-6 h-6 text-white" />
         </button>
 
-        <div className="max-w-5xl mx-auto">
-          {/* Header */}
-          <div className="text-center mb-10">
-            <p className="text-sm font-semibold text-red-600 mb-3 tracking-wide">INTELLECTION CLASSBOARD</p>
-            <h2 className="text-5xl font-black mb-4 tracking-tight">
-              L'app indispensable<br />de vos études
-            </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
-              Restez connecté avec votre emploi du temps, vos notifications et vos cours
-            </p>
-          </div>
+        {/* Progress bar */}
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gray-800">
+          <div
+            className="h-full bg-red-600 transition-all duration-500"
+            style={{ width: `${((currentSlide + 1) / (slides.length + 1)) * 100}%` }}
+          ></div>
+        </div>
 
-          {/* Features Grid */}
-          <div className="grid md:grid-cols-2 gap-6 mb-10">
-            {/* Feature 1 */}
-            <div className="feature-card bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-2xl p-6 border border-blue-200">
-              <div className="flex items-start gap-4">
-                <div className="p-3 bg-blue-600 rounded-lg">
-                  <Calendar className="w-6 h-6 text-white" />
+        {/* Slides */}
+        <div className="w-full h-full flex items-center justify-center">
+          {/* Slide 0-3: Features */}
+          {currentSlide < slides.length && (
+            <div className="teaser-slide text-center text-white px-8 max-w-3xl">
+              {React.createElement(slides[currentSlide].icon, {
+                className: `w-24 h-24 mx-auto mb-8 text-${slides[currentSlide].color}-500`
+              })}
+              <h2 className="text-6xl font-black mb-6 tracking-tight leading-tight">
+                {slides[currentSlide].title}
+              </h2>
+              <p className="text-2xl text-gray-300 leading-relaxed">
+                {slides[currentSlide].description}
+              </p>
+              <div className="mt-8 flex justify-center gap-2">
+                {slides.map((_, idx) => (
+                  <div
+                    key={idx}
+                    className={`h-2 rounded-full transition-all ${
+                      idx === currentSlide ? 'bg-red-600 w-8' : 'bg-gray-700 w-2'
+                    }`}
+                  ></div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Slide Final: Download */}
+          {currentSlide === slides.length && (
+            <div className="teaser-slide w-full">
+              <div className="max-w-5xl mx-auto px-8">
+                {/* Header */}
+                <div className="text-center mb-12">
+                  <h2 className="text-6xl font-black text-white mb-4 tracking-tight">
+                    INTELLECTION<br />CLASSBOARD
+                  </h2>
+                  <p className="text-2xl text-gray-400">L'app indispensable de vos études</p>
                 </div>
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900 mb-1">Consultation emploi du temps</h3>
-                  <p className="text-sm text-gray-700">Accédez facilement à votre emploi du temps à tout moment</p>
+
+                {/* Download Section */}
+                <div className="grid lg:grid-cols-2 gap-8 max-w-3xl mx-auto">
+                  {/* Apple */}
+                  <div className="bg-white rounded-3xl p-8 flex flex-col items-center hover:scale-105 transition">
+                    <img
+                      src="/app-store-logo.png"
+                      alt="Apple App Store"
+                      className="w-32 h-32 object-contain mb-6"
+                    />
+                    <h3 className="text-2xl font-bold text-gray-900 mb-6">App Store</h3>
+                    <div className="bg-gray-100 p-4 rounded-2xl mb-6 border-4 border-gray-200">
+                      <img
+                        src={appleQRCode}
+                        alt="Apple QR Code"
+                        className="w-56 h-56"
+                      />
+                    </div>
+                    <p className="text-gray-700 font-semibold">Scannez pour télécharger</p>
+                  </div>
+
+                  {/* Android */}
+                  <div className="bg-white rounded-3xl p-8 flex flex-col items-center hover:scale-105 transition">
+                    <img
+                      src="/google-play-logo.png"
+                      alt="Google Play Store"
+                      className="w-32 h-32 object-contain mb-6"
+                    />
+                    <h3 className="text-2xl font-bold text-gray-900 mb-6">Google Play</h3>
+                    <div className="bg-gray-100 p-4 rounded-2xl mb-6 border-4 border-gray-200">
+                      <img
+                        src={androidQRCode}
+                        alt="Android QR Code"
+                        className="w-56 h-56"
+                      />
+                    </div>
+                    <p className="text-gray-700 font-semibold">Scannez pour télécharger</p>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="text-center mt-12">
+                  <p className="text-gray-400 text-lg">
+                    Disponible sur iOS et Android · Gratuit · Sans engagement
+                  </p>
                 </div>
               </div>
             </div>
-
-            {/* Feature 2 */}
-            <div className="feature-card bg-gradient-to-br from-red-50 to-red-100/50 rounded-2xl p-6 border border-red-200" style={{animationDelay: '0.1s'}}>
-              <div className="flex items-start gap-4">
-                <div className="p-3 bg-red-600 rounded-lg">
-                  <AlertCircle className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900 mb-1">Notifications immédiates</h3>
-                  <p className="text-sm text-gray-700">Soyez alerté des absences professeurs et retards</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Feature 3 */}
-            <div className="feature-card bg-gradient-to-br from-green-50 to-green-100/50 rounded-2xl p-6 border border-green-200" style={{animationDelay: '0.2s'}}>
-              <div className="flex items-start gap-4">
-                <div className="p-3 bg-green-600 rounded-lg">
-                  <Clock className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900 mb-1">Suivi en temps réel</h3>
-                  <p className="text-sm text-gray-700">Consultez vos emplois du temps en direct</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Feature 4 */}
-            <div className="feature-card bg-gradient-to-br from-purple-50 to-purple-100/50 rounded-2xl p-6 border border-purple-200" style={{animationDelay: '0.3s'}}>
-              <div className="flex items-start gap-4">
-                <div className="p-3 bg-purple-600 rounded-lg">
-                  <BookOpen className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900 mb-1">Demande de cours</h3>
-                  <p className="text-sm text-gray-700">Demandez et gérez vos cours individuels facilement</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Download Section */}
-          <div className="bg-gray-900 rounded-3xl p-8 mb-8">
-            <h3 className="text-2xl font-bold text-white text-center mb-8">Téléchargez maintenant</h3>
-            <div className="grid lg:grid-cols-2 gap-8 max-w-3xl mx-auto">
-              {/* Apple */}
-              <div className="qr-box bg-white rounded-2xl p-6 flex flex-col items-center">
-                <img
-                  src="/app-store-logo.png"
-                  alt="Apple App Store"
-                  className="w-20 h-20 object-contain mb-4"
-                />
-                <h4 className="font-bold text-gray-900 mb-4">App Store</h4>
-                <div className="bg-gray-100 p-2 rounded-lg mb-3">
-                  <img
-                    src={appleQRCode}
-                    alt="Apple QR Code"
-                    className="w-40 h-40"
-                  />
-                </div>
-                <p className="text-xs text-gray-600 text-center">Scannez pour télécharger</p>
-              </div>
-
-              {/* Android */}
-              <div className="qr-box bg-white rounded-2xl p-6 flex flex-col items-center">
-                <img
-                  src="/google-play-logo.png"
-                  alt="Google Play Store"
-                  className="w-20 h-20 object-contain mb-4"
-                />
-                <h4 className="font-bold text-gray-900 mb-4">Google Play</h4>
-                <div className="bg-gray-100 p-2 rounded-lg mb-3">
-                  <img
-                    src={androidQRCode}
-                    alt="Android QR Code"
-                    className="w-40 h-40"
-                  />
-                </div>
-                <p className="text-xs text-gray-600 text-center">Scannez pour télécharger</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Bottom CTA */}
-          <div className="text-center">
-            <p className="text-sm text-gray-600">
-              Disponible sur iOS et Android · Gratuit
-            </p>
-          </div>
+          )}
         </div>
       </div>
     </div>
