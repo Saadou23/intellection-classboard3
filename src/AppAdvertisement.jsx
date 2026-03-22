@@ -305,7 +305,7 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
                 {/* Download Section */}
                 <div className="grid lg:grid-cols-2 gap-5 max-w-3xl mx-auto mb-4">
                   {/* Apple */}
-                  <div className="bg-white rounded-2xl p-5 flex flex-col items-center card-hover">
+                  <div className="bg-white rounded-2xl p-5 flex flex-col items-center card-hover h-full min-h-[480px]">
                     <div className="flex items-center gap-3 mb-2 w-full">
                       <img
                         src="/app-store-logo.png"
@@ -325,7 +325,7 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
                   </div>
 
                   {/* Android */}
-                  <div className="bg-white rounded-2xl p-5 flex flex-col items-center card-hover">
+                  <div className="bg-white rounded-2xl p-5 flex flex-col items-center card-hover h-full min-h-[480px]">
                     <div className="flex items-center gap-3 mb-2 w-full">
                       <img
                         src="/google-play-logo.png"
