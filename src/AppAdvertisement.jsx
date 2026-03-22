@@ -7,6 +7,7 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
   const [showAd, setShowAd] = useState(false);
   const [shouldRender, setShouldRender] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const audioRef = React.useRef(null);
 
   const appleUrl = 'https://apps.apple.com/ma/app/intellection-classboard/id6758705463?l=ar';
   const androidUrl = 'https://play.google.com/store/apps/details?id=com.intellection.mobile';
@@ -22,33 +23,28 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
     '/results-4.jpg'
   ];
 
-  // Play notification sound when ad appears
-  const playNotificationSound = () => {
+  // Play cinematic soundtrack when ad appears
+  const playAdSoundtrack = () => {
     try {
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-
-      // Melody: 3 beeps with rising pitch
-      const notes = [800, 1000, 1200]; // Hz
-      let startTime = audioContext.currentTime;
-
-      notes.forEach((freq, idx) => {
-        const noteStart = startTime + (idx * 0.15);
-        const noteEnd = noteStart + 0.1;
-
-        oscillator.frequency.setValueAtTime(freq, noteStart);
-        gainNode.gain.setValueAtTime(0.3, noteStart);
-        gainNode.gain.setValueAtTime(0, noteEnd);
-      });
-
-      oscillator.start(startTime);
-      oscillator.stop(startTime + 0.5);
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+        audioRef.current.volume = 0.4; // 40% volume
+        audioRef.current.play().catch(err => console.log('Audio play failed:', err));
+      }
     } catch (e) {
       console.log('Audio not available');
+    }
+  };
+
+  // Stop audio when ad closes
+  const stopAdSoundtrack = () => {
+    try {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+    } catch (e) {
+      console.log('Audio stop failed');
     }
   };
 
@@ -97,9 +93,11 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
     if (onAdVisibilityChange) {
       onAdVisibilityChange(showAd);
     }
-    // Play sound when ad appears
+    // Play soundtrack when ad appears, stop when it disappears
     if (showAd) {
-      playNotificationSound();
+      playAdSoundtrack();
+    } else {
+      stopAdSoundtrack();
     }
   }, [showAd, onAdVisibilityChange]);
 
@@ -230,6 +228,12 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
 
   return (
     <div className="relative w-full">
+      {/* Cinematic Soundtrack */}
+      <audio
+        ref={audioRef}
+        src="/ad-soundtrack.mp3"
+        onEnded={() => audioRef.current && (audioRef.current.currentTime = 0)}
+      />
       <style>{`
         @keyframes fadeInScale {
           from {
