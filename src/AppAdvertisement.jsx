@@ -18,8 +18,39 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
   const resultImages = [
     '/results-27950.jpg',
     '/results-3422.jpg',
-    '/results-9168.jpg'
+    '/results-9168.jpg',
+    '/results-4.jpg'
   ];
+
+  // Play notification sound when ad appears
+  const playNotificationSound = () => {
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      // Melody: 3 beeps with rising pitch
+      const notes = [800, 1000, 1200]; // Hz
+      let startTime = audioContext.currentTime;
+
+      notes.forEach((freq, idx) => {
+        const noteStart = startTime + (idx * 0.15);
+        const noteEnd = noteStart + 0.1;
+
+        oscillator.frequency.setValueAtTime(freq, noteStart);
+        gainNode.gain.setValueAtTime(0.3, noteStart);
+        gainNode.gain.setValueAtTime(0, noteEnd);
+      });
+
+      oscillator.start(startTime);
+      oscillator.stop(startTime + 0.5);
+    } catch (e) {
+      console.log('Audio not available');
+    }
+  };
 
   // Slides teaser
   const slides = [
@@ -61,10 +92,14 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
     }
   ];
 
-  // Notifier le parent quand la pub s'affiche/disparaît
+  // Notifier le parent quand la pub s'affiche/disparaît + Play sound
   useEffect(() => {
     if (onAdVisibilityChange) {
       onAdVisibilityChange(showAd);
+    }
+    // Play sound when ad appears
+    if (showAd) {
+      playNotificationSound();
     }
   }, [showAd, onAdVisibilityChange]);
 
