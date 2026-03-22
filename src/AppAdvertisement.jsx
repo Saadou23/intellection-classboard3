@@ -70,15 +70,18 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
 
       // Auto-progression des slides
       const intervals = [];
-      for (let i = 0; i < slides.length + 1; i++) {
-        const delay = i < slides.length ? i * 3000 : slides.length * 3000;
+      for (let i = 0; i < slides.length + 2; i++) {
+        let delay;
+        if (i < slides.length) {
+          delay = i * 3000; // Features slides: 3s each
+        } else if (i === slides.length) {
+          delay = slides.length * 3000; // Success slide: 4s
+        } else {
+          delay = slides.length * 3000 + 4000; // QR slide
+        }
         intervals.push(
           setTimeout(() => {
-            if (i < slides.length) {
-              setCurrentSlide(i);
-            } else {
-              setCurrentSlide(slides.length);
-            }
+            setCurrentSlide(i);
           }, delay)
         );
       }
@@ -87,7 +90,7 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
       const closeTimer = setTimeout(() => {
         setShowAd(false);
         setTimeout(() => setShouldRender(false), 500);
-      }, slides.length * 3000 + 15000);
+      }, slides.length * 3000 + 4000 + 15000);
 
       return () => {
         intervals.forEach(t => clearTimeout(t));
@@ -117,15 +120,18 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
 
             // Auto-progression des slides
             const intervals = [];
-            for (let i = 0; i < slides.length + 1; i++) {
-              const delay = i < slides.length ? i * 3000 : slides.length * 3000;
+            for (let i = 0; i < slides.length + 2; i++) {
+              let delay;
+              if (i < slides.length) {
+                delay = i * 3000; // Features slides: 3s each
+              } else if (i === slides.length) {
+                delay = slides.length * 3000; // Success slide: 4s
+              } else {
+                delay = slides.length * 3000 + 4000; // QR slide
+              }
               intervals.push(
                 setTimeout(() => {
-                  if (i < slides.length) {
-                    setCurrentSlide(i);
-                  } else {
-                    setCurrentSlide(slides.length);
-                  }
+                  setCurrentSlide(i);
                 }, delay)
               );
             }
@@ -134,7 +140,7 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
             const closeTimer = setTimeout(() => {
               setShowAd(false);
               setTimeout(() => setShouldRender(false), 500);
-            }, slides.length * 3000 + 15000);
+            }, slides.length * 3000 + 4000 + 15000);
 
             return () => {
               intervals.forEach(t => clearTimeout(t));
@@ -314,7 +320,7 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
                 />
               </div>
               <div className="mt-2 flex justify-center gap-2">
-                {slides.map((_, idx) => (
+                {[...slides, 'success', 'download'].map((_, idx) => (
                   <div
                     key={idx}
                     className={`h-2 rounded-full transition-all ${
@@ -326,8 +332,21 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
             </div>
           )}
 
-          {/* Slide Final: Download */}
+          {/* Slide Success Stories */}
           {currentSlide === slides.length && (
+            <div className="teaser-slide w-full py-4">
+              <div className="max-w-6xl mx-auto px-8 h-full flex items-center justify-center">
+                <img
+                  src="/student-success.jpg"
+                  alt="Nos Meilleurs Étudiants"
+                  className="w-full h-auto object-contain max-h-[90vh] rounded-lg shadow-2xl"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Slide Final: Download */}
+          {currentSlide === slides.length + 1 && (
             <div className="teaser-slide w-full py-4">
               <div className="max-w-6xl mx-auto px-8">
                 {/* Header - Title */}
