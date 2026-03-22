@@ -39,6 +39,18 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
       color: 'amber',
       title: 'Restez connectés',
       description: 'Suivi en temps réel de votre scolarité'
+    },
+    {
+      icon: Bell,
+      color: 'green',
+      title: 'Suivi Parental en Temps Réel',
+      description: 'Les parents suivent précisément: présences, emploi du temps, performances et communications directes'
+    },
+    {
+      icon: Calendar,
+      color: 'indigo',
+      title: 'Famille Connectée',
+      description: 'Professeurs • Étudiants • Parents - Une plateforme unique pour Confiance • Transparence • Succès'
     }
   ];
 
