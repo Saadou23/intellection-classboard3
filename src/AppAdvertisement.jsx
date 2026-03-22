@@ -264,11 +264,10 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
       `}</style>
 
       {/* Teaser Cinématique */}
-      <div className="bg-gradient-to-br from-slate-950 via-purple-900 to-black min-h-screen flex items-end justify-center pb-8 relative overflow-hidden">
-        {/* Animated background blur orbs */}
-        <div className="absolute top-0 left-0 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-pulse" style={{animationDelay: '1s'}}></div>
-        <div className="absolute top-1/2 left-1/2 w-72 h-72 bg-indigo-500/10 rounded-full blur-3xl" style={{animationDelay: '2s'}}></div>
+      <div className="bg-gradient-to-br from-gray-950 via-gray-900 to-black min-h-screen flex items-end justify-center pb-8 relative overflow-hidden">
+        {/* Animated background blur orbs - subtle */}
+        <div className="absolute top-0 left-0 w-96 h-96 bg-gray-700/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-gray-800/10 rounded-full blur-3xl animate-pulse" style={{animationDelay: '1s'}}></div>
         {/* Bouton fermer */}
         <button
           onClick={() => {
@@ -299,7 +298,7 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
                   {React.createElement(slides[currentSlide].icon, {
                     className: `w-40 h-40 mb-3 text-${slides[currentSlide].color}-500 icon-bounce`
                   })}
-                  <h2 className="text-5xl font-black tracking-tight leading-tight text-center gradient-text slide-in">
+                  <h2 className="text-5xl font-black tracking-tight leading-tight text-center text-white slide-in">
                     {slides[currentSlide].title}
                   </h2>
                 </div>
@@ -333,7 +332,7 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
               <div className="max-w-6xl mx-auto px-8">
                 {/* Header - Title */}
                 <div className="text-center mb-4">
-                  <h2 className="text-5xl font-black tracking-tight leading-tight gradient-text slide-in">
+                  <h2 className="text-5xl font-black tracking-tight leading-tight text-white slide-in">
                     INTELLECTION<br />CLASSBOARD
                   </h2>
                   <p className="text-lg text-gray-300 mt-1">L'app indispensable de vos études</p>
@@ -342,7 +341,7 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
                 {/* Download Section */}
                 <div className="grid lg:grid-cols-2 gap-5 max-w-3xl mx-auto mb-4">
                   {/* Apple */}
-                  <div className="bg-gradient-to-br from-white via-blue-50 to-white rounded-3xl p-6 flex flex-col items-center card-hover h-full min-h-[480px] shadow-2xl border border-blue-100/30">
+                  <div className="bg-white rounded-3xl p-6 flex flex-col items-center card-hover h-full min-h-[480px] shadow-2xl">
                     <div className="flex items-center gap-3 mb-2 w-full">
                       <img
                         src="/app-store-logo.png"
@@ -362,7 +361,7 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
                   </div>
 
                   {/* Android */}
-                  <div className="bg-gradient-to-br from-white via-green-50 to-white rounded-3xl p-6 flex flex-col items-center card-hover h-full min-h-[480px] shadow-2xl border border-green-100/30">
+                  <div className="bg-white rounded-3xl p-6 flex flex-col items-center card-hover h-full min-h-[480px] shadow-2xl">
                     <div className="flex items-center gap-3 mb-2 w-full">
                       <img
                         src="/google-play-logo.png"
