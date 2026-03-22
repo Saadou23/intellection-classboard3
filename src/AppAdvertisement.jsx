@@ -158,28 +158,75 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
         @keyframes fadeInScale {
           from {
             opacity: 0;
-            transform: scale(0.95);
+            transform: scale(0.95) rotateX(10deg);
           }
           to {
             opacity: 1;
-            transform: scale(1);
+            transform: scale(1) rotateX(0deg);
           }
         }
         @keyframes fadeOutScale {
           from {
             opacity: 1;
-            transform: scale(1);
+            transform: scale(1) rotateX(0deg);
           }
           to {
             opacity: 0;
-            transform: scale(0.95);
+            transform: scale(0.95) rotateX(-10deg);
+          }
+        }
+        @keyframes float {
+          0%, 100% {
+            transform: translateY(0px);
+          }
+          50% {
+            transform: translateY(-15px);
+          }
+        }
+        @keyframes rotate3D {
+          0% {
+            transform: rotateY(0deg) rotateX(5deg);
+          }
+          50% {
+            transform: rotateY(5deg) rotateX(-5deg);
+          }
+          100% {
+            transform: rotateY(0deg) rotateX(5deg);
+          }
+        }
+        @keyframes glow {
+          0%, 100% {
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+          }
+          50% {
+            box-shadow: 0 0 40px rgba(255, 255, 255, 0.6);
           }
         }
         .teaser-slide {
           animation: fadeInScale 0.8s ease-out forwards;
+          perspective: 1000px;
         }
         .teaser-exit {
           animation: fadeOutScale 0.5s ease-out forwards;
+        }
+        .logo-3d {
+          animation: float 3s ease-in-out infinite, rotate3D 4s ease-in-out infinite;
+          transform-style: preserve-3d;
+          filter: drop-shadow(0 20px 40px rgba(255,255,255,0.2));
+        }
+        .icon-bounce {
+          animation: float 2.5s ease-in-out infinite;
+        }
+        .card-hover {
+          transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+          transform-style: preserve-3d;
+        }
+        .card-hover:hover {
+          transform: translateY(-10px) rotateY(5deg) scale(1.05);
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+        }
+        .title-glow {
+          animation: glow 3s ease-in-out infinite;
         }
       `}</style>
 
@@ -213,7 +260,7 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
               <div className="flex flex-col items-center justify-center">
                 <div className="flex flex-col items-center mb-4">
                   {React.createElement(slides[currentSlide].icon, {
-                    className: `w-40 h-40 mb-3 text-${slides[currentSlide].color}-500`
+                    className: `w-40 h-40 mb-3 text-${slides[currentSlide].color}-500 icon-bounce`
                   })}
                   <h2 className="text-5xl font-black tracking-tight leading-tight text-center">
                     {slides[currentSlide].title}
@@ -227,8 +274,7 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
                 <img
                   src="/logo-intellection.png"
                   alt="Intellection"
-                  className="w-56 h-56 object-contain drop-shadow-2xl mb-3"
-                  style={{ filter: 'drop-shadow(0 20px 40px rgba(255,255,255,0.2))' }}
+                  className="w-56 h-56 object-contain logo-3d mb-3"
                 />
               </div>
               <div className="mt-2 flex justify-center gap-2">
@@ -259,7 +305,7 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
                 {/* Download Section */}
                 <div className="grid lg:grid-cols-2 gap-5 max-w-3xl mx-auto mb-4">
                   {/* Apple */}
-                  <div className="bg-white rounded-2xl p-5 flex flex-col items-center hover:scale-105 transition">
+                  <div className="bg-white rounded-2xl p-5 flex flex-col items-center card-hover">
                     <div className="flex items-center gap-3 mb-2 w-full">
                       <img
                         src="/app-store-logo.png"
@@ -279,7 +325,7 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
                   </div>
 
                   {/* Android */}
-                  <div className="bg-white rounded-2xl p-5 flex flex-col items-center hover:scale-105 transition">
+                  <div className="bg-white rounded-2xl p-5 flex flex-col items-center card-hover">
                     <div className="flex items-center gap-3 mb-2 w-full">
                       <img
                         src="/google-play-logo.png"
@@ -304,8 +350,7 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
                   <img
                     src="/logo-intellection.png"
                     alt="Intellection"
-                    className="w-48 h-48 object-contain drop-shadow-2xl mt-2 mb-2"
-                    style={{ filter: 'drop-shadow(0 20px 40px rgba(255,255,255,0.2))' }}
+                    className="w-48 h-48 object-contain logo-3d mt-2 mb-2"
                   />
                 </div>
 
