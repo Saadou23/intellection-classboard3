@@ -155,8 +155,8 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
     // Afficher immédiatement au chargement
     showAdvertisement();
 
-    // Puis toutes les 10 minutes (600000ms)
-    const recurringInterval = setInterval(showAdvertisement, 600000);
+    // Puis toutes les 7.5 minutes (450000ms) = 2 fois par 15 min
+    const recurringInterval = setInterval(showAdvertisement, 450000);
 
     return () => clearInterval(recurringInterval);
   }, [slides.length]);
@@ -430,14 +430,14 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
                       />
                       <h3 className="text-xl font-bold text-gray-900">App Store</h3>
                     </div>
-                    <div className="bg-gray-100 p-3 rounded-lg mb-2 border-3 border-gray-300">
+                    <div className="bg-gray-100 p-2 rounded-lg border-3 border-gray-300 flex-grow flex items-center justify-center">
                       <img
                         src={appleQRCode}
                         alt="Apple QR Code"
                         className="w-44 h-44"
                       />
                     </div>
-                    <p className="text-gray-700 font-semibold text-sm">Scannez pour télécharger</p>
+                    <p className="text-gray-700 font-semibold text-sm mt-2">Scannez pour télécharger</p>
                   </div>
 
                   {/* Android */}
@@ -450,14 +450,14 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
                       />
                       <h3 className="text-xl font-bold text-gray-900">Google Play</h3>
                     </div>
-                    <div className="bg-gray-100 p-3 rounded-lg mb-2 border-3 border-gray-300">
+                    <div className="bg-gray-100 p-2 rounded-lg border-3 border-gray-300 flex-grow flex items-center justify-center">
                       <img
                         src={androidQRCode}
                         alt="Android QR Code"
                         className="w-44 h-44"
                       />
                     </div>
-                    <p className="text-gray-700 font-semibold text-sm">Scannez pour télécharger</p>
+                    <p className="text-gray-700 font-semibold text-sm mt-2">Scannez pour télécharger</p>
                   </div>
                 </div>
 
