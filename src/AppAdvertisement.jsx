@@ -14,6 +14,13 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
   const appleQRCode = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(appleUrl)}`;
   const androidQRCode = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(androidUrl)}`;
 
+  // Results images
+  const resultImages = [
+    '/results-27950.jpg',
+    '/results-3422.jpg',
+    '/results-9168.jpg'
+  ];
+
   // Slides teaser
   const slides = [
     {
@@ -70,27 +77,41 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
 
       // Auto-progression des slides
       const intervals = [];
-      for (let i = 0; i < slides.length + 2; i++) {
-        let delay;
-        if (i < slides.length) {
-          delay = i * 3000; // Features slides: 3s each
-        } else if (i === slides.length) {
-          delay = slides.length * 3000; // Success slide: 4s
-        } else {
-          delay = slides.length * 3000 + 4000; // QR slide
-        }
+      let currentTime = 0;
+
+      // Features slides: 3s each
+      for (let i = 0; i < slides.length; i++) {
         intervals.push(
           setTimeout(() => {
             setCurrentSlide(i);
-          }, delay)
+          }, currentTime)
         );
+        currentTime += 3000;
       }
 
-      // Fermer après tout - Le dernier slide (QR) reste 15 secondes
+      // QR slide: 15s
+      intervals.push(
+        setTimeout(() => {
+          setCurrentSlide(slides.length);
+        }, currentTime)
+      );
+      currentTime += 15000;
+
+      // Results slides: 4s each
+      for (let i = 0; i < resultImages.length; i++) {
+        intervals.push(
+          setTimeout(() => {
+            setCurrentSlide(slides.length + 1 + i);
+          }, currentTime)
+        );
+        currentTime += 4000;
+      }
+
+      // Fermer après tout
       const closeTimer = setTimeout(() => {
         setShowAd(false);
         setTimeout(() => setShouldRender(false), 500);
-      }, slides.length * 3000 + 4000 + 15000);
+      }, currentTime);
 
       return () => {
         intervals.forEach(t => clearTimeout(t));
@@ -120,27 +141,41 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
 
             // Auto-progression des slides
             const intervals = [];
-            for (let i = 0; i < slides.length + 2; i++) {
-              let delay;
-              if (i < slides.length) {
-                delay = i * 3000; // Features slides: 3s each
-              } else if (i === slides.length) {
-                delay = slides.length * 3000; // Success slide: 4s
-              } else {
-                delay = slides.length * 3000 + 4000; // QR slide
-              }
+            let currentTime = 0;
+
+            // Features slides: 3s each
+            for (let i = 0; i < slides.length; i++) {
               intervals.push(
                 setTimeout(() => {
                   setCurrentSlide(i);
-                }, delay)
+                }, currentTime)
               );
+              currentTime += 3000;
             }
 
-            // Fermer après tout - Le dernier slide (QR) reste 15 secondes
+            // QR slide: 15s
+            intervals.push(
+              setTimeout(() => {
+                setCurrentSlide(slides.length);
+              }, currentTime)
+            );
+            currentTime += 15000;
+
+            // Results slides: 4s each
+            for (let i = 0; i < resultImages.length; i++) {
+              intervals.push(
+                setTimeout(() => {
+                  setCurrentSlide(slides.length + 1 + i);
+                }, currentTime)
+              );
+              currentTime += 4000;
+            }
+
+            // Fermer après tout
             const closeTimer = setTimeout(() => {
               setShowAd(false);
               setTimeout(() => setShouldRender(false), 500);
-            }, slides.length * 3000 + 4000 + 15000);
+            }, currentTime);
 
             return () => {
               intervals.forEach(t => clearTimeout(t));
@@ -320,7 +355,7 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
                 />
               </div>
               <div className="mt-2 flex justify-center gap-2">
-                {[...slides, 'success', 'download'].map((_, idx) => (
+                {[...slides, 'download', ...resultImages].map((_, idx) => (
                   <div
                     key={idx}
                     className={`h-2 rounded-full transition-all ${
@@ -332,21 +367,8 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
             </div>
           )}
 
-          {/* Slide Success Stories */}
+          {/* Slide Final: Download (QR Codes) */}
           {currentSlide === slides.length && (
-            <div className="teaser-slide w-full py-4">
-              <div className="max-w-6xl mx-auto px-8 h-full flex items-center justify-center">
-                <img
-                  src="/student-success.jpg"
-                  alt="Nos Meilleurs Étudiants"
-                  className="w-full h-auto object-contain max-h-[90vh] rounded-lg shadow-2xl"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Slide Final: Download */}
-          {currentSlide === slides.length + 1 && (
             <div className="teaser-slide w-full py-4">
               <div className="max-w-6xl mx-auto px-8">
                 {/* Header - Title */}
@@ -415,6 +437,19 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
                     iOS · Android · Gratuit · Sans engagement
                   </p>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Results Slides */}
+          {currentSlide >= slides.length + 1 && currentSlide < slides.length + 1 + resultImages.length && (
+            <div className="teaser-slide w-full py-4">
+              <div className="max-w-6xl mx-auto px-8 h-full flex items-center justify-center">
+                <img
+                  src={resultImages[currentSlide - (slides.length + 1)]}
+                  alt={`Résultats ${currentSlide - slides.length}`}
+                  className="w-full h-auto object-contain max-h-[90vh] rounded-lg shadow-2xl"
+                />
               </div>
             </div>
           )}
