@@ -228,10 +228,47 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
         .title-glow {
           animation: glow 3s ease-in-out infinite;
         }
+        @keyframes shimmer {
+          0% { background-position: -1000px 0; }
+          100% { background-position: 1000px 0; }
+        }
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .shimmer-gradient {
+          animation: shimmer 3s infinite;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+          background-size: 1000px 100%;
+        }
+        .slide-in {
+          animation: slideIn 0.6s ease-out;
+        }
+        .gradient-text {
+          background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 50%, #f472b6 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+        }
+        .glass-effect {
+          background: rgba(255, 255, 255, 0.05);
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+        }
       `}</style>
 
       {/* Teaser Cinématique */}
-      <div className="bg-gradient-to-br from-gray-950 via-gray-900 to-black min-h-screen flex items-center justify-center relative overflow-hidden">
+      <div className="bg-gradient-to-br from-slate-950 via-purple-900 to-black min-h-screen flex items-end justify-center pb-8 relative overflow-hidden">
+        {/* Animated background blur orbs */}
+        <div className="absolute top-0 left-0 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-pulse" style={{animationDelay: '1s'}}></div>
+        <div className="absolute top-1/2 left-1/2 w-72 h-72 bg-indigo-500/10 rounded-full blur-3xl" style={{animationDelay: '2s'}}></div>
         {/* Bouton fermer */}
         <button
           onClick={() => {
@@ -262,7 +299,7 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
                   {React.createElement(slides[currentSlide].icon, {
                     className: `w-40 h-40 mb-3 text-${slides[currentSlide].color}-500 icon-bounce`
                   })}
-                  <h2 className="text-5xl font-black tracking-tight leading-tight text-center">
+                  <h2 className="text-5xl font-black tracking-tight leading-tight text-center gradient-text slide-in">
                     {slides[currentSlide].title}
                   </h2>
                 </div>
@@ -296,7 +333,7 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
               <div className="max-w-6xl mx-auto px-8">
                 {/* Header - Title */}
                 <div className="text-center mb-4">
-                  <h2 className="text-5xl font-black text-white tracking-tight leading-tight">
+                  <h2 className="text-5xl font-black tracking-tight leading-tight gradient-text slide-in">
                     INTELLECTION<br />CLASSBOARD
                   </h2>
                   <p className="text-lg text-gray-300 mt-1">L'app indispensable de vos études</p>
@@ -305,7 +342,7 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
                 {/* Download Section */}
                 <div className="grid lg:grid-cols-2 gap-5 max-w-3xl mx-auto mb-4">
                   {/* Apple */}
-                  <div className="bg-white rounded-2xl p-5 flex flex-col items-center card-hover h-full min-h-[480px]">
+                  <div className="bg-gradient-to-br from-white via-blue-50 to-white rounded-3xl p-6 flex flex-col items-center card-hover h-full min-h-[480px] shadow-2xl border border-blue-100/30">
                     <div className="flex items-center gap-3 mb-2 w-full">
                       <img
                         src="/app-store-logo.png"
@@ -325,7 +362,7 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
                   </div>
 
                   {/* Android */}
-                  <div className="bg-white rounded-2xl p-5 flex flex-col items-center card-hover h-full min-h-[480px]">
+                  <div className="bg-gradient-to-br from-white via-green-50 to-white rounded-3xl p-6 flex flex-col items-center card-hover h-full min-h-[480px] shadow-2xl border border-green-100/30">
                     <div className="flex items-center gap-3 mb-2 w-full">
                       <img
                         src="/google-play-logo.png"
