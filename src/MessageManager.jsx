@@ -11,6 +11,8 @@ const MessageManager = () => {
   const [success, setSuccess] = useState(false);
   const [launchingAd, setLaunchingAd] = useState(false);
   const [adSuccess, setAdSuccess] = useState(false);
+  const [launchingBranding, setLaunchingBranding] = useState(false);
+  const [brandingSuccess, setBrandingSuccess] = useState(false);
 
   // Charger les messages depuis Firebase
   useEffect(() => {
@@ -67,7 +69,7 @@ const MessageManager = () => {
     setMessages(messages.filter(msg => msg.id !== id));
   };
 
-  // Lancer la publicité
+  // Lancer la publicité de l'app
   const launchAdvertisement = async () => {
     setLaunchingAd(true);
     try {
@@ -82,6 +84,24 @@ const MessageManager = () => {
       alert('❌ Erreur lors du lancement');
     } finally {
       setLaunchingAd(false);
+    }
+  };
+
+  // Lancer le branding INTELLECTION
+  const launchBrandingBanner = async () => {
+    setLaunchingBranding(true);
+    try {
+      await addDoc(collection(db, 'branding_trigger'), {
+        triggeredAt: new Date(),
+        type: 'branding'
+      });
+      setBrandingSuccess(true);
+      setTimeout(() => setBrandingSuccess(false), 3000);
+    } catch (error) {
+      console.error('Erreur:', error);
+      alert('❌ Erreur lors du lancement');
+    } finally {
+      setLaunchingBranding(false);
     }
   };
 
@@ -233,27 +253,51 @@ const MessageManager = () => {
           )}
         </button>
 
-        <button
-          onClick={launchAdvertisement}
-          disabled={launchingAd}
-          className={`py-3 rounded-lg font-bold text-white flex items-center justify-center gap-2 transition ${
-            launchingAd
-              ? 'bg-gray-400 cursor-not-allowed'
-              : 'bg-blue-600 hover:bg-blue-700'
-          }`}
-        >
-          {launchingAd ? (
-            <>
-              <span className="animate-spin">⏳</span>
-              Lancement...
-            </>
-          ) : (
-            <>
-              <Send className="w-5 h-5" />
-              🚀 Lancer pub
-            </>
-          )}
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={launchAdvertisement}
+            disabled={launchingAd}
+            className={`flex-1 py-3 rounded-lg font-bold text-white flex items-center justify-center gap-2 transition ${
+              launchingAd
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700'
+            }`}
+          >
+            {launchingAd ? (
+              <>
+                <span className="animate-spin">⏳</span>
+                Lancement...
+              </>
+            ) : (
+              <>
+                <Send className="w-5 h-5" />
+                🚀 Lancer pub
+              </>
+            )}
+          </button>
+
+          <button
+            onClick={launchBrandingBanner}
+            disabled={launchingBranding}
+            className={`flex-1 py-3 rounded-lg font-bold text-white flex items-center justify-center gap-2 transition ${
+              launchingBranding
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-indigo-600 hover:bg-indigo-700'
+            }`}
+          >
+            {launchingBranding ? (
+              <>
+                <span className="animate-spin">⏳</span>
+                Lancement...
+              </>
+            ) : (
+              <>
+                <Send className="w-5 h-5" />
+                🎯 Branding
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );

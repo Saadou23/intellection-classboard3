@@ -12,35 +12,27 @@ import './App.css';
 function App() {
   const path = window.location.pathname;
 
+  let pageComponent;
+
   if (path === '/emploi-du-temps') {
-    return <PublicSchedule />;
+    pageComponent = <PublicSchedule />;
+  } else if (path === '/mon-emploi') {
+    pageComponent = <ProfessorSchedule />;
+  } else if (path === '/test-niveau') {
+    pageComponent = <StudentExamPortal />;
+  } else if (path === '/exams/admin') {
+    pageComponent = <ExamAdmin />;
+  } else if (path === '/exams/professeur') {
+    pageComponent = <ProfessorExamCreator />;
+  } else if (path === '/privacy-policy') {
+    pageComponent = <PrivacyPolicy />;
+  } else if (path === '/dashboard' || path === '/admin/dashboard') {
+    pageComponent = <Dashboard sessions={{}} />;
+  } else {
+    pageComponent = <ClassBoard />;
   }
 
-  if (path === '/mon-emploi') {
-    return <ProfessorSchedule />;
-  }
-
-  if (path === '/test-niveau') {
-    return <StudentExamPortal />;
-  }
-
-  if (path === '/exams/admin') {
-    return <ExamAdmin />;
-  }
-
-  if (path === '/exams/professeur') {
-    return <ProfessorExamCreator />;
-  }
-
-  if (path === '/privacy-policy') {
-    return <PrivacyPolicy />;
-  }
-
-  if (path === '/dashboard' || path === '/admin/dashboard') {
-    return <Dashboard sessions={{}} />;
-  }
-
-  return <ClassBoard />;
+  return pageComponent;
 }
 
 export default App;
