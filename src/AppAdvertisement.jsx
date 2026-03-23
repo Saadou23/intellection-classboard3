@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Bell, BookOpen, Zap, Download } from 'lucide-react';
+import { X, Calendar, Bell, BookOpen, Zap, Download, Award } from 'lucide-react';
 import { db } from './firebase';
 import { onSnapshot, collection } from 'firebase/firestore';
 
@@ -85,6 +85,12 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
       color: 'indigo',
       title: 'Famille Connectée',
       description: 'Professeurs • Étudiants • Parents - Une plateforme unique pour Confiance • Transparence • Succès'
+    },
+    {
+      icon: Award,
+      color: 'yellow',
+      title: 'INTELLECTION',
+      description: 'N°1 du soutien scolaire & universitaire à EL JADIDA'
     }
   ];
 
