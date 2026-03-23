@@ -23,6 +23,7 @@ import ProfessorSettingsManager from './ProfessorSettingsManager';
 import StudentIndividualLessonsManager from './StudentIndividualLessonsManager';
 import MessageManager from './MessageManager';
 import AppAdvertisement from './AppAdvertisement';
+import BrandingBanner from './BrandingBanner';
 import { loadTodayRecords, createDisciplineRecord } from './disciplineService';
 import { Volume2, VolumeX, Eye } from 'lucide-react';
 const ClassBoard = () => {
@@ -54,6 +55,7 @@ const ClassBoard = () => {
   const [currentMessage, setCurrentMessage] = useState('');
   const [allMessages, setAllMessages] = useState([]);
   const [isAdDisplayed, setIsAdDisplayed] = useState(false);
+  const [showBrandingBanner, setShowBrandingBanner] = useState(false);
   const [branches, setBranches] = useState(['Hay Salam', 'Doukkali', 'Saada']); // Valeurs par défaut
   const [scrollPosition, setScrollPosition] = useState(0);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(false);
@@ -74,6 +76,40 @@ const [showThermalPrint, setShowThermalPrint] = useState(false);
   const [showMessageManager, setShowMessageManager] = useState(false);
 // Hook pour les notifications sonores
 useSessionNotifications(sessions, selectedBranch, currentTime, soundEnabled);
+
+// Gestion du branding banner (toutes les 8 minutes, sauf si pub/message affichés)
+useEffect(() => {
+  // Ne pas afficher le banner si une pub ou un message est actif
+  if (isAdDisplayed || showMessage) {
+    setShowBrandingBanner(false);
+    return;
+  }
+
+  // Afficher le banner
+  setShowBrandingBanner(true);
+
+  // Auto-masquer après 8 secondes
+  const hideTimer = setTimeout(() => {
+    setShowBrandingBanner(false);
+  }, 8000);
+
+  // Réafficher toutes les 8 minutes (480000ms)
+  const showTimer = setInterval(() => {
+    if (!isAdDisplayed && !showMessage) {
+      setShowBrandingBanner(true);
+      const hideT = setTimeout(() => {
+        setShowBrandingBanner(false);
+      }, 8000);
+      return () => clearTimeout(hideT);
+    }
+  }, 480000);
+
+  return () => {
+    clearTimeout(hideTimer);
+    clearInterval(showTimer);
+  };
+}, [isAdDisplayed, showMessage]);
+
   const daysOfWeek = [
     { value: 0, label: 'Dimanche' },
     { value: 1, label: 'Lundi' },
@@ -806,17 +842,22 @@ const branchNames = branchesArray.map(b => b.name) || [];
           </div>
         ) : (
           <div className="h-screen flex flex-col">
-            <div className="bg-black py-4 px-6 flex justify-between items-center">
-              <div className="flex items-center gap-4">
-                <h1 className="text-3xl font-bold text-white tracking-wide">INTELLECTION CLASSBOARD</h1>
-                <div className="text-2xl font-bold text-yellow-400 tracking-wide">{selectedBranch}</div>
-              </div>
-              <div className="text-right">
-                <div className="text-4xl font-bold text-white tracking-wider font-mono">
-                  {currentTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+            {/* Branding Banner (replaces header when shown) */}
+            {showBrandingBanner ? (
+              <BrandingBanner isVisible={showBrandingBanner} />
+            ) : (
+              <div className="bg-black py-4 px-6 flex justify-between items-center">
+                <div className="flex items-center gap-4">
+                  <h1 className="text-3xl font-bold text-white tracking-wide">INTELLECTION CLASSBOARD</h1>
+                  <div className="text-2xl font-bold text-yellow-400 tracking-wide">{selectedBranch}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-4xl font-bold text-white tracking-wider font-mono">
+                    {currentTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Publicité Application Mobile */}
             <AppAdvertisement onAdVisibilityChange={setIsAdDisplayed} />

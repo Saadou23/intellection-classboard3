@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Bell, BookOpen, Zap, Download, Award } from 'lucide-react';
+import { X, Calendar, Bell, BookOpen, Zap, Download } from 'lucide-react';
 import { db } from './firebase';
 import { onSnapshot, collection } from 'firebase/firestore';
 
@@ -85,12 +85,6 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
       color: 'indigo',
       title: 'Famille Connectée',
       description: 'Professeurs • Étudiants • Parents - Une plateforme unique pour Confiance • Transparence • Succès'
-    },
-    {
-      icon: Award,
-      color: 'yellow',
-      title: 'INTELLECTION',
-      description: 'N°1 du soutien scolaire & universitaire à EL JADIDA'
     }
   ];
 
@@ -118,32 +112,32 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
       const intervals = [];
       let currentTime = 0;
 
-      // Features slides: 3s each
+      // Features slides: 1.5s each (aggressive/fast)
       for (let i = 0; i < slides.length; i++) {
         intervals.push(
           setTimeout(() => {
             setCurrentSlide(i);
           }, currentTime)
         );
-        currentTime += 3000;
+        currentTime += 1500;
       }
 
-      // QR slide: 15s
+      // QR slide: 8s (aggressive/fast)
       intervals.push(
         setTimeout(() => {
           setCurrentSlide(slides.length);
         }, currentTime)
       );
-      currentTime += 15000;
+      currentTime += 8000;
 
-      // Results slides: 4s each
+      // Results slides: 2s each (aggressive/fast)
       for (let i = 0; i < resultImages.length; i++) {
         intervals.push(
           setTimeout(() => {
             setCurrentSlide(slides.length + 1 + i);
           }, currentTime)
         );
-        currentTime += 4000;
+        currentTime += 2000;
       }
 
       // Fermer après tout
@@ -161,8 +155,8 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
     // Afficher immédiatement au chargement
     showAdvertisement();
 
-    // Puis toutes les 7.5 minutes (450000ms) = 2 fois par 15 min
-    const recurringInterval = setInterval(showAdvertisement, 450000);
+    // Puis toutes les 4 minutes (240000ms) = 2 fois par 8 min
+    const recurringInterval = setInterval(showAdvertisement, 240000);
 
     return () => clearInterval(recurringInterval);
   }, [slides.length]);
