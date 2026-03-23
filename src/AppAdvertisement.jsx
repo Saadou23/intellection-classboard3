@@ -10,7 +10,7 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
   const audioRef = React.useRef(null);
 
   const appleUrl = 'https://apps.apple.com/ma/app/intellection-classboard/id6758705463?l=ar';
-  const androidUrl = 'https://play.google.com/store/apps/details?id=com.intellection.mobile';
+  const androidUrl = 'https://drive.google.com/uc?export=download&id=1CEz3JigKOAD2iWErsLfTQhC38irng2Gz'; // APK Download Link
 
   const appleQRCode = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(appleUrl)}`;
   const androidQRCode = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(androidUrl)}`;
@@ -445,19 +445,23 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
                     <div className="flex items-center gap-3 mb-2 w-full">
                       <img
                         src="/google-play-logo.png"
-                        alt="Google Play Store"
+                        alt="Android APK Download"
                         className="w-14 h-14 object-contain"
                       />
-                      <h3 className="text-xl font-bold text-gray-900">Google Play</h3>
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-900">Intellection APK</h3>
+                        <p className="text-xs text-green-600 font-semibold">Téléchargement Direct</p>
+                      </div>
                     </div>
                     <div className="bg-gray-100 p-2 rounded-lg border-3 border-gray-300 flex-grow flex items-center justify-center">
                       <img
                         src={androidQRCode}
-                        alt="Android QR Code"
+                        alt="Android APK QR Code"
                         className="w-44 h-44"
                       />
                     </div>
                     <p className="text-gray-700 font-semibold text-sm mt-2">Scannez pour télécharger</p>
+                    <p className="text-gray-500 text-xs mt-1">Installation directe sans Play Store</p>
                   </div>
                 </div>
 
