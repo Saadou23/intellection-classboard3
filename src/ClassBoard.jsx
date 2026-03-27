@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Save, X, Monitor, Settings, AlertCircle, Maximize, Clock, BarChart3, Sliders, Building2, Calendar, Printer, Moon, FileDown, MapPin, BookOpen, Users, Bell, MessageSquare } from 'lucide-react';import { db } from './firebase';
+import SecurityService from './SecurityService';
 import { doc, setDoc, getDoc, onSnapshot, collection, deleteDoc } from 'firebase/firestore';
 import Dashboard from './DashboardOptimized';
 import SettingsManager from './SettingsManager';
@@ -25,6 +26,7 @@ import MessageManager from './MessageManager';
 import AppAdvertisement from './AppAdvertisement';
 import { loadTodayRecords, createDisciplineRecord } from './disciplineService';
 import { Volume2, VolumeX, Eye } from 'lucide-react';
+import SecurityDashboard from './SecurityDashboard';
 const ClassBoard = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -72,6 +74,16 @@ const [showThermalPrint, setShowThermalPrint] = useState(false);
   const [viewPeriodFilter, setViewPeriodFilter] = useState(null); // null = toutes, "normal" = normales, "period-id" = période spécifique
   const [viewDayFilter, setViewDayFilter] = useState(null); // null = tous les jours, 0-6 = jour spécifique
   const [showMessageManager, setShowMessageManager] = useState(false);
+  const [showSecurityDashboard, setShowSecurityDashboard] = useState(false);
+
+  // ========== SÉCURITÉ - PROTECTION ANTI-BRUTE FORCE ==========
+  const [loginAttempts, setLoginAttempts] = useState(0);
+  const [isAccountLocked, setIsAccountLocked] = useState(false);
+  const [lockoutTime, setLockoutTime] = useState(null);
+  const [loginError, setLoginError] = useState('');
+  const MAX_LOGIN_ATTEMPTS = 5;
+  const LOCKOUT_DURATION = 15 * 60 * 1000; // 15 minutes en millisecondes
+
 // Hook pour les notifications sonores
 useSessionNotifications(sessions, selectedBranch, currentTime, soundEnabled);
 
@@ -415,13 +427,56 @@ const branchNames = branchesArray.map(b => b.name) || [];
   }, [allMessages]);
 
   // ========== HANDLERS ==========
-  const handleLogin = () => {
-    if (password === 'admin123') {
+  const handleLogin = async () => {
+    // Vérifier si le compte est verrouillé
+    if (isAccountLocked) {
+      const timeRemaining = Math.ceil((lockoutTime - Date.now()) / 1000);
+      if (timeRemaining > 0) {
+        setLoginError(`🔒 Compte verrouillé. Réessayez dans ${timeRemaining}s`);
+        await SecurityService.logBlockedAttempt('Account locked - cooldown period');
+        return;
+      } else {
+        // Le lockout a expiré
+        setIsAccountLocked(false);
+        setLoginAttempts(0);
+        setLockoutTime(null);
+        setLoginError('');
+      }
+    }
+
+    // Vérifier le mot de passe (NIZAR123@)
+    if (password === 'NIZAR123@') {
       setIsAuthenticated(true);
       setIsAdmin(true);
       setView('admin');
+      setLoginAttempts(0);
+      setLoginError('');
+      setPassword('');
+      await SecurityService.logLoginAttempt(password, true);
+      await SecurityService.logSuccessfulAccess();
+      console.log('✅ Login réussi à', new Date().toLocaleString());
     } else {
-      alert('Mot de passe incorrect');
+      const newAttempts = loginAttempts + 1;
+      setLoginAttempts(newAttempts);
+
+      // Enregistrer la tentative échouée
+      await SecurityService.logLoginAttempt(password, false);
+
+      console.log('❌ Tentative de login échouée - Tentative', newAttempts);
+
+      if (newAttempts >= MAX_LOGIN_ATTEMPTS) {
+        // Verrouiller le compte
+        const lockoutStart = Date.now();
+        setIsAccountLocked(true);
+        setLockoutTime(lockoutStart + LOCKOUT_DURATION);
+        setLoginError(`🚨 Compte verrouillé après ${MAX_LOGIN_ATTEMPTS} tentatives. Réessayez dans 15 minutes.`);
+        await SecurityService.logBlockedAttempt('Max login attempts exceeded');
+        console.log('🔒 Compte verrouillé pour 15 minutes');
+      } else {
+        const remainingAttempts = MAX_LOGIN_ATTEMPTS - newAttempts;
+        setLoginError(`❌ Mot de passe incorrect. ${remainingAttempts} tentative(s) restante(s)`);
+      }
+      setPassword('');
     }
   };
 
@@ -748,19 +803,27 @@ const branchNames = branchesArray.map(b => b.name) || [];
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
-              className="w-full bg-white/10 border border-white/30 text-white placeholder-blue-300 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+              disabled={isAccountLocked}
+              className="w-full bg-white/10 border border-white/30 text-white placeholder-blue-300 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50"
             />
-            
+
             <button
               onClick={handleLogin}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold transition-all"
+              disabled={isAccountLocked}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Se connecter
             </button>
 
-            <p className="text-xs text-blue-300 text-center mt-4">
-              Mot de passe par défaut: admin
-            </p>
+            {loginError && (
+              <div className={`p-3 rounded-lg text-sm font-semibold ${
+                isAccountLocked
+                  ? 'bg-red-900/30 border border-red-500 text-red-300'
+                  : 'bg-orange-900/30 border border-orange-500 text-orange-300'
+              }`}>
+                {loginError}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1046,6 +1109,11 @@ const branchNames = branchesArray.map(b => b.name) || [];
   }
 
   // ========== INTERFACE ADMIN ==========
+  // Si on est sur le tableau de bord de sécurité
+  if (showSecurityDashboard) {
+    return <SecurityDashboard onBack={() => setShowSecurityDashboard(false)} />;
+  }
+
   // Si on est sur le dashboard
   if (view === 'dashboard') {
     return <Dashboard sessions={sessions} onBack={() => setView('admin')} />;
@@ -1159,6 +1227,12 @@ onClick={() => setShowAvailableRooms(true)}
               className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
             >
               📊 Discipline
+            </button>
+            <button
+              onClick={() => setShowSecurityDashboard(true)}
+              className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
+            >
+              🔒 Sécurité
             </button>
             <button
               onClick={() => setShowTimeSettings(!showTimeSettings)}
