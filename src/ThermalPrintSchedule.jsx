@@ -13,6 +13,7 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
   const [isPrinting, setIsPrinting] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState('normal');
   const [availablePeriods, setAvailablePeriods] = useState([]);
+  const [filterLastGroupOnly, setFilterLastGroupOnly] = useState(false);
 
   const daysOfWeek = [
     { value: 1, label: 'Lundi' },
@@ -69,9 +70,31 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
       branchSessions = branchSessions.filter(s => s.period === period);
     }
     
-    const filteredSessions = level === 'ALL' 
+    let filteredSessions = level === 'ALL' 
       ? branchSessions 
       : branchSessions.filter(s => sessionIncludesLevel(s, level));
+
+    if (filterLastGroupOnly) {
+      const sessionsBySubject = {};
+      filteredSessions.forEach(session => {
+        const key = session.subject || 'Unknown';
+        if (!sessionsBySubject[key]) sessionsBySubject[key] = [];
+        sessionsBySubject[key].push(session);
+      });
+      const filteredByGroup = [];
+      Object.values(sessionsBySubject).forEach(subjectSessions => {
+        const groupsSet = new Set();
+        subjectSessions.forEach(s => { if (s.groupe) groupsSet.add(s.groupe); });
+        const sortedGroups = Array.from(groupsSet).sort((a, b) => {
+          const numA = parseInt(a.replace(/\D/g, '')) || 0;
+          const numB = parseInt(b.replace(/\D/g, '')) || 0;
+          return numB - numA;
+        });
+        const lastGroup = sortedGroups[0];
+        subjectSessions.forEach(s => { if (s.groupe === lastGroup) filteredByGroup.push(s); });
+      });
+      filteredSessions = filteredByGroup;
+    }
     
     let schedule = {};
     daysOfWeek.forEach(day => {
@@ -378,6 +401,7 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
               ))}
             </select>
           </div>
+<div className="flex items-center gap-3 p-4 bg-orange-50 border border-orange-200 rounded-lg">            <input              type="checkbox"              id="filterLastGroup"              checked={filterLastGroupOnly}              onChange={(e) => setFilterLastGroupOnly(e.target.checked)}              className="w-5 h-5 cursor-pointer"            />            <label htmlFor="filterLastGroup" className="text-sm font-medium text-gray-700 cursor-pointer flex-1">              📌 Afficher uniquement le dernier groupe (G2 si G1+G2)            </label>          </div>
         </div>
 
         <div className="border-t p-4 bg-gray-50 flex justify-end gap-3">
