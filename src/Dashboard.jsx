@@ -3,11 +3,13 @@ import { BarChart3, TrendingUp, AlertCircle, Calendar, Clock, Building2, FileDow
 import ThermalPrintSchedule from './ThermalPrintSchedule';
 import MessageManager from './MessageManager';
 import AdvertisementManager from './AdvertisementManager';
+import RoomSlots from './RoomSlots';
 
 const Dashboard = ({ sessions, onBack }) => {
   const [selectedPeriod, setSelectedPeriod] = useState('week'); // day, week, month
   const [analytics, setAnalytics] = useState({});
   const [showThermalPrint, setShowThermalPrint] = useState(false);
+  const [showRoomAvailability, setShowRoomAvailability] = useState(false);
 
   // Configuration des filiales
   const branchConfig = {
@@ -174,6 +176,13 @@ const Dashboard = ({ sessions, onBack }) => {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowRoomAvailability(true)}
+                className="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg flex items-center gap-2 transition-all text-white"
+              >
+                <Building2 className="w-4 h-4" />
+                Disponibilité Salles
+              </button>
               <button
                 onClick={() => setShowThermalPrint(true)}
                 className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg flex items-center gap-2 transition-all"
@@ -407,6 +416,20 @@ const Dashboard = ({ sessions, onBack }) => {
           })}
         </div>
       </div>
+
+      {/* Modal Disponibilité des Salles */}
+      {showRoomAvailability && (
+        <RoomSlots
+          sessions={sessions}
+          branches={Object.keys(branchConfig)}
+          branchesData={Object.entries(branchConfig).map(([name, config]) => ({
+            name,
+            rooms: config.rooms,
+            exceptionalPeriods: []
+          }))}
+          onClose={() => setShowRoomAvailability(false)}
+        />
+      )}
 
       {/* Modal d'impression thermique */}
       {showThermalPrint && (

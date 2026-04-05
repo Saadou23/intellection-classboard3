@@ -8,6 +8,7 @@ const AvailableRoomsViewer = ({ sessions, branches, branchesData, onClose }) => 
   const [endTime, setEndTime] = useState('10:30');
   const [selectedPeriod, setSelectedPeriod] = useState('normal');
   const [availablePeriods, setAvailablePeriods] = useState([]);
+  const [showOnlyAvailable, setShowOnlyAvailable] = useState(true);
 
   const daysOfWeek = [
     { value: 0, label: 'Dimanche' },
@@ -182,10 +183,35 @@ const AvailableRoomsViewer = ({ sessions, branches, branchesData, onClose }) => 
             </div>
           </div>
 
-          <div className="mt-4 text-center bg-indigo-50 border border-indigo-200 rounded-lg p-3">
-            <p className="text-indigo-900 font-semibold">
-              🔍 Recherche : {selectedPeriod === 'normal' ? 'Normal' : availablePeriods.find(p => p.id === selectedPeriod)?.name || 'Période'} - {daysOfWeek.find(d => d.value === selectedDay)?.label} de {startTime} à {endTime}
-            </p>
+          <div className="mt-4 space-y-3">
+            <div className="text-center bg-indigo-50 border border-indigo-200 rounded-lg p-3">
+              <p className="text-indigo-900 font-semibold">
+                🔍 Recherche : {selectedPeriod === 'normal' ? 'Normal' : availablePeriods.find(p => p.id === selectedPeriod)?.name || 'Période'} - {daysOfWeek.find(d => d.value === selectedDay)?.label} de {startTime} à {endTime}
+              </p>
+            </div>
+
+            <div className="flex justify-center gap-3">
+              <button
+                onClick={() => setShowOnlyAvailable(true)}
+                className={`px-6 py-2 rounded-lg font-semibold transition-all ${
+                  showOnlyAvailable
+                    ? 'bg-green-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                ✅ Afficher les salles libres
+              </button>
+              <button
+                onClick={() => setShowOnlyAvailable(false)}
+                className={`px-6 py-2 rounded-lg font-semibold transition-all ${
+                  !showOnlyAvailable
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                📋 Toutes les salles
+              </button>
+            </div>
           </div>
         </div>
 
@@ -200,6 +226,8 @@ const AvailableRoomsViewer = ({ sessions, branches, branchesData, onClose }) => 
               {rooms.map(room => {
                 const occupying = getOccupyingSessions(room);
                 const isOccupied = occupying.length > 0;
+
+                if (showOnlyAvailable && isOccupied) return null;
 
                 return (
                   <div
