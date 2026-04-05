@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Clock, Calendar } from 'lucide-react';
+import { X, Clock, Calendar, Download } from 'lucide-react';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 const AvailableRoomsViewer = ({ sessions, branches, branchesData, onClose }) => {
   const [selectedBranch, setSelectedBranch] = useState(branches[0] || '');
@@ -9,6 +11,7 @@ const AvailableRoomsViewer = ({ sessions, branches, branchesData, onClose }) => 
   const [selectedPeriod, setSelectedPeriod] = useState('normal');
   const [availablePeriods, setAvailablePeriods] = useState([]);
   const [showOnlyAvailable, setShowOnlyAvailable] = useState(true);
+  const [viewMode, setViewMode] = useState('available'); // 'available', 'all', 'slots'
 
   const daysOfWeek = [
     { value: 0, label: 'Dimanche' },
@@ -99,6 +102,127 @@ const AvailableRoomsViewer = ({ sessions, branches, branchesData, onClose }) => 
   };
 
   const rooms = getAllRooms();
+
+  // Horaires d'ouverture par jour
+  const openingHours = {
+    0: { start: 9, end: 22 },
+    1: { start: 16, end: 22 },
+    2: { start: 16, end: 22 },
+    3: { start: 16, end: 22 },
+    4: { start: 16, end: 22 },
+    5: { start: 16, end: 22 },
+    6: { start: 14, end: 22 }
+  };
+
+  const timeToMinutes = (time) => {
+    const [h, m] = time.split(':').map(Number);
+    return h * 60 + m;
+  };
+
+  const minutesToTime = (minutes) => {
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+  };
+
+  const getAvailableSlotsForRoom = (room) => {
+    const branchSessions = sessions[selectedBranch] || [];
+    const hours = openingHours[selectedDay];
+
+    const roomSessions = branchSessions
+      .filter(s => {
+        if (s.dayOfWeek !== selectedDay) return false;
+        const normalizedRoom = normalizeRoomName(s.room);
+        return normalizedRoom === room;
+      })
+      .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+
+    const slots = [];
+    let currentTime = hours.start * 60;
+    const endTime = hours.end * 60;
+
+    roomSessions.forEach(session => {
+      const sessionStart = timeToMinutes(session.startTime);
+      const sessionEnd = timeToMinutes(session.endTime);
+
+      if (currentTime < sessionStart) {
+        slots.push({
+          start: minutesToTime(currentTime),
+          end: minutesToTime(sessionStart)
+        });
+      }
+
+      currentTime = Math.max(currentTime, sessionEnd);
+    });
+
+    if (currentTime < endTime) {
+      slots.push({
+        start: minutesToTime(currentTime),
+        end: minutesToTime(endTime)
+      });
+    }
+
+    return slots;
+  };
+
+  const generatePDF = () => {
+    const pdf = new jsPDF();
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    let yPosition = 15;
+
+    pdf.setFontSize(16);
+    pdf.text(`CRÉNEAUX DISPONIBLES - ${selectedBranch}`, 15, yPosition);
+    pdf.setFontSize(10);
+    pdf.text(`${daysOfWeek[selectedDay].label}`, 15, yPosition + 8);
+
+    yPosition += 20;
+
+    rooms.forEach((room, roomIndex) => {
+      const slots = getAvailableSlotsForRoom(room);
+
+      if (yPosition > pageHeight - 40) {
+        pdf.addPage();
+        yPosition = 15;
+      }
+
+      pdf.setFontSize(12);
+      pdf.setFont(undefined, 'bold');
+      pdf.text(room, 15, yPosition);
+      yPosition += 8;
+
+      pdf.setFontSize(10);
+      pdf.setFont(undefined, 'normal');
+
+      if (slots.length === 0) {
+        pdf.setTextColor(220, 0, 0);
+        pdf.text('Aucun créneau disponible', 20, yPosition);
+        pdf.setTextColor(0, 0, 0);
+        yPosition += 6;
+      } else {
+        slots.forEach(slot => {
+          pdf.text(`  • ${slot.start} à ${slot.end}`, 20, yPosition);
+          yPosition += 6;
+
+          if (yPosition > pageHeight - 20) {
+            pdf.addPage();
+            yPosition = 15;
+          }
+        });
+      }
+
+      yPosition += 4;
+    });
+
+    pdf.setFontSize(8);
+    pdf.text(
+      `Généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`,
+      15,
+      pageHeight - 10
+    );
+
+    pdf.save(`crenaux-disponibles-${selectedBranch}-${daysOfWeek[selectedDay].label}.pdf`);
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -192,9 +316,9 @@ const AvailableRoomsViewer = ({ sessions, branches, branchesData, onClose }) => 
 
             <div className="flex justify-center gap-3">
               <button
-                onClick={() => setShowOnlyAvailable(true)}
+                onClick={() => { setViewMode('available'); setShowOnlyAvailable(true); }}
                 className={`px-6 py-2 rounded-lg font-semibold transition-all ${
-                  showOnlyAvailable
+                  viewMode === 'available'
                     ? 'bg-green-600 text-white'
                     : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                 }`}
@@ -202,20 +326,82 @@ const AvailableRoomsViewer = ({ sessions, branches, branchesData, onClose }) => 
                 ✅ Afficher les salles libres
               </button>
               <button
-                onClick={() => setShowOnlyAvailable(false)}
+                onClick={() => { setViewMode('all'); setShowOnlyAvailable(false); }}
                 className={`px-6 py-2 rounded-lg font-semibold transition-all ${
-                  !showOnlyAvailable
+                  viewMode === 'all'
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                 }`}
               >
                 📋 Toutes les salles
               </button>
+              <button
+                onClick={() => setViewMode('slots')}
+                className={`px-6 py-2 rounded-lg font-semibold transition-all flex items-center gap-2 ${
+                  viewMode === 'slots'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                🕐 Créneaux Disponibles
+              </button>
             </div>
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
+          {viewMode === 'slots' && (
+            <div className="space-y-4">
+              <div className="flex justify-end mb-4">
+                <button
+                  onClick={generatePDF}
+                  className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  Exporter PDF
+                </button>
+              </div>
+              {rooms.map((room) => {
+                const slots = getAvailableSlotsForRoom(room);
+                return (
+                  <div key={room} className="border-2 border-gray-200 rounded-lg p-4 hover:shadow-md transition-all">
+                    <h3 className="text-lg font-bold text-gray-800 mb-3 pb-2 border-b-2 border-purple-300">
+                      {room}
+                    </h3>
+                    {slots.length === 0 ? (
+                      <div className="text-red-600 font-semibold text-sm p-3 bg-red-50 rounded">
+                        ❌ Aucun créneau disponible
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {slots.map((slot, idx) => (
+                          <div key={idx} className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                            <div className="text-green-600 text-xl">✓</div>
+                            <div className="flex-1">
+                              <p className="font-semibold text-gray-800">
+                                {slot.start} à {slot.end}
+                              </p>
+                              <p className="text-sm text-gray-600">
+                                {(() => {
+                                  const startMin = timeToMinutes(slot.start);
+                                  const endMin = timeToMinutes(slot.end);
+                                  const duration = (endMin - startMin) / 60;
+                                  return `Durée: ${duration.toFixed(1)}h`;
+                                })()}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {viewMode !== 'slots' && (
+            <>
           {rooms.length === 0 ? (
             <div className="text-center text-gray-500 py-12">
               <p className="text-lg">Aucune salle configurée pour ce centre</p>
@@ -286,28 +472,32 @@ const AvailableRoomsViewer = ({ sessions, branches, branchesData, onClose }) => 
               })}
             </div>
           )}
+            </>
+          )}
         </div>
 
-        <div className="border-t p-4 bg-gray-50">
-          <div className="grid grid-cols-3 gap-4 text-center">
-            <div>
-              <div className="text-2xl font-bold text-gray-800">{rooms.length}</div>
-              <div className="text-sm text-gray-600">Salles totales</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-green-600">
-                {rooms.filter(room => getOccupyingSessions(room).length === 0).length}
+        {viewMode !== 'slots' && (
+          <div className="border-t p-4 bg-gray-50">
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div>
+                <div className="text-2xl font-bold text-gray-800">{rooms.length}</div>
+                <div className="text-sm text-gray-600">Salles totales</div>
               </div>
-              <div className="text-sm text-gray-600">Salles libres</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-red-600">
-                {rooms.filter(room => getOccupyingSessions(room).length > 0).length}
+              <div>
+                <div className="text-2xl font-bold text-green-600">
+                  {rooms.filter(room => getOccupyingSessions(room).length === 0).length}
+                </div>
+                <div className="text-sm text-gray-600">Salles libres</div>
               </div>
-              <div className="text-sm text-gray-600">Salles occupées</div>
+              <div>
+                <div className="text-2xl font-bold text-red-600">
+                  {rooms.filter(room => getOccupyingSessions(room).length > 0).length}
+                </div>
+                <div className="text-sm text-gray-600">Salles occupées</div>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

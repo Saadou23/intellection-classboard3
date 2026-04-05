@@ -1,15 +1,21 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  BarChart3, TrendingUp, AlertCircle, Calendar, Clock, Building2, 
+import {
+  BarChart3, TrendingUp, AlertCircle, Calendar, Clock, Building2,
   FileDown, ArrowLeft, Printer, Share2, Download, User, MapPin
 } from 'lucide-react';
 import PDFExporter from './PDFExporter';
+import RoomSlots from './RoomSlots';
+import RoomAvailabilityTable from './RoomAvailabilityTable';
+import AvailableRoomSlots from './AvailableRoomSlots';
 
 const DashboardOptimized = ({ sessions, onBack }) => {
   const [selectedPeriod, setSelectedPeriod] = useState('week');
   const [analytics, setAnalytics] = useState({});
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
+  const [showRoomAvailability, setShowRoomAvailability] = useState(false);
+  const [showRoomAvailabilityTable, setShowRoomAvailabilityTable] = useState(false);
+  const [showAvailableSlots, setShowAvailableSlots] = useState(false);
 
   // Configuration des filiales
   const branchConfig = {
@@ -267,6 +273,27 @@ const DashboardOptimized = ({ sessions, onBack }) => {
               </div>
             </div>
             <div className="flex gap-3">
+              <button
+                onClick={() => setShowRoomAvailability(true)}
+                className="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg flex items-center gap-2 transition-all text-white"
+              >
+                <Building2 className="w-4 h-4" />
+                Disponibilité Salles
+              </button>
+              <button
+                onClick={() => setShowRoomAvailabilityTable(true)}
+                className="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded-lg flex items-center gap-2 transition-all text-white"
+              >
+                <Calendar className="w-4 h-4" />
+                Tableau Créneau/Salle
+              </button>
+              <button
+                onClick={() => setShowAvailableSlots(true)}
+                className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg flex items-center gap-2 transition-all text-white"
+              >
+                <Clock className="w-4 h-4" />
+                Créneaux Disponibles
+              </button>
               <div className="relative">
                 <button
                   onClick={() => setShowExportMenu(!showExportMenu)}
@@ -599,6 +626,48 @@ const DashboardOptimized = ({ sessions, onBack }) => {
           })}
         </div>
       </div>
+
+      {/* Modal Disponibilité des Salles */}
+      {showRoomAvailability && (
+        <RoomSlots
+          sessions={sessions}
+          branches={Object.keys(branchConfig)}
+          branchesData={Object.entries(branchConfig).map(([name, config]) => ({
+            name,
+            rooms: config.rooms,
+            exceptionalPeriods: []
+          }))}
+          onClose={() => setShowRoomAvailability(false)}
+        />
+      )}
+
+      {/* Modal Tableau Disponibilité */}
+      {showRoomAvailabilityTable && (
+        <RoomAvailabilityTable
+          sessions={sessions}
+          branches={Object.keys(branchConfig)}
+          branchesData={Object.entries(branchConfig).map(([name, config]) => ({
+            name,
+            rooms: config.rooms,
+            exceptionalPeriods: []
+          }))}
+          onClose={() => setShowRoomAvailabilityTable(false)}
+        />
+      )}
+
+      {/* Modal Créneaux Disponibles */}
+      {showAvailableSlots && (
+        <AvailableRoomSlots
+          sessions={sessions}
+          branches={Object.keys(branchConfig)}
+          branchesData={Object.entries(branchConfig).map(([name, config]) => ({
+            name,
+            rooms: config.rooms,
+            exceptionalPeriods: []
+          }))}
+          onClose={() => setShowAvailableSlots(false)}
+        />
+      )}
     </div>
   );
 };
