@@ -4,12 +4,14 @@ import ThermalPrintSchedule from './ThermalPrintSchedule';
 import MessageManager from './MessageManager';
 import AdvertisementManager from './AdvertisementManager';
 import RoomSlots from './RoomSlots';
+import RoomAvailabilityTable from './RoomAvailabilityTable';
 
 const Dashboard = ({ sessions, onBack }) => {
   const [selectedPeriod, setSelectedPeriod] = useState('week'); // day, week, month
   const [analytics, setAnalytics] = useState({});
   const [showThermalPrint, setShowThermalPrint] = useState(false);
   const [showRoomAvailability, setShowRoomAvailability] = useState(false);
+  const [showRoomAvailabilityTable, setShowRoomAvailabilityTable] = useState(false);
 
   // Configuration des filiales
   const branchConfig = {
@@ -182,6 +184,13 @@ const Dashboard = ({ sessions, onBack }) => {
               >
                 <Building2 className="w-4 h-4" />
                 Disponibilité Salles
+              </button>
+              <button
+                onClick={() => setShowRoomAvailabilityTable(true)}
+                className="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded-lg flex items-center gap-2 transition-all text-white"
+              >
+                <Calendar className="w-4 h-4" />
+                Tableau Créneau/Salle
               </button>
               <button
                 onClick={() => setShowThermalPrint(true)}
@@ -437,6 +446,20 @@ const Dashboard = ({ sessions, onBack }) => {
           sessions={sessions}
           branches={Object.keys(branchConfig)}
           onClose={() => setShowThermalPrint(false)}
+        />
+      )}
+
+      {/* Modal Tableau Disponibilité */}
+      {showRoomAvailabilityTable && (
+        <RoomAvailabilityTable
+          sessions={sessions}
+          branches={Object.keys(branchConfig)}
+          branchesData={Object.entries(branchConfig).map(([name, config]) => ({
+            name,
+            rooms: config.rooms,
+            exceptionalPeriods: []
+          }))}
+          onClose={() => setShowRoomAvailabilityTable(false)}
         />
       )}
     </div>
