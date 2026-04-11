@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Save, X, Monitor, Settings, AlertCircle, Maximize, Clock, BarChart3, Sliders, Building2, Calendar, Printer, Moon, FileDown, MapPin, BookOpen, Users, Bell, MessageSquare } from 'lucide-react';import { db } from './firebase';
+import { Plus, Edit2, Trash2, Save, X, Monitor, Settings, AlertCircle, Maximize, Clock, BarChart3, Sliders, Building2, Calendar, Printer, Moon, FileDown, MapPin, BookOpen, Users, Bell, MessageSquare, MessageCircle } from 'lucide-react';
+import { db } from './firebase';
 import SecurityService from './SecurityService';
 import { doc, setDoc, getDoc, onSnapshot, collection, deleteDoc } from 'firebase/firestore';
 import Dashboard from './DashboardOptimized';
@@ -17,6 +18,7 @@ import UpcomingSessionsPreview from './UpcomingSessionsPreview';
 import useSessionNotifications from './useSessionNotifications';
 import SoundSystem from './SoundSystem';
 import ThermalPrintSchedule from './ThermalPrintSchedule';
+import WhatsAppAutomationAdmin from './WhatsAppAutomationAdmin';
 import PDFExportModal from './PDFExportModal';
 import DisciplineBoard from './DisciplineBoard';
 import ProfPresenceModal from './ProfPresenceModal';
@@ -63,6 +65,7 @@ const ClassBoard = () => {
 const [showAvailableRooms, setShowAvailableRooms] = useState(false);
 const [soundEnabled, setSoundEnabled] = useState(true);
 const [showThermalPrint, setShowThermalPrint] = useState(false);
+const [showWhatsAppAutomation, setShowWhatsAppAutomation] = useState(false);
   const [showPDFExport, setShowPDFExport] = useState(false);
   const [showDisciplineBoard, setShowDisciplineBoard] = useState(false);
   const [presenceRecordId, setPresenceRecordId] = useState(null);
@@ -1216,6 +1219,13 @@ onClick={() => setShowAvailableRooms(true)}
               Ticket Thermique
             </button>
             <button
+              onClick={() => setShowWhatsAppAutomation(true)}
+              className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
+            >
+              <MessageCircle className="w-4 h-4" />
+              WhatsApp Auto
+            </button>
+            <button
               onClick={() => setShowPDFExport(true)}
               className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
             >
@@ -1948,6 +1958,16 @@ onClick={() => setShowAvailableRooms(true)}
           branches={branches}
           branchesData={branchesData}
           onClose={() => setShowThermalPrint(false)}
+        />
+      )}
+
+      {/* Modal WhatsApp Automation */}
+      {showWhatsAppAutomation && (
+        <WhatsAppAutomationAdmin
+          sessions={sessions}
+          branches={branches}
+          branchesData={branchesData}
+          onClose={() => setShowWhatsAppAutomation(false)}
         />
       )}
 

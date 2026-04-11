@@ -401,7 +401,19 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
               ))}
             </select>
           </div>
-<div className="flex items-center gap-3 p-4 bg-orange-50 border border-orange-200 rounded-lg">            <input              type="checkbox"              id="filterLastGroup"              checked={filterLastGroupOnly}              onChange={(e) => setFilterLastGroupOnly(e.target.checked)}              className="w-5 h-5 cursor-pointer"            />            <label htmlFor="filterLastGroup" className="text-sm font-medium text-gray-700 cursor-pointer flex-1">              📌 Afficher uniquement le dernier groupe (G2 si G1+G2)            </label>          </div>
+
+          <div className="flex items-center gap-3 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+            <input
+              type="checkbox"
+              id="filterLastGroup"
+              checked={filterLastGroupOnly}
+              onChange={(e) => setFilterLastGroupOnly(e.target.checked)}
+              className="w-5 h-5 cursor-pointer"
+            />
+            <label htmlFor="filterLastGroup" className="text-sm font-medium text-gray-700 cursor-pointer flex-1">
+              📌 Afficher uniquement le dernier groupe (G2 si G1+G2)
+            </label>
+          </div>
         </div>
 
         <div className="border-t p-4 bg-gray-50 flex justify-end gap-3">
