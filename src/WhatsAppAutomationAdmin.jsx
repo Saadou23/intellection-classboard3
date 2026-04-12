@@ -10,9 +10,21 @@ const WhatsAppAutomationAdmin = ({ sessions, branches, branchesData, onClose }) 
   const [availableGroups, setAvailableGroups] = useState([]);
   const [loading, setLoading] = useState(false);
   const [testingJobId, setTestingJobId] = useState(null);
+  const [editingJobId, setEditingJobId] = useState(null);
 
   // Form pour nouveau job
   const [newJob, setNewJob] = useState({
+    name: '',
+    pdfFile: null,
+    selectedGroups: [],
+    caption: '',
+    days: [],
+    time: '08:00',
+    enabled: true
+  });
+
+  // Form pour édition
+  const [editingJob, setEditingJob] = useState({
     name: '',
     pdfFile: null,
     selectedGroups: [],
@@ -152,6 +164,100 @@ const WhatsAppAutomationAdmin = ({ sessions, branches, branchesData, onClose }) 
     }
   };
 
+  const handleStartEdit = (job) => {
+    setEditingJobId(job.id);
+    setEditingJob({
+      name: job.name,
+      pdfFile: null,
+      selectedGroups: job.groupIds || [],
+      caption: job.caption || '',
+      days: job.days || [],
+      time: job.time || '08:00',
+      enabled: job.enabled
+    });
+    setActiveTab('edit');
+  };
+
+  const handleCancelEdit = () => {
+    setEditingJobId(null);
+    setEditingJob({
+      name: '',
+      pdfFile: null,
+      selectedGroups: [],
+      caption: '',
+      days: [],
+      time: '08:00',
+      enabled: true
+    });
+  };
+
+  const handleSaveEditJob = async (e) => {
+    e.preventDefault();
+
+    if (!editingJob.name || editingJob.selectedGroups.length === 0 || editingJob.days.length === 0) {
+      alert('Veuillez remplir tous les champs obligatoires');
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      let pdfUrl = jobs.find(j => j.id === editingJobId)?.pdfUrl;
+      let pdfName = jobs.find(j => j.id === editingJobId)?.pdfName;
+
+      // Si un nouveau PDF est uploádé
+      if (editingJob.pdfFile) {
+        const { url, name } = await WhatsAppAutomationService.uploadPDF(editingJob.pdfFile);
+        pdfUrl = url;
+        pdfName = name;
+      }
+
+      // Récupérer les infos des groupes sélectionnés
+      const selectedGroupObjs = availableGroups.filter(g => editingJob.selectedGroups.includes(g.id));
+      const groupInfo = WhatsAppAutomationService.extractGroupInfo(selectedGroupObjs);
+
+      // Mettre à jour le job
+      await WhatsAppAutomationService.updateJob(editingJobId, {
+        name: editingJob.name,
+        pdfUrl: pdfUrl,
+        pdfName: pdfName,
+        groupIds: groupInfo.ids,
+        groupNames: groupInfo.names,
+        caption: editingJob.caption,
+        days: editingJob.days,
+        time: editingJob.time,
+        enabled: editingJob.enabled
+      });
+
+      handleCancelEdit();
+      await loadData();
+      alert('✅ Job mis à jour avec succès!');
+      setActiveTab('jobs');
+    } catch (error) {
+      alert('❌ Erreur: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleEditDay = (day) => {
+    setEditingJob(prev => ({
+      ...prev,
+      days: prev.days.includes(day)
+        ? prev.days.filter(d => d !== day)
+        : [...prev.days, day]
+    }));
+  };
+
+  const toggleEditGroup = (groupId) => {
+    setEditingJob(prev => ({
+      ...prev,
+      selectedGroups: prev.selectedGroups.includes(groupId)
+        ? prev.selectedGroups.filter(g => g !== groupId)
+        : [...prev.selectedGroups, groupId]
+    }));
+  };
+
   // ============= UTILITAIRES =============
 
   const toggleDay = (day) => {
@@ -209,6 +315,7 @@ const WhatsAppAutomationAdmin = ({ sessions, branches, branchesData, onClose }) 
           {[
             { id: 'jobs', label: '📋 Emplois', icon: '📋' },
             { id: 'create', label: '➕ Nouveau Job', icon: '➕' },
+            ...(editingJobId ? [{ id: 'edit', label: '✏️ Modifier Job', icon: '✏️' }] : []),
             { id: 'logs', label: '📊 Logs', icon: '📊' },
             { id: 'status', label: '⚙️ Statut', icon: '⚙️' }
           ].map(tab => (
@@ -297,6 +404,14 @@ const WhatsAppAutomationAdmin = ({ sessions, branches, branchesData, onClose }) 
                         >
                           <Send className="w-4 h-4" />
                           {testingJobId === job.id ? 'Envoi...' : 'Test'}
+                        </button>
+
+                        <button
+                          onClick={() => handleStartEdit(job)}
+                          className="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 font-medium flex items-center gap-2"
+                        >
+                          <Settings className="w-4 h-4" />
+                          Modifier
                         </button>
 
                         <button
@@ -460,6 +575,165 @@ const WhatsAppAutomationAdmin = ({ sessions, branches, branchesData, onClose }) 
                     <Plus className="w-5 h-5" />
                     Créer le job
                   </button>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* TAB: EDIT JOB */}
+          {activeTab === 'edit' && editingJobId && (
+            <div className="space-y-6 max-w-2xl">
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                <h3 className="font-bold text-purple-900 mb-4 flex items-center gap-2">
+                  <Settings className="w-5 h-5" /> Modifier l'emploi du temps
+                </h3>
+
+                <form onSubmit={handleSaveEditJob} className="space-y-4">
+                  {/* Nom */}
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">📝 Nom de l'emploi</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: S2 Eco - Matin"
+                      value={editingJob.name}
+                      onChange={(e) => setEditingJob({ ...editingJob, name: e.target.value })}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+
+                  {/* Upload PDF (optionnel) */}
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">📄 Nouveau fichier PDF (optionnel)</label>
+                    <input
+                      type="file"
+                      accept=".pdf"
+                      onChange={(e) => setEditingJob({ ...editingJob, pdfFile: e.target.files?.[0] || null })}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    />
+                    {editingJob.pdfFile ? (
+                      <p className="text-xs text-green-600 mt-1">✅ {editingJob.pdfFile.name} sera uploadé</p>
+                    ) : (
+                      <p className="text-xs text-gray-500 mt-1">Laissez vide pour garder le PDF actuel</p>
+                    )}
+                  </div>
+
+                  {/* Message */}
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">💬 Message WhatsApp (optionnel)</label>
+                    <textarea
+                      placeholder="Texte accompagnant le PDF..."
+                      value={editingJob.caption}
+                      onChange={(e) => setEditingJob({ ...editingJob, caption: e.target.value })}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                      rows="3"
+                    />
+                  </div>
+
+                  {/* Sélection groupes */}
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <label className="block text-sm font-bold text-gray-700">👥 Groupes WhatsApp</label>
+                      <button
+                        type="button"
+                        onClick={refreshGroups}
+                        className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 flex items-center gap-1"
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                        Rafraîchir
+                      </button>
+                    </div>
+
+                    {availableGroups.length === 0 ? (
+                      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-700 text-sm">
+                        ⚠️ Aucun groupe trouvé. Assurez-vous que le bot est lancé.
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3">
+                        {availableGroups.map(group => (
+                          <label key={group.id} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={editingJob.selectedGroups.includes(group.id)}
+                              onChange={() => toggleEditGroup(group.id)}
+                              className="w-4 h-4"
+                            />
+                            <span className="text-sm text-gray-900">{group.name}</span>
+                            <span className="text-xs text-gray-500">({group.participantCount} membres)</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+
+                    {editingJob.selectedGroups.length > 0 && (
+                      <p className="text-xs text-purple-600 mt-2">
+                        ✅ {editingJob.selectedGroups.length} groupe(s) sélectionné(s)
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Jours */}
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">📅 Jours d'envoi</label>
+                    <div className="flex flex-wrap gap-2">
+                      {daysOfWeek.map(day => (
+                        <button
+                          key={day}
+                          type="button"
+                          onClick={() => toggleEditDay(day)}
+                          className={`px-3 py-1 rounded-full text-sm font-medium transition-all ${
+                            editingJob.days.includes(day)
+                              ? 'bg-purple-600 text-white'
+                              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                          }`}
+                        >
+                          {day.substring(0, 3).toUpperCase()}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Heure */}
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">🕐 Heure d'envoi</label>
+                    <input
+                      type="time"
+                      value={editingJob.time}
+                      onChange={(e) => setEditingJob({ ...editingJob, time: e.target.value })}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+
+                  {/* Statut */}
+                  <div>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingJob.enabled}
+                        onChange={(e) => setEditingJob({ ...editingJob, enabled: e.target.checked })}
+                        className="w-4 h-4"
+                      />
+                      <span className="text-sm font-bold text-gray-700">Activer ce job</span>
+                    </label>
+                  </div>
+
+                  {/* Buttons */}
+                  <div className="flex gap-3">
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="flex-1 bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 disabled:bg-gray-400 font-bold flex items-center justify-center gap-2"
+                    >
+                      <Settings className="w-5 h-5" />
+                      Sauvegarder les modifications
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCancelEdit}
+                      className="px-6 bg-gray-600 text-white py-3 rounded-lg hover:bg-gray-700 font-bold"
+                    >
+                      Annuler
+                    </button>
+                  </div>
                 </form>
               </div>
             </div>
