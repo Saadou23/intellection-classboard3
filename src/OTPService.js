@@ -163,15 +163,15 @@ export async function detectPointageType(directeurId) {
   return last.type === 'entrée' ? 'sortie' : 'entrée';
 }
 
-export async function recordPointage({ directeurId, directeurName, agentId, agentName, type, location }) {
+export async function recordPointage({ directeurId, directeurName, agentId, agentName, type, zone }) {
   const docRef = await addDoc(collection(db, 'pointages'), {
     directeurId,
     directeurName,
     validatedBy: agentId,
     agentName,
     type,
+    zone: zone || '',
     timestamp: Timestamp.now(),
-    location: location || { lat: 0, lng: 0 },
     isValid: true
   });
   await updateDoc(docRef, { id: docRef.id });
@@ -241,41 +241,6 @@ export async function saveOTPSettings(settings) {
 }
 
 // ============================================================================
-// Geolocation Utilities
-// ============================================================================
-
-export function getCurrentPosition() {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error('Géolocalisation non disponible'));
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      resolve,
-      reject,
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
-      }
-    );
-  });
-}
-
-export function haversineDistance(lat1, lng1, lat2, lng2) {
-  const R = 6371000;
-  const toRad = d => (d * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-// ============================================================================
 // Work Hours Calculation
 // ============================================================================
 
@@ -331,4 +296,56 @@ export function calculateWorkHours(pointagesList) {
       records
     };
   });
+}
+
+// ============================================================================
+// Supervision Schedules
+// ============================================================================
+
+export async function createSupervisionSchedule({ directeurId, directeurName, centre, jours, heuresMin }) {
+  const docRef = await addDoc(collection(db, 'supervision_schedules'), {
+    directeurId,
+    directeurName,
+    centre,
+    jours,
+    heuresMin,
+    createdAt: Timestamp.now()
+  });
+  await updateDoc(docRef, { id: docRef.id });
+  return {
+    id: docRef.id,
+    directeurId,
+    directeurName,
+    centre,
+    jours,
+    heuresMin,
+    createdAt: new Date()
+  };
+}
+
+export async function getSupervisionSchedules() {
+  const snap = await getDocs(collection(db, 'supervision_schedules'));
+  return snap.docs.map(d => ({
+    id: d.id,
+    ...d.data(),
+    createdAt: d.data().createdAt?.toDate?.() || new Date()
+  }));
+}
+
+export async function deleteSupervisionSchedule(id) {
+  await deleteDoc(doc(db, 'supervision_schedules', id));
+}
+
+export async function getPointagesForWeek(startDate, endDate) {
+  const q = query(
+    collection(db, 'pointages'),
+    where('timestamp', '>=', Timestamp.fromDate(startDate)),
+    where('timestamp', '<=', Timestamp.fromDate(endDate))
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({
+    id: d.id,
+    ...d.data(),
+    timestamp: d.data().timestamp?.toDate?.() || new Date()
+  }));
 }

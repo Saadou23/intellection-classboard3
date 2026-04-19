@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronRight, MapPin, Lock, CheckCircle, AlertCircle, X, Clock, ArrowRight } from 'lucide-react';
+import { ChevronRight, Lock, CheckCircle, AlertCircle, X, Clock, ArrowRight } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import {
   getDirecteurs,
   getAgents,
   loadOTPSettings,
-  getCurrentPosition,
-  haversineDistance,
   detectPointageType,
   validateOTP,
   recordPointage
@@ -23,9 +21,6 @@ const OTPPointagePanel = ({ onBack }) => {
   const [pointageType, setPointageType] = useState('entrée');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [geoStatus, setGeoStatus] = useState('idle');
-  const [userLocation, setUserLocation] = useState(null);
-  const [settings, setSettings] = useState(null);
   const [otpToken, setOtpToken] = useState('');
   const [result, setResult] = useState(null);
   const [validating, setValidating] = useState(false);
@@ -37,14 +32,12 @@ const OTPPointagePanel = ({ onBack }) => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [dirs, agents_list, config] = await Promise.all([
+      const [dirs, agents_list] = await Promise.all([
         getDirecteurs(),
-        getAgents(),
-        loadOTPSettings()
+        getAgents()
       ]);
       setDirecteurs(dirs);
       setAgents(agents_list);
-      setSettings(config);
     } catch (e) {
       console.error('Error loading data:', e);
       setError('Erreur de chargement');
@@ -67,42 +60,15 @@ const OTPPointagePanel = ({ onBack }) => {
       return;
     }
 
-    setGeoStatus('loading');
     setError('');
 
     try {
-      const zoneConfig = settings[selectedZone];
-      if (!zoneConfig) {
-        setError('Zone non configurée');
-        return;
-      }
-
-      const pos = await getCurrentPosition();
-      const dist = haversineDistance(
-        pos.coords.latitude,
-        pos.coords.longitude,
-        zoneConfig.centerLat,
-        zoneConfig.centerLng
-      );
-
-      if (dist > zoneConfig.radiusMeters) {
-        setGeoStatus('error');
-        setError(
-          `❌ Vous êtes à ${Math.round(dist)}m du centre de ${selectedZone}. Zone autorisée: ${zoneConfig.radiusMeters}m.`
-        );
-        return;
-      }
-
-      setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-      setGeoStatus('ok');
-
       const type = await detectPointageType(selectedDirecteur.id);
       setPointageType(type);
       setStep(2);
       setError('');
     } catch (e) {
-      setGeoStatus('error');
-      setError('Erreur géolocalisation: ' + e.message + '\nAssurez-vous que la géolocalisation est activée.');
+      setError('Erreur: ' + e.message);
     }
   };
 
@@ -137,7 +103,7 @@ const OTPPointagePanel = ({ onBack }) => {
         agentId: selectedAgent.id,
         agentName: selectedAgent.name,
         type: pointageType,
-        location: userLocation
+        zone: selectedZone
       });
 
       setResult({
@@ -162,7 +128,6 @@ const OTPPointagePanel = ({ onBack }) => {
     setSelectedAgent(null);
     setOtpToken('');
     setError('');
-    setGeoStatus('idle');
     setResult(null);
   };
 
@@ -277,16 +242,9 @@ const OTPPointagePanel = ({ onBack }) => {
               </div>
             )}
 
-            {geoStatus === 'loading' && (
-              <div className="bg-blue-50 border border-blue-200 rounded p-3 flex gap-2">
-                <div className="animate-spin w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full mt-0.5"></div>
-                <p className="text-blue-700 text-sm">Vérification de votre position GPS...</p>
-              </div>
-            )}
-
             <button
               onClick={handleStep1Next}
-              disabled={!selectedZone || !selectedDirecteur || !selectedAgent || geoStatus === 'loading'}
+              disabled={!selectedZone || !selectedDirecteur || !selectedAgent}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white py-2 rounded-lg font-semibold flex items-center justify-center gap-2 transition"
             >
               Suivant
@@ -409,7 +367,7 @@ const OTPPointagePanel = ({ onBack }) => {
             </div>
 
             <p className="text-gray-600 text-sm">
-              ✅ Le pointage a été enregistré avec succès et géolocalisé.
+              ✅ Le pointage a été enregistré avec succès.
             </p>
 
             <button
@@ -423,13 +381,6 @@ const OTPPointagePanel = ({ onBack }) => {
         )}
       </div>
 
-      {/* Location Indicator */}
-      {step > 1 && userLocation && (
-        <div className="fixed bottom-4 left-4 bg-blue-900 text-white px-3 py-2 rounded-lg text-xs flex items-center gap-2 shadow-lg">
-          <MapPin className="w-3 h-3 text-green-400" />
-          GPS OK • {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}
-        </div>
-      )}
     </div>
   );
 };

@@ -31,6 +31,7 @@ import { Volume2, VolumeX, Eye } from 'lucide-react';
 import SecurityDashboard from './SecurityDashboard';
 import OTPSystemAdmin from './OTPSystemAdmin';
 import OTPDashboard from './OTPDashboard';
+import SupervisionScheduleAdmin from './SupervisionScheduleAdmin';
 
 const ClassBoard = () => {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -83,6 +84,7 @@ const [showWhatsAppAutomation, setShowWhatsAppAutomation] = useState(false);
   const [showSecurityDashboard, setShowSecurityDashboard] = useState(false);
   const [showOTPSystem, setShowOTPSystem] = useState(false);
   const [showOTPDashboard, setShowOTPDashboard] = useState(false);
+  const [showSupervisionAdmin, setShowSupervisionAdmin] = useState(false);
 
   // ========== SÉCURITÉ - PROTECTION ANTI-BRUTE FORCE ==========
   const [loginAttempts, setLoginAttempts] = useState(0);
@@ -1149,6 +1151,11 @@ const branchNames = branchesArray.map(b => b.name) || [];
     return <OTPDashboard onBack={() => setShowOTPDashboard(false)} />;
   }
 
+  // Si on est sur la gestion des supervision schedules
+  if (showSupervisionAdmin) {
+    return <SupervisionScheduleAdmin onClose={() => setShowSupervisionAdmin(false)} />;
+  }
+
   // Si on est sur la gestion des messages
   if (showMessageManager) {
     return (
@@ -1272,6 +1279,13 @@ onClick={() => setShowAvailableRooms(true)}
             >
               <Clock className="w-4 h-4" />
               Pointages
+            </button>
+            <button
+              onClick={() => setShowSupervisionAdmin(true)}
+              className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
+            >
+              <Calendar className="w-4 h-4" />
+              Supervision
             </button>
             <button
               onClick={() => setShowTimeSettings(!showTimeSettings)}
