@@ -7,6 +7,7 @@ import ExamAdmin from './ExamAdmin';
 import ProfessorExamCreator from './ProfessorExamCreator';
 import PrivacyPolicy from './PrivacyPolicy';
 import Dashboard from './Dashboard';
+import OTPPointagePanel from './OTPPointagePanel';
 import './App.css';
 
 function App() {
@@ -28,6 +29,8 @@ function App() {
     pageComponent = <PrivacyPolicy />;
   } else if (path === '/dashboard' || path === '/admin/dashboard') {
     pageComponent = <Dashboard sessions={{}} />;
+  } else if (path === '/pointage') {
+    pageComponent = <OTPPointagePanel />;
   } else {
     pageComponent = <ClassBoard />;
   }

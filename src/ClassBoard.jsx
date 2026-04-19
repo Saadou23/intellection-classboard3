@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Save, X, Monitor, Settings, AlertCircle, Maximize, Clock, BarChart3, Sliders, Building2, Calendar, Printer, Moon, FileDown, MapPin, BookOpen, Users, Bell, MessageSquare, MessageCircle } from 'lucide-react';
+import { Plus, Edit2, Trash2, Save, X, Monitor, Settings, AlertCircle, Maximize, Clock, BarChart3, Sliders, Building2, Calendar, Printer, Moon, FileDown, MapPin, BookOpen, Users, Bell, MessageSquare, MessageCircle, Shield } from 'lucide-react';
 import { db } from './firebase';
 import SecurityService from './SecurityService';
 import { doc, setDoc, getDoc, onSnapshot, collection, deleteDoc } from 'firebase/firestore';
@@ -29,6 +29,9 @@ import AppAdvertisement from './AppAdvertisement';
 import { loadTodayRecords, createDisciplineRecord } from './disciplineService';
 import { Volume2, VolumeX, Eye } from 'lucide-react';
 import SecurityDashboard from './SecurityDashboard';
+import OTPSystemAdmin from './OTPSystemAdmin';
+import OTPDashboard from './OTPDashboard';
+
 const ClassBoard = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -78,6 +81,8 @@ const [showWhatsAppAutomation, setShowWhatsAppAutomation] = useState(false);
   const [viewDayFilter, setViewDayFilter] = useState(null); // null = tous les jours, 0-6 = jour spécifique
   const [showMessageManager, setShowMessageManager] = useState(false);
   const [showSecurityDashboard, setShowSecurityDashboard] = useState(false);
+  const [showOTPSystem, setShowOTPSystem] = useState(false);
+  const [showOTPDashboard, setShowOTPDashboard] = useState(false);
 
   // ========== SÉCURITÉ - PROTECTION ANTI-BRUTE FORCE ==========
   const [loginAttempts, setLoginAttempts] = useState(0);
@@ -1134,6 +1139,16 @@ const branchNames = branchesArray.map(b => b.name) || [];
     );
   }
 
+  // Si on est sur la gestion OTP
+  if (showOTPSystem) {
+    return <OTPSystemAdmin onClose={() => setShowOTPSystem(false)} />;
+  }
+
+  // Si on est sur le dashboard pointages
+  if (showOTPDashboard) {
+    return <OTPDashboard onBack={() => setShowOTPDashboard(false)} />;
+  }
+
   // Si on est sur la gestion des messages
   if (showMessageManager) {
     return (
@@ -1243,6 +1258,20 @@ onClick={() => setShowAvailableRooms(true)}
               className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
             >
               🔒 Sécurité
+            </button>
+            <button
+              onClick={() => setShowOTPSystem(true)}
+              className="bg-teal-600 hover:bg-teal-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
+            >
+              <Shield className="w-4 h-4" />
+              Gestion OTP
+            </button>
+            <button
+              onClick={() => setShowOTPDashboard(true)}
+              className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
+            >
+              <Clock className="w-4 h-4" />
+              Pointages
             </button>
             <button
               onClick={() => setShowTimeSettings(!showTimeSettings)}
