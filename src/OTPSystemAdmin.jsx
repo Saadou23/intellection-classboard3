@@ -8,8 +8,7 @@ import {
   deleteOTPUser,
   generateOTPAuthURL,
   loadOTPSettings,
-  saveOTPSettings,
-  getCurrentPosition
+  saveOTPSettings
 } from './OTPService';
 
 const OTPSystemAdmin = ({ onClose }) => {
@@ -36,7 +35,6 @@ const OTPSystemAdmin = ({ onClose }) => {
     workStartTime: '09:00'
   });
   const [selectedZone, setSelectedZone] = useState('Hay Salam');
-  const [geoLoading, setGeoLoading] = useState(false);
 
   useEffect(() => {
     loadUsers();
@@ -129,24 +127,6 @@ const OTPSystemAdmin = ({ onClose }) => {
     }
   };
 
-  const handleGetCurrentPosition = async () => {
-    setGeoLoading(true);
-    try {
-      const pos = await getCurrentPosition();
-      setSettings({
-        ...settings,
-        [selectedZone]: {
-          ...settings[selectedZone],
-          centerLat: Math.round(pos.coords.latitude * 10000) / 10000,
-          centerLng: Math.round(pos.coords.longitude * 10000) / 10000
-        }
-      });
-    } catch (e) {
-      alert('Erreur géolocalisation: ' + e.message);
-    } finally {
-      setGeoLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-8">
@@ -421,15 +401,6 @@ const OTPSystemAdmin = ({ onClose }) => {
               </div>
 
               <div className="mt-6 space-y-4">
-                <button
-                  onClick={handleGetCurrentPosition}
-                  disabled={geoLoading}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 px-6 py-2 rounded-lg transition flex items-center gap-2"
-                >
-                  <MapPin className="w-4 h-4" />
-                  {geoLoading ? 'Localisation...' : `Obtenir position actuelle pour ${selectedZone}`}
-                </button>
-
                 <button
                   onClick={handleSaveSettings}
                   disabled={saving}
