@@ -24,6 +24,7 @@ const OTPPointagePanel = ({ onBack }) => {
   const [otpToken, setOtpToken] = useState('');
   const [result, setResult] = useState(null);
   const [validating, setValidating] = useState(false);
+  const [commentaire, setCommentaire] = useState('');
 
   useEffect(() => {
     loadData();
@@ -103,7 +104,8 @@ const OTPPointagePanel = ({ onBack }) => {
         agentId: selectedAgent.id,
         agentName: selectedAgent.name,
         type: pointageType,
-        zone: selectedZone
+        zone: selectedZone,
+        commentaire: commentaire
       });
 
       setResult({
@@ -129,6 +131,7 @@ const OTPPointagePanel = ({ onBack }) => {
     setOtpToken('');
     setError('');
     setResult(null);
+    setCommentaire('');
   };
 
   if (loading) {
@@ -274,6 +277,24 @@ const OTPPointagePanel = ({ onBack }) => {
                 {pointageType === 'entrée' ? '🟢 ENTRÉE' : '🟠 SORTIE'}
               </div>
             </div>
+
+            {/* Commentaire (Sortie seulement) */}
+            {pointageType === 'sortie' && (
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  📝 Bulletin de renseignement (optionnel)
+                </label>
+                <textarea
+                  value={commentaire}
+                  onChange={e => setCommentaire(e.target.value)}
+                  placeholder="Ex: Inspection complétée, aucun problème signalé..."
+                  maxLength={500}
+                  rows={3}
+                  className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+                <p className="text-xs text-gray-500 mt-1">{commentaire.length}/500</p>
+              </div>
+            )}
 
             {/* OTP Input */}
             <div>

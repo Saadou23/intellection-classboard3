@@ -163,7 +163,7 @@ export async function detectPointageType(directeurId) {
   return last.type === 'entrée' ? 'sortie' : 'entrée';
 }
 
-export async function recordPointage({ directeurId, directeurName, agentId, agentName, type, zone }) {
+export async function recordPointage({ directeurId, directeurName, agentId, agentName, type, zone, commentaire }) {
   const docRef = await addDoc(collection(db, 'pointages'), {
     directeurId,
     directeurName,
@@ -171,6 +171,7 @@ export async function recordPointage({ directeurId, directeurName, agentId, agen
     agentName,
     type,
     zone: zone || '',
+    commentaire: commentaire || '',
     timestamp: Timestamp.now(),
     isValid: true
   });

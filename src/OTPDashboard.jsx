@@ -58,8 +58,7 @@ const OTPDashboard = ({ onBack }) => {
         Directeur: r.directeurName,
         Agent: r.agentName,
         Type: r.type === 'entrée' ? 'Entrée' : 'Sortie',
-        Latitude: r.location?.lat?.toFixed(6) || '—',
-        Longitude: r.location?.lng?.toFixed(6) || '—'
+        Bulletin: r.commentaire || ''
       }));
 
       const ws = XLSX.utils.json_to_sheet(rows);
@@ -213,7 +212,7 @@ const OTPDashboard = ({ onBack }) => {
                     <th className="px-6 py-3 text-left text-sm font-semibold">Directeur</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold">Agent</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold">Type</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold">GPS</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold">Bulletin</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-700">
@@ -234,8 +233,14 @@ const OTPDashboard = ({ onBack }) => {
                           {r.type === 'entrée' ? '🟢 Entrée' : '🟠 Sortie'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-xs text-gray-400">
-                        {r.location ? `${r.location.lat.toFixed(4)}, ${r.location.lng.toFixed(4)}` : '—'}
+                      <td className="px-6 py-4 text-sm text-gray-300">
+                        {r.commentaire ? (
+                          <div className="bg-gray-700 rounded p-2 max-w-xs">
+                            <p className="text-xs italic">{r.commentaire}</p>
+                          </div>
+                        ) : (
+                          <span className="text-gray-500 text-xs">—</span>
+                        )}
                       </td>
                     </tr>
                   ))}
