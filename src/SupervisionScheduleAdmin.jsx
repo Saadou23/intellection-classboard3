@@ -33,6 +33,11 @@ const SupervisionScheduleAdmin = ({ onClose }) => {
   const [rapportLoading, setRapportLoading] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
 
+  // Audit state
+  const [auditRapport, setAuditRapport] = useState(null);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditSending, setAuditSending] = useState(false);
+
   useEffect(() => {
     loadData();
   }, []);
@@ -170,6 +175,33 @@ const SupervisionScheduleAdmin = ({ onClose }) => {
     }
   };
 
+  const handleTestAudit = async () => {
+    setAuditLoading(true);
+    try {
+      const response = await fetch(
+        'https://us-central1-intellectionclasseboard-v2-u.cloudfunctions.net/sendFraudAuditNow',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
+
+      if (!response.ok) throw new Error('Erreur API');
+      const data = await response.json();
+      setAuditRapport(data.rapport);
+
+      if (data.rapport.suspicions.length === 0 && data.rapport.encaissements.anormaux.length === 0) {
+        alert('✅ Audit exécuté: Aucune anomalie détectée');
+      } else {
+        alert('⚠️ Audit exécuté: ' + (data.rapport.suspicions.length + data.rapport.encaissements.anormaux.length) + ' anomalie(s) trouvée(s)');
+      }
+    } catch (e) {
+      alert('❌ Erreur test audit: ' + e.message);
+    } finally {
+      setAuditLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -219,6 +251,16 @@ const SupervisionScheduleAdmin = ({ onClose }) => {
             }`}
           >
             📊 Rapport Semaine
+          </button>
+          <button
+            onClick={() => setActiveTab('audit')}
+            className={`px-6 py-2 rounded-lg transition ${
+              activeTab === 'audit'
+                ? 'bg-red-600 text-white'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            🔍 Audit Fraude
           </button>
         </div>
 
@@ -399,6 +441,87 @@ const SupervisionScheduleAdmin = ({ onClose }) => {
                     {sendingEmail ? 'Envoi...' : 'Envoyer l\'email maintenant'}
                   </button>
                 </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Audit Fraude Tab */}
+        {activeTab === 'audit' && (
+          <div className="space-y-6">
+            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+              <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                <AlertCircle className="w-6 h-6 text-red-400" />
+                Test Audit Fraude
+              </h2>
+
+              <p className="text-gray-300 mb-4">
+                Cliquez sur le bouton ci-dessous pour exécuter manuellement l'audit fraud et tester la détection des anomalies de prix.
+              </p>
+
+              <button
+                onClick={handleTestAudit}
+                disabled={auditLoading}
+                className="bg-red-600 hover:bg-red-700 disabled:bg-red-800 px-6 py-3 rounded-lg transition flex items-center gap-2 font-semibold"
+              >
+                {auditLoading ? (
+                  <>
+                    <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                    Exécution en cours...
+                  </>
+                ) : (
+                  <>
+                    🔍 Tester l'audit maintenant
+                  </>
+                )}
+              </button>
+
+              {auditRapport && (
+                <div className="mt-6 space-y-4">
+                  <div className="bg-gray-700 rounded p-4">
+                    <h3 className="font-semibold mb-3 text-lg">Résultats de l'audit</h3>
+
+                    {auditRapport.suspicions && auditRapport.suspicions.length > 0 ? (
+                      <div className="space-y-3 mb-4">
+                        <div className="bg-red-900/30 border border-red-500 rounded p-3">
+                          <div className="font-semibold text-red-200 mb-2">
+                            🚨 {auditRapport.suspicions.length} Variation(s) de prix détectée(s) (±25%)
+                          </div>
+                          <div className="space-y-2 text-sm">
+                            {auditRapport.suspicions.map((s, idx) => (
+                              <div key={idx} className="text-gray-300">
+                                <strong>{s.matiere}</strong>: Prix normal {s.prixNormal}dh, trouvé {s.montant}dh ({s.pourcentage > 0 ? '+' : ''}{s.pourcentage}%)
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-green-900/30 border border-green-500 rounded p-3 mb-4">
+                        <div className="text-green-200">✅ Pas de variation de prix anormale</div>
+                      </div>
+                    )}
+
+                    {auditRapport.encaissements && auditRapport.encaissements.anormaux && auditRapport.encaissements.anormaux.length > 0 ? (
+                      <div className="bg-orange-900/30 border border-orange-500 rounded p-3">
+                        <div className="font-semibold text-orange-200 mb-2">
+                          ⚠️ {auditRapport.encaissements.anormaux.length} Anomalie(s) d'encaissement (±30%)
+                        </div>
+                        <div className="space-y-2 text-sm">
+                          {auditRapport.encaissements.anormaux.map((e, idx) => (
+                            <div key={idx} className="text-gray-300">
+                              <strong>{e.matiere}</strong>: Encaissement normal {e.montantNormal}dh, observé {e.montant}dh ({e.pourcentage > 0 ? '+' : ''}{e.pourcentage}%)
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-green-900/30 border border-green-500 rounded p-3">
+                        <div className="text-green-200">✅ Pas d'anomalie d'encaissement</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
           </div>

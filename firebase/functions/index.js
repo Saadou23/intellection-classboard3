@@ -286,6 +286,27 @@ exports.checkFraudAudit = functions
     }
   });
 
+// ============================================================================
+// Fonction HTTP : Envoi manuel de l'audit fraude (pour test)
+// ============================================================================
+
+exports.sendFraudAuditNow = functions
+  .region('us-central1')
+  .https.onRequest(async (req, res) => {
+    try {
+      const rapport = await generateFraudReport();
+      if (rapport.suspicions.length > 0 || rapport.encaissements.anormaux.length > 0) {
+        const result = await sendFraudEmail(rapport);
+        res.status(200).json({ success: true, message: result, rapport });
+      } else {
+        res.status(200).json({ success: true, message: 'Aucune anomalie détectée', rapport });
+      }
+    } catch (error) {
+      console.error('Erreur sendFraudAuditNow:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
 // Générer le rapport de fraude
 async function generateFraudReport() {
   try {
