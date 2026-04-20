@@ -389,7 +389,10 @@ async function generateFraudReport() {
     const prixParMatiere = {};
     const allAnomalies = [];
 
+    if (!Array.isArray(inscriptions)) inscriptions = [];
+
     inscriptions.forEach(insc => {
+      if (!insc) return;
       const matiere = insc.matiere || 'Unknown';
       if (!prixParMatiere[matiere]) {
         prixParMatiere[matiere] = {
@@ -398,26 +401,30 @@ async function generateFraudReport() {
         };
       }
       const montant = parseFloat(insc.amount) || 0;
-      prixParMatiere[matiere].montants.push(montant);
-      prixParMatiere[matiere].inscriptions.push(insc);
+      if (typeof montant === 'number') {
+        prixParMatiere[matiere].montants.push(montant);
+        prixParMatiere[matiere].inscriptions.push(insc);
+      }
     });
 
     // 3. Calculer le prix modal et détecter anomalies individuelles
     Object.entries(prixParMatiere).forEach(([matiere, data]) => {
-      if (data.montants.length < 2) return;
+      if (!data || !Array.isArray(data.montants) || data.montants.length < 2) return;
 
       // Trouver le prix modal
       const frequences = {};
       data.montants.forEach(m => {
-        frequences[m] = (frequences[m] || 0) + 1;
+        if (typeof m === 'number') {
+          frequences[m] = (frequences[m] || 0) + 1;
+        }
       });
 
-      let prixNormal = data.montants[0];
+      let prixNormal = data.montants[0] || 0;
       let maxFrequence = 0;
       Object.entries(frequences).forEach(([prix, freq]) => {
         if (freq > maxFrequence) {
           maxFrequence = freq;
-          prixNormal = parseFloat(prix);
+          prixNormal = parseFloat(prix) || 0;
         }
       });
 
@@ -425,42 +432,48 @@ async function generateFraudReport() {
       const minAcceptable = prixNormal - tolerance;
       const maxAcceptable = prixNormal + tolerance;
 
-      data.inscriptions.forEach((insc) => {
-        const montant = parseFloat(insc.amount) || 0;
-        if (montant < minAcceptable || montant > maxAcceptable) {
-          const variation = Math.abs(montant - prixNormal);
-          const variationPercent = Math.round((variation / prixNormal * 100) * 10) / 10;
-          const anomalyId = `${matiere}-${montant}-${insc.createdAt?.toISOString().split('T')[0] || 'unknown'}`;
+      if (Array.isArray(data.inscriptions)) {
+        data.inscriptions.forEach((insc) => {
+          if (!insc) return;
+          const montant = parseFloat(insc.amount) || 0;
+          if (montant < minAcceptable || montant > maxAcceptable) {
+            const variation = Math.abs(montant - prixNormal);
+            const variationPercent = prixNormal > 0 ? Math.round((variation / prixNormal * 100) * 10) / 10 : 0;
+            const anomalyId = `${matiere}-${montant}-${insc.createdAt?.toISOString().split('T')[0] || 'unknown'}`;
 
-          if (!reportedAnomalies[anomalyId]) {
-            allAnomalies.push({
-              id: anomalyId,
-              etudiant: insc.studentName || 'Unknown',
-              cours: matiere,
-              prixOfficiel: prixNormal,
-              montantFacture: montant,
-              ecart: Math.round(variation * 100) / 100,
-              ecartPercent: variationPercent,
-              centre: insc.centre || 'Unknown',
-              type: montant < minAcceptable ? 'Sous-facturation' : 'Sur-facturation',
-              date: insc.createdAt?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0]
-            });
+            if (!reportedAnomalies[anomalyId]) {
+              allAnomalies.push({
+                id: anomalyId,
+                etudiant: insc.studentName || 'Unknown',
+                cours: matiere,
+                prixOfficiel: prixNormal,
+                montantFacture: montant,
+                ecart: Math.round(variation * 100) / 100,
+                ecartPercent: variationPercent,
+                centre: insc.centre || 'Unknown',
+                type: montant < minAcceptable ? 'Sous-facturation' : 'Sur-facturation',
+                date: insc.createdAt?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0]
+              });
+            }
           }
-        }
-      });
+        });
+      }
     });
 
     // 4. Identifier les étudiants récidivistes
     const anomalieParEtudiant = {};
-    allAnomalies.forEach(anom => {
-      if (!anomalieParEtudiant[anom.etudiant]) {
-        anomalieParEtudiant[anom.etudiant] = [];
-      }
-      anomalieParEtudiant[anom.etudiant].push(anom);
-    });
+    if (Array.isArray(allAnomalies)) {
+      allAnomalies.forEach(anom => {
+        if (!anom || !anom.etudiant) return;
+        if (!anomalieParEtudiant[anom.etudiant]) {
+          anomalieParEtudiant[anom.etudiant] = [];
+        }
+        anomalieParEtudiant[anom.etudiant].push(anom);
+      });
+    }
 
     const recidivistes = Object.entries(anomalieParEtudiant)
-      .filter(([_, anomalies]) => anomalies.length > 1)
+      .filter(([_, anomalies]) => Array.isArray(anomalies) && anomalies.length > 1)
       .map(([etudiant, anomalies]) => ({
         etudiant,
         nombreAnomalies: anomalies.length,
@@ -488,33 +501,43 @@ async function generateFraudReport() {
 
     // 8. Statistiques par centre (pour comparaison)
     const statsParCentre = {};
-    inscriptions.forEach(insc => {
-      const centre = insc.centre || 'Unknown';
-      if (!statsParCentre[centre]) {
-        statsParCentre[centre] = {
-          inscriptions: 0,
-          ca: 0,
-          anomalies: 0
-        };
-      }
-      statsParCentre[centre].inscriptions++;
-      statsParCentre[centre].ca += parseFloat(insc.amount) || 0;
-    });
+    if (Array.isArray(inscriptions)) {
+      inscriptions.forEach(insc => {
+        if (!insc) return;
+        const centre = insc.centre || 'Unknown';
+        if (!statsParCentre[centre]) {
+          statsParCentre[centre] = {
+            inscriptions: 0,
+            ca: 0,
+            anomalies: 0
+          };
+        }
+        statsParCentre[centre].inscriptions++;
+        statsParCentre[centre].ca += parseFloat(insc.amount) || 0;
+      });
+    }
 
-    allAnomalies.forEach(anom => {
-      if (statsParCentre[anom.centre]) {
-        statsParCentre[anom.centre].anomalies++;
-      }
-    });
+    if (Array.isArray(allAnomalies)) {
+      allAnomalies.forEach(anom => {
+        if (!anom || !anom.centre) return;
+        if (statsParCentre[anom.centre]) {
+          statsParCentre[anom.centre].anomalies++;
+        }
+      });
+    }
 
     const centresSorted = Object.entries(statsParCentre)
-      .map(([centre, data]) => ({
-        centre,
-        inscriptions: data.inscriptions,
-        ca: Math.round(data.ca * 100) / 100,
-        anomalies: data.anomalies,
-        conformite: Math.round(((data.inscriptions - data.anomalies) / data.inscriptions) * 100)
-      }))
+      .map(([centre, data]) => {
+        const inscr = data.inscriptions || 0;
+        const conf = inscr > 0 ? Math.round(((inscr - data.anomalies) / inscr) * 100) : 100;
+        return {
+          centre,
+          inscriptions: inscr,
+          ca: Math.round(data.ca * 100) / 100,
+          anomalies: data.anomalies || 0,
+          conformite: conf
+        };
+      })
       .sort((a, b) => b.ca - a.ca);
 
     return {
@@ -560,7 +583,7 @@ async function generateFraudReport() {
 
 // Envoyer l'email de fraude
 async function sendFraudEmail(rapport) {
-  const subject = `🔍 AUDIT FRAUDE - Semaine du ${rapport.weekStart} : ${rapport.statistiques.totalAnomalies} anomalie(s)`;
+  const subject = `🔍 AUDIT FRAUDE - Semaine du ${rapport.weekStart} : ${rapport.statistiques?.totalAnomalies || 0} anomalie(s)`;
 
   const htmlContent = generateFraudEmailHTML(rapport);
 
@@ -576,29 +599,31 @@ async function sendFraudEmail(rapport) {
     console.log('Email fraude envoyé:', info.messageId);
 
     // Sauvegarder les anomalies rapportées
-    const weekStart = new Date(rapport.dateStart);
+    const weekStart = new Date(rapport.dateStart || rapport.weekStart.split('/').reverse().join('-'));
 
     // Sauvegarder les anomalies individuelles
-    for (const anomaly of rapport.anomalies) {
-      if (anomaly.id) {
-        await saveReportedAnomaly(anomaly.id, anomaly, weekStart);
+    if (rapport.anomalies && Array.isArray(rapport.anomalies)) {
+      for (const anomaly of rapport.anomalies) {
+        if (anomaly.id) {
+          await saveReportedAnomaly(anomaly.id, anomaly, weekStart);
+        }
       }
     }
 
     // Sauvegarder le rapport complet pour référence
     await db.collection('fraud_reports').add({
-      weekStart: rapport.dateStart,
-      weekEnd: rapport.dateEnd,
-      totalAnomalies: rapport.statistiques.totalAnomalies,
-      surFacturations: rapport.statistiques.surFacturations,
-      sousFacturations: rapport.statistiques.sousFacturations,
-      conformite: rapport.statistiques.conformite,
-      totalEcart: rapport.statistiques.totalEcart,
-      recidivistes: rapport.recidivistes.length,
+      weekStart: rapport.dateStart || rapport.weekStart,
+      weekEnd: rapport.dateEnd || rapport.weekEnd,
+      totalAnomalies: rapport.statistiques?.totalAnomalies || 0,
+      surFacturations: rapport.statistiques?.surFacturations || 0,
+      sousFacturations: rapport.statistiques?.sousFacturations || 0,
+      conformite: rapport.statistiques?.conformite || 100,
+      totalEcart: rapport.statistiques?.totalEcart || 0,
+      recidivistes: (rapport.recidivistes && rapport.recidivistes.length) || 0,
       createdAt: admin.firestore.FieldValue.serverTimestamp()
     });
 
-    console.log(`✅ ${rapport.statistiques.totalAnomalies} anomalies sauvegardées`);
+    console.log(`✅ ${rapport.statistiques?.totalAnomalies || 0} anomalies sauvegardées`);
     return `Email envoyé avec succès`;
   } catch (error) {
     console.error('Erreur envoi email fraude:', error);
@@ -659,7 +684,7 @@ function generateFraudEmailHTML(rapport) {
   `;
 
   // Top 5 anomalies
-  const top5HTML = rapport.top5 && rapport.top5.length > 0 ? `
+  const top5HTML = (rapport.top5 && Array.isArray(rapport.top5) && rapport.top5.length > 0) ? `
     <h3 style="color: #dc2626; font-size: 16px; margin: 20px 0 15px 0;">🔴 Top 5 Anomalies</h3>
     <div style="background-color: #fef2f2; border-radius: 8px; padding: 15px;">
       ${rapport.top5.map((anom, idx) => `
@@ -691,7 +716,7 @@ function generateFraudEmailHTML(rapport) {
   ` : '';
 
   // Récidivistes
-  const recidivistesHTML = rapport.recidivistes && rapport.recidivistes.length > 0 ? `
+  const recidivistesHTML = (rapport.recidivistes && Array.isArray(rapport.recidivistes) && rapport.recidivistes.length > 0) ? `
     <h3 style="color: #dc2626; font-size: 16px; margin: 20px 0 15px 0;">⚠️ Étudiants Récidivistes</h3>
     <div style="background-color: #fef3c7; border-radius: 8px; padding: 15px;">
       <table style="width: 100%; font-size: 13px;">
@@ -712,7 +737,7 @@ function generateFraudEmailHTML(rapport) {
   ` : '';
 
   // Statistiques par centre
-  const centresHTML = rapport.centres && rapport.centres.length > 0 ? `
+  const centresHTML = (rapport.centres && Array.isArray(rapport.centres) && rapport.centres.length > 0) ? `
     <h3 style="color: #1f2937; font-size: 16px; margin: 20px 0 15px 0;">📍 Récapitulatif par Centre</h3>
     <div style="background-color: #f3f4f6; border-radius: 8px; padding: 15px; font-size: 13px;">
       <table style="width: 100%;">
@@ -737,7 +762,7 @@ function generateFraudEmailHTML(rapport) {
   ` : '';
 
   // Tableau détaillé des anomalies
-  const detailsHTML = rapport.anomalies && rapport.anomalies.length > 0 ? `
+  const detailsHTML = (rapport.anomalies && Array.isArray(rapport.anomalies) && rapport.anomalies.length > 0) ? `
     <h3 style="color: #dc2626; font-size: 16px; margin: 20px 0 15px 0;">📋 Détail des Anomalies</h3>
     <div style="background-color: #fef2f2; border-radius: 8px; overflow-x: auto;">
       <table style="width: 100%; font-size: 12px;">
