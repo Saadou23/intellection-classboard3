@@ -342,14 +342,17 @@ async function saveReportedAnomaly(anomalyId, anomalyData, weekStart) {
     anomalyId: anomalyId,
     weekStart: weekKey,
     type: anomalyData.type,
-    matiere: anomalyData.matiere,
+    etudiant: anomalyData.etudiant || anomalyData.matiere || 'Unknown',
+    cours: anomalyData.cours || anomalyData.matiere || 'Unknown',
+    centre: anomalyData.centre || 'Unknown',
     montant: anomalyData.montant || anomalyData.montantFacture,
-    prixNormal: anomalyData.prixNormal || anomalyData.montantNormal,
+    prixOfficiel: anomalyData.prixOfficiel || anomalyData.prixNormal || anomalyData.montantNormal,
+    ecart: anomalyData.ecart || Math.abs(anomalyData.montant - (anomalyData.prixOfficiel || anomalyData.prixNormal || 0)),
     reportedAt: admin.firestore.FieldValue.serverTimestamp()
   });
 }
 
-// Générer le rapport de fraude
+// Générer le rapport de fraude - version avancée avec détection par étudiant
 async function generateFraudReport() {
   try {
     const now = new Date();
@@ -367,11 +370,10 @@ async function generateFraudReport() {
     // Récupérer les anomalies déjà rapportées pour cette semaine
     const reportedAnomalies = await getReportedAnomaliesForWeek(lastMonday);
 
-    // 1. Récupérer les inscriptions de la semaine depuis payment_records
+    // 1. Récupérer les inscriptions de la semaine
     let inscriptions = [];
     const paymentSnap = await db
       .collection('payment_records')
-      .limit(1000)
       .get();
 
     inscriptions = paymentSnap.docs.map(d => ({
@@ -383,193 +385,182 @@ async function generateFraudReport() {
       return date >= lastMonday && date <= lastSunday;
     });
 
-  // 2. Grouper par matière et trouver le prix normal (modal - le plus fréquent)
-  const prixParMatiere = {};
-  inscriptions.forEach(insc => {
-    const matiere = insc.matiere || 'Unknown';
-    if (!prixParMatiere[matiere]) {
-      prixParMatiere[matiere] = {
-        montants: [],
-        inscriptions: []
-      };
-    }
-    const montant = parseFloat(insc.amount) || 0;
-    prixParMatiere[matiere].montants.push(montant);
-    prixParMatiere[matiere].inscriptions.push(insc);
-  });
+    // 2. Trouver les prix normaux (modal) par matière
+    const prixParMatiere = {};
+    const allAnomalies = [];
 
-  // 3. Trouver le prix MODAL (le plus fréquent) et détecter variations ±25%
-  const suspicions = [];
-  Object.entries(prixParMatiere).forEach(([matiere, data]) => {
-    if (data.montants.length < 2) return; // Besoin d'au moins 2 pour comparer
-
-    // Compter les fréquences de chaque montant
-    const frequences = {};
-    data.montants.forEach(m => {
-      frequences[m] = (frequences[m] || 0) + 1;
-    });
-
-    // Trouver le prix qui revient le plus souvent (mode)
-    let prixNormal = data.montants[0];
-    let maxFrequence = 0;
-    Object.entries(frequences).forEach(([prix, freq]) => {
-      if (freq > maxFrequence) {
-        maxFrequence = freq;
-        prixNormal = parseFloat(prix);
+    inscriptions.forEach(insc => {
+      const matiere = insc.matiere || 'Unknown';
+      if (!prixParMatiere[matiere]) {
+        prixParMatiere[matiere] = {
+          montants: [],
+          inscriptions: []
+        };
       }
-    });
-
-    const tolerance = prixNormal * 0.25; // 25% du prix normal
-    const minAcceptable = prixNormal - tolerance;
-    const maxAcceptable = prixNormal + tolerance;
-
-    data.inscriptions.forEach((insc) => {
       const montant = parseFloat(insc.amount) || 0;
-      if (montant < minAcceptable || montant > maxAcceptable) {
-        const variation = Math.abs(montant - prixNormal);
-        const anomalyId = `${matiere}-${montant}-${insc.createdAt?.toISOString().split('T')[0] || 'unknown'}`;
+      prixParMatiere[matiere].montants.push(montant);
+      prixParMatiere[matiere].inscriptions.push(insc);
+    });
 
-        // Ne pas ajouter si déjà rapportée
-        if (reportedAnomalies[anomalyId]) {
-          return;
+    // 3. Calculer le prix modal et détecter anomalies individuelles
+    Object.entries(prixParMatiere).forEach(([matiere, data]) => {
+      if (data.montants.length < 2) return;
+
+      // Trouver le prix modal
+      const frequences = {};
+      data.montants.forEach(m => {
+        frequences[m] = (frequences[m] || 0) + 1;
+      });
+
+      let prixNormal = data.montants[0];
+      let maxFrequence = 0;
+      Object.entries(frequences).forEach(([prix, freq]) => {
+        if (freq > maxFrequence) {
+          maxFrequence = freq;
+          prixNormal = parseFloat(prix);
         }
+      });
 
-        suspicions.push({
-          id: anomalyId,
-          matiere,
-          etudiant: insc.studentName || 'Unknown',
-          centre: insc.centre || 'Unknown',
-          montantFacture: montant,
-          prixNormal: prixNormal,
-          variation: Math.round((variation / prixNormal * 100) * 10) / 10,
-          date: insc.createdAt?.toLocaleDateString('fr-FR') || new Date().toLocaleDateString('fr-FR'),
-          type: montant < minAcceptable ? '📉 Trop bas' : '📈 Trop haut'
-        });
-      }
-    });
-  });
+      const tolerance = prixNormal * 0.25;
+      const minAcceptable = prixNormal - tolerance;
+      const maxAcceptable = prixNormal + tolerance;
 
-  // 4. Analyser encaissements par centre
-  const encaisementsParCentre = {};
-  inscriptions.forEach(insc => {
-    const centre = insc.centre || 'Unknown';
-    if (!encaisementsParCentre[centre]) {
-      encaisementsParCentre[centre] = { total: 0, count: 0, montants: [], matières: {} };
-    }
-    const montant = parseFloat(insc.amount) || 0;
-    const matiere = insc.matiere || 'Unknown';
+      data.inscriptions.forEach((insc) => {
+        const montant = parseFloat(insc.amount) || 0;
+        if (montant < minAcceptable || montant > maxAcceptable) {
+          const variation = Math.abs(montant - prixNormal);
+          const variationPercent = Math.round((variation / prixNormal * 100) * 10) / 10;
+          const anomalyId = `${matiere}-${montant}-${insc.createdAt?.toISOString().split('T')[0] || 'unknown'}`;
 
-    encaisementsParCentre[centre].total += montant;
-    encaisementsParCentre[centre].count++;
-    encaisementsParCentre[centre].montants.push(montant);
-
-    if (!encaisementsParCentre[centre].matières[matiere]) {
-      encaisementsParCentre[centre].matières[matiere] = 0;
-    }
-    encaisementsParCentre[centre].matières[matiere] += montant;
-  });
-
-  // Détecter encaissements anormaux (écart > 30% du prix modal)
-  const encaissementsAnormaux = [];
-  Object.entries(encaisementsParCentre).forEach(([centre, data]) => {
-    if (data.count < 3) return;
-
-    // Trouver le montant modal pour ce centre
-    const frequences = {};
-    data.montants.forEach(m => {
-      frequences[m] = (frequences[m] || 0) + 1;
-    });
-    let montantNormal = data.montants[0];
-    let maxFrequence = 0;
-    Object.entries(frequences).forEach(([m, freq]) => {
-      if (freq > maxFrequence) {
-        maxFrequence = freq;
-        montantNormal = parseFloat(m);
-      }
-    });
-
-    const tolerance = montantNormal * 0.30; // 30%
-    const minAcceptable = montantNormal - tolerance;
-    const maxAcceptable = montantNormal + tolerance;
-    const moyenne = data.total / data.count;
-
-    data.montants.forEach((montant) => {
-      if (montant < minAcceptable || montant > maxAcceptable) {
-        const variation = Math.abs(montant - montantNormal);
-        const anomalyId = `encaissement-${centre}-${montant}`;
-
-        // Ne pas ajouter si déjà rapportée
-        if (reportedAnomalies[anomalyId]) {
-          return;
+          if (!reportedAnomalies[anomalyId]) {
+            allAnomalies.push({
+              id: anomalyId,
+              etudiant: insc.studentName || 'Unknown',
+              cours: matiere,
+              prixOfficiel: prixNormal,
+              montantFacture: montant,
+              ecart: Math.round(variation * 100) / 100,
+              ecartPercent: variationPercent,
+              centre: insc.centre || 'Unknown',
+              type: montant < minAcceptable ? 'Sous-facturation' : 'Sur-facturation',
+              date: insc.createdAt?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0]
+            });
+          }
         }
+      });
+    });
 
-        encaissementsAnormaux.push({
-          id: anomalyId,
-          centre,
-          montant,
-          montantNormal: montantNormal,
-          moyenneParInscription: Math.round(moyenne * 100) / 100,
-          variation: Math.round((variation / montantNormal * 100) * 10) / 10,
-          type: montant < minAcceptable ? '📉 Montant anormalement bas' : '📈 Montant anormalement haut'
-        });
+    // 4. Identifier les étudiants récidivistes
+    const anomalieParEtudiant = {};
+    allAnomalies.forEach(anom => {
+      if (!anomalieParEtudiant[anom.etudiant]) {
+        anomalieParEtudiant[anom.etudiant] = [];
+      }
+      anomalieParEtudiant[anom.etudiant].push(anom);
+    });
+
+    const recidivistes = Object.entries(anomalieParEtudiant)
+      .filter(([_, anomalies]) => anomalies.length > 1)
+      .map(([etudiant, anomalies]) => ({
+        etudiant,
+        nombreAnomalies: anomalies.length,
+        totalEcart: Math.round(anomalies.reduce((sum, a) => sum + a.ecart, 0) * 100) / 100
+      }))
+      .sort((a, b) => b.nombreAnomalies - a.nombreAnomalies);
+
+    // 5. Top 5 anomalies par écart absolu
+    const top5Anomalies = [...allAnomalies]
+      .sort((a, b) => Math.abs(b.ecart) - Math.abs(a.ecart))
+      .slice(0, 5);
+
+    // 6. Calcul conformité
+    const totalTransactions = inscriptions.length;
+    const transactionsNormales = totalTransactions - allAnomalies.length;
+    const conformite = totalTransactions > 0
+      ? Math.round((transactionsNormales / totalTransactions) * 100)
+      : 100;
+
+    // 7. Statistiques globales
+    const totalInscriptions = inscriptions.length;
+    const totalCA = inscriptions.reduce((sum, i) => sum + (parseFloat(i.amount) || 0), 0);
+    const totalEcart = allAnomalies.reduce((sum, a) => sum + a.ecart, 0);
+    const moyenneParInscription = totalInscriptions > 0 ? totalCA / totalInscriptions : 0;
+
+    // 8. Statistiques par centre (pour comparaison)
+    const statsParCentre = {};
+    inscriptions.forEach(insc => {
+      const centre = insc.centre || 'Unknown';
+      if (!statsParCentre[centre]) {
+        statsParCentre[centre] = {
+          inscriptions: 0,
+          ca: 0,
+          anomalies: 0
+        };
+      }
+      statsParCentre[centre].inscriptions++;
+      statsParCentre[centre].ca += parseFloat(insc.amount) || 0;
+    });
+
+    allAnomalies.forEach(anom => {
+      if (statsParCentre[anom.centre]) {
+        statsParCentre[anom.centre].anomalies++;
       }
     });
-  });
 
-  // Calculer les statistiques globales
-  const totalInscriptions = inscriptions.length;
-  const totalCA = inscriptions.reduce((sum, i) => sum + (parseFloat(i.amount) || 0), 0);
-  const moyenneParInscription = totalInscriptions > 0 ? totalCA / totalInscriptions : 0;
-
-  // Statistiques par matière
-  const statsParMatiere = {};
-  inscriptions.forEach(insc => {
-    const matiere = insc.matiere || 'Unknown';
-    if (!statsParMatiere[matiere]) {
-      statsParMatiere[matiere] = { count: 0, total: 0 };
-    }
-    statsParMatiere[matiere].count++;
-    statsParMatiere[matiere].total += parseFloat(insc.amount) || 0;
-  });
-
-  const matieresSorted = Object.entries(statsParMatiere)
-    .map(([matiere, data]) => ({
-      matiere,
-      nombreEtudiants: data.count,
-      ca: Math.round(data.total * 100) / 100,
-      moyenneParEtudiant: Math.round((data.total / data.count) * 100) / 100
-    }))
-    .sort((a, b) => b.ca - a.ca);
-
-  return {
-    weekStart: lastMonday.toLocaleDateString('fr-FR'),
-    weekEnd: lastSunday.toLocaleDateString('fr-FR'),
-    statistiques: {
-      totalInscriptions: totalInscriptions,
-      totalCA: Math.round(totalCA * 100) / 100,
-      moyenneParInscription: Math.round(moyenneParInscription * 100) / 100
-    },
-    suspicions: suspicions.slice(0, 20), // Limit to 20
-    encaissements: {
-      parCentre: Object.entries(encaisementsParCentre).map(([centre, data]) => ({
+    const centresSorted = Object.entries(statsParCentre)
+      .map(([centre, data]) => ({
         centre,
-        totalEncaisse: Math.round(data.total * 100) / 100,
-        nombreInscriptions: data.count,
-        moyenneParInscription: Math.round((data.total / data.count) * 100) / 100
-      })),
-      anormaux: encaissementsAnormaux
-    },
-    matieres: matieresSorted
+        inscriptions: data.inscriptions,
+        ca: Math.round(data.ca * 100) / 100,
+        anomalies: data.anomalies,
+        conformite: Math.round(((data.inscriptions - data.anomalies) / data.inscriptions) * 100)
+      }))
+      .sort((a, b) => b.ca - a.ca);
+
+    return {
+      weekStart: lastMonday.toLocaleDateString('fr-FR'),
+      weekEnd: lastSunday.toLocaleDateString('fr-FR'),
+      dateStart: lastMonday.toISOString().split('T')[0],
+      dateEnd: lastSunday.toISOString().split('T')[0],
+      statistiques: {
+        totalInscriptions: totalInscriptions,
+        totalCA: Math.round(totalCA * 100) / 100,
+        totalAnomalies: allAnomalies.length,
+        totalEcart: Math.round(totalEcart * 100) / 100,
+        surFacturations: allAnomalies.filter(a => a.type === 'Sur-facturation').length,
+        sousFacturations: allAnomalies.filter(a => a.type === 'Sous-facturation').length,
+        conformite: conformite,
+        moyenneParInscription: Math.round(moyenneParInscription * 100) / 100
+      },
+      anomalies: allAnomalies,
+      top5: top5Anomalies,
+      recidivistes: recidivistes,
+      centres: centresSorted
     };
   } catch (error) {
     console.error('Error in generateFraudReport:', error);
-    return { suspicions: [], encaissements: { parCentre: [], anormaux: [] }, weekStart: '', weekEnd: '', error: error.message };
+    return {
+      anomalies: [],
+      top5: [],
+      recidivistes: [],
+      centres: [],
+      weekStart: '',
+      weekEnd: '',
+      statistiques: {
+        totalInscriptions: 0,
+        totalCA: 0,
+        totalAnomalies: 0,
+        totalEcart: 0,
+        conformite: 100
+      },
+      error: error.message
+    };
   }
 }
 
 // Envoyer l'email de fraude
 async function sendFraudEmail(rapport) {
-  const subject = `🔍 AUDIT FRAUDE - Semaine du ${rapport.weekStart} : ${rapport.suspicions.length + rapport.encaissements.anormaux.length} anomalie(s)`;
+  const subject = `🔍 AUDIT FRAUDE - Semaine du ${rapport.weekStart} : ${rapport.statistiques.totalAnomalies} anomalie(s)`;
 
   const htmlContent = generateFraudEmailHTML(rapport);
 
@@ -585,23 +576,29 @@ async function sendFraudEmail(rapport) {
     console.log('Email fraude envoyé:', info.messageId);
 
     // Sauvegarder les anomalies rapportées
-    const weekStart = new Date(rapport.weekStart.split('/').reverse().join('-'));
+    const weekStart = new Date(rapport.dateStart);
 
-    // Sauvegarder les suspicions (variations de prix)
-    for (const suspicion of rapport.suspicions) {
-      if (suspicion.id) {
-        await saveReportedAnomaly(suspicion.id, suspicion, weekStart);
-      }
-    }
-
-    // Sauvegarder les encaissements anormaux
-    for (const anomaly of rapport.encaissements.anormaux) {
+    // Sauvegarder les anomalies individuelles
+    for (const anomaly of rapport.anomalies) {
       if (anomaly.id) {
         await saveReportedAnomaly(anomaly.id, anomaly, weekStart);
       }
     }
 
-    console.log(`✅ ${rapport.suspicions.length + rapport.encaissements.anormaux.length} anomalies sauvegardées`);
+    // Sauvegarder le rapport complet pour référence
+    await db.collection('fraud_reports').add({
+      weekStart: rapport.dateStart,
+      weekEnd: rapport.dateEnd,
+      totalAnomalies: rapport.statistiques.totalAnomalies,
+      surFacturations: rapport.statistiques.surFacturations,
+      sousFacturations: rapport.statistiques.sousFacturations,
+      conformite: rapport.statistiques.conformite,
+      totalEcart: rapport.statistiques.totalEcart,
+      recidivistes: rapport.recidivistes.length,
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    console.log(`✅ ${rapport.statistiques.totalAnomalies} anomalies sauvegardées`);
     return `Email envoyé avec succès`;
   } catch (error) {
     console.error('Erreur envoi email fraude:', error);
@@ -609,66 +606,175 @@ async function sendFraudEmail(rapport) {
   }
 }
 
-// Générer le HTML de l'email fraude
+// Générer le HTML de l'email fraude - version avancée
 function generateFraudEmailHTML(rapport) {
-  let suspicionsHTML = '';
-  if (rapport.suspicions.length === 0) {
-    suspicionsHTML = `
-      <div style="background-color: #dcfce7; border: 1px solid #22c55e; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
-        <h3 style="color: #166534; margin: 0; font-size: 16px;">✅ Aucune variation de prix suspecte (±25%)</h3>
-      </div>
-    `;
-  } else {
-    suspicionsHTML = rapport.suspicions.map(s => `
-      <div style="background-color: #fee2e2; border-left: 4px solid #ef4444; padding: 15px; margin: 10px 0; border-radius: 4px;">
-        <div style="font-weight: bold; color: #991b1b; font-size: 14px;">${s.type} ${s.matiere}</div>
-        <div style="color: #7f1d1d; font-size: 13px; margin-top: 5px;">
-          👤 ${s.etudiant} | 📍 ${s.centre}
-        </div>
-        <div style="color: #7f1d1d; font-size: 13px; margin-top: 3px;">
-          💰 Montant facturé: <strong>${s.montantFacture}DH</strong> | Prix normal: ${s.prixNormal}DH
-        </div>
-        <div style="color: #991b1b; font-size: 13px; font-weight: bold; margin-top: 3px;">
-          ⚠️ Écart: <strong>${s.variation}%</strong> du prix normal
-        </div>
-        <div style="color: #9ca3af; font-size: 12px; margin-top: 3px;">📅 ${s.date}</div>
-      </div>
-    `).join('');
-  }
+  const stats = rapport.statistiques;
 
-  let encaissementsHTML = rapport.encaissements.parCentre.map(e => `
-    <div style="background-color: #f0f4f8; padding: 15px; margin: 8px 0; border-radius: 4px; border-left: 4px solid #3b82f6;">
-      <div style="font-weight: bold; color: #1e40af; font-size: 14px;">📍 ${e.centre}</div>
-      <div style="color: #475569; font-size: 13px; margin-top: 5px;">
-        💰 Total encaissé: <strong>${e.totalEncaisse}DH</strong>
-      </div>
-      <div style="color: #475569; font-size: 13px; margin-top: 2px;">
-        📊 ${e.nombreInscriptions} inscriptions | Moyenne: ${e.moyenneParInscription}DH/inscription
+  // Résumé court
+  const resumeHTML = `
+    <div style="background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); border: 1px solid #ef4444; border-radius: 8px; padding: 20px; margin: 15px 0;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; text-align: center;">
+        <div>
+          <div style="color: #991b1b; font-size: 12px; font-weight: bold;">ANOMALIES</div>
+          <div style="color: #dc2626; font-size: 28px; font-weight: bold;">${stats.totalAnomalies}</div>
+        </div>
+        <div>
+          <div style="color: #991b1b; font-size: 12px; font-weight: bold;">CONFORMITÉ</div>
+          <div style="color: ${stats.conformite >= 95 ? '#059669' : '#dc2626'}; font-size: 28px; font-weight: bold;">${stats.conformite}%</div>
+        </div>
+        <div>
+          <div style="color: #991b1b; font-size: 12px; font-weight: bold;">ÉCART TOTAL</div>
+          <div style="color: #dc2626; font-size: 28px; font-weight: bold;">${stats.totalEcart} DH</div>
+        </div>
       </div>
     </div>
-  `).join('');
+  `;
 
-  let anomaliesHTML = '';
-  if (rapport.encaissements.anormaux.length > 0) {
-    anomaliesHTML = `
-      <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #fbbf24;">
-        <h3 style="color: #92400e; font-size: 16px; margin: 0 0 15px 0;">⚠️ Montants Anormaux (variation > 30%)</h3>
-        ${rapport.encaissements.anormaux.map(a => `
-          <div style="background-color: #fef3c7; padding: 12px; margin: 8px 0; border-radius: 4px; border-left: 3px solid #f59e0b;">
-            <div style="color: #92400e; font-size: 13px; font-weight: bold;">
-              ${a.type} - ${a.centre}
+  // Statistiques détaillées
+  const statsHTML = `
+    <div style="background-color: #ecfdf5; border: 1px solid #6ee7b7; border-radius: 8px; padding: 20px; margin: 15px 0;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+        <div>
+          <div style="color: #059669; font-size: 12px; font-weight: bold;">Inscriptions</div>
+          <div style="color: #065f46; font-size: 20px; font-weight: bold;">${stats.totalInscriptions}</div>
+        </div>
+        <div>
+          <div style="color: #059669; font-size: 12px; font-weight: bold;">CA Total</div>
+          <div style="color: #065f46; font-size: 20px; font-weight: bold;">${stats.totalCA} DH</div>
+        </div>
+        <div>
+          <div style="color: #059669; font-size: 12px; font-weight: bold;">Sur-facturations</div>
+          <div style="color: #065f46; font-size: 20px; font-weight: bold;">${stats.surFacturations}</div>
+        </div>
+        <div>
+          <div style="color: #059669; font-size: 12px; font-weight: bold;">Sous-facturations</div>
+          <div style="color: #065f46; font-size: 20px; font-weight: bold;">${stats.sousFacturations}</div>
+        </div>
+      </div>
+      <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #a7f3d0;">
+        <div style="color: #059669; font-size: 12px; font-weight: bold;">Moyenne par inscription</div>
+        <div style="color: #065f46; font-size: 18px; font-weight: bold;">${stats.moyenneParInscription} DH</div>
+      </div>
+    </div>
+  `;
+
+  // Top 5 anomalies
+  const top5HTML = rapport.top5 && rapport.top5.length > 0 ? `
+    <h3 style="color: #dc2626; font-size: 16px; margin: 20px 0 15px 0;">🔴 Top 5 Anomalies</h3>
+    <div style="background-color: #fef2f2; border-radius: 8px; padding: 15px;">
+      ${rapport.top5.map((anom, idx) => `
+        <div style="padding: 12px; margin: 8px 0; background-color: white; border-left: 4px solid #dc2626; border-radius: 4px;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <div style="font-weight: bold; color: #1f2937;">
+                <span style="color: #dc2626; font-size: 18px; font-weight: bold;">${idx + 1}.</span> ${anom.etudiant}
+              </div>
+              <div style="font-size: 13px; color: #6b7280; margin-top: 3px;">
+                ${anom.cours} | ${anom.centre}
+              </div>
+              <div style="font-size: 13px; color: #374151; margin-top: 3px;">
+                Prix: ${anom.prixOfficiel} DH → Facturé: <strong>${anom.montantFacture} DH</strong>
+              </div>
             </div>
-            <div style="color: #92400e; font-size: 13px; margin-top: 3px;">
-              💰 Montant: <strong>${a.montant}DH</strong> | Normal: ${a.montantNormal}DH
-            </div>
-            <div style="color: #92400e; font-size: 13px; margin-top: 2px;">
-              📊 Écart: <strong>${a.variation}%</strong> | Moyenne générale: ${a.moyenneParInscription}DH
+            <div style="text-align: right;">
+              <div style="color: #dc2626; font-weight: bold; font-size: 16px;">
+                ${anom.type === 'Sur-facturation' ? '+' : '-'}${anom.ecart} DH
+              </div>
+              <div style="color: #9ca3af; font-size: 12px; margin-top: 3px;">
+                ${anom.ecartPercent}%
+              </div>
             </div>
           </div>
+        </div>
+      `).join('')}
+    </div>
+  ` : '';
+
+  // Récidivistes
+  const recidivistesHTML = rapport.recidivistes && rapport.recidivistes.length > 0 ? `
+    <h3 style="color: #dc2626; font-size: 16px; margin: 20px 0 15px 0;">⚠️ Étudiants Récidivistes</h3>
+    <div style="background-color: #fef3c7; border-radius: 8px; padding: 15px;">
+      <table style="width: 100%; font-size: 13px;">
+        <tr style="border-bottom: 1px solid #f59e0b;">
+          <th style="text-align: left; padding: 8px; color: #92400e; font-weight: bold;">Étudiant</th>
+          <th style="text-align: center; padding: 8px; color: #92400e; font-weight: bold;">Anomalies</th>
+          <th style="text-align: right; padding: 8px; color: #92400e; font-weight: bold;">Écart Total</th>
+        </tr>
+        ${rapport.recidivistes.slice(0, 10).map(rec => `
+          <tr style="border-bottom: 1px solid #fcd34d;">
+            <td style="padding: 8px; color: #78350f;">${rec.etudiant}</td>
+            <td style="text-align: center; padding: 8px; color: #92400e; font-weight: bold;">${rec.nombreAnomalies}</td>
+            <td style="text-align: right; padding: 8px; color: #dc2626; font-weight: bold;">${rec.totalEcart} DH</td>
+          </tr>
         `).join('')}
-      </div>
-    `;
-  }
+      </table>
+    </div>
+  ` : '';
+
+  // Statistiques par centre
+  const centresHTML = rapport.centres && rapport.centres.length > 0 ? `
+    <h3 style="color: #1f2937; font-size: 16px; margin: 20px 0 15px 0;">📍 Récapitulatif par Centre</h3>
+    <div style="background-color: #f3f4f6; border-radius: 8px; padding: 15px; font-size: 13px;">
+      <table style="width: 100%;">
+        <tr style="border-bottom: 2px solid #d1d5db;">
+          <th style="text-align: left; padding: 8px; color: #374151; font-weight: bold;">Centre</th>
+          <th style="text-align: center; padding: 8px; color: #374151; font-weight: bold;">Inscr.</th>
+          <th style="text-align: right; padding: 8px; color: #374151; font-weight: bold;">CA</th>
+          <th style="text-align: center; padding: 8px; color: #374151; font-weight: bold;">Anom.</th>
+          <th style="text-align: center; padding: 8px; color: #374151; font-weight: bold;">Conf.</th>
+        </tr>
+        ${rapport.centres.map(c => `
+          <tr style="border-bottom: 1px solid #e5e7eb;">
+            <td style="padding: 8px; color: #1f2937; font-weight: bold;">${c.centre}</td>
+            <td style="text-align: center; padding: 8px; color: #6b7280;">${c.inscriptions}</td>
+            <td style="text-align: right; padding: 8px; color: #059669; font-weight: bold;">${c.ca} DH</td>
+            <td style="text-align: center; padding: 8px; color: ${c.anomalies > 0 ? '#dc2626' : '#059669'}; font-weight: bold;">${c.anomalies}</td>
+            <td style="text-align: center; padding: 8px; color: ${c.conformite >= 95 ? '#059669' : '#dc2626'}; font-weight: bold;">${c.conformite}%</td>
+          </tr>
+        `).join('')}
+      </table>
+    </div>
+  ` : '';
+
+  // Tableau détaillé des anomalies
+  const detailsHTML = rapport.anomalies && rapport.anomalies.length > 0 ? `
+    <h3 style="color: #dc2626; font-size: 16px; margin: 20px 0 15px 0;">📋 Détail des Anomalies</h3>
+    <div style="background-color: #fef2f2; border-radius: 8px; overflow-x: auto;">
+      <table style="width: 100%; font-size: 12px;">
+        <tr style="background-color: #fee2e2; border-bottom: 2px solid #ef4444;">
+          <th style="padding: 8px; text-align: left; color: #991b1b; font-weight: bold;">ID</th>
+          <th style="padding: 8px; text-align: left; color: #991b1b; font-weight: bold;">Étudiant</th>
+          <th style="padding: 8px; text-align: left; color: #991b1b; font-weight: bold;">Cours</th>
+          <th style="padding: 8px; text-align: right; color: #991b1b; font-weight: bold;">Prix</th>
+          <th style="padding: 8px; text-align: right; color: #991b1b; font-weight: bold;">Facturé</th>
+          <th style="padding: 8px; text-align: right; color: #991b1b; font-weight: bold;">Écart</th>
+          <th style="padding: 8px; text-align: center; color: #991b1b; font-weight: bold;">Type</th>
+        </tr>
+        ${rapport.anomalies.slice(0, 50).map((anom, idx) => `
+          <tr style="border-bottom: 1px solid #fecaca;">
+            <td style="padding: 6px; color: #6b7280;">${idx + 1}</td>
+            <td style="padding: 6px; color: #1f2937;">${anom.etudiant}</td>
+            <td style="padding: 6px; color: #6b7280; font-size: 11px;">${anom.cours}</td>
+            <td style="padding: 6px; text-align: right; color: #059669;">${anom.prixOfficiel} DH</td>
+            <td style="padding: 6px; text-align: right; color: #dc2626; font-weight: bold;">${anom.montantFacture} DH</td>
+            <td style="padding: 6px; text-align: right; color: #dc2626; font-weight: bold;">${anom.type === 'Sur-facturation' ? '+' : '-'}${anom.ecart} DH</td>
+            <td style="padding: 6px; text-align: center; color: ${anom.type === 'Sur-facturation' ? '#dc2626' : '#f59e0b'}; font-weight: bold;">
+              ${anom.type === 'Sur-facturation' ? '📈' : '📉'}
+            </td>
+          </tr>
+        `).join('')}
+      </table>
+      ${rapport.anomalies.length > 50 ? `
+        <div style="padding: 12px; text-align: center; color: #6b7280; font-size: 12px;">
+          ... et ${rapport.anomalies.length - 50} autres anomalies
+        </div>
+      ` : ''}
+    </div>
+  ` : `
+    <div style="background-color: #dcfce7; border: 1px solid #22c55e; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
+      <h3 style="color: #166534; margin: 0; font-size: 16px;">✅ Aucune anomalie détectée</h3>
+    </div>
+  `;
 
   return `
     <!DOCTYPE html>
@@ -676,13 +782,14 @@ function generateFraudEmailHTML(rapport) {
     <head>
       <meta charset="UTF-8">
       <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 700px; margin: 0 auto; background-color: #f9fafb; padding: 20px; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+        .container { max-width: 900px; margin: 0 auto; background-color: #f9fafb; padding: 20px; }
         .header { background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); color: white; padding: 30px; border-radius: 8px 8px 0 0; text-align: center; }
         .header h1 { margin: 0; font-size: 24px; }
         .content { background-color: white; padding: 30px; border-radius: 0 0 8px 8px; }
         .section-title { font-size: 18px; font-weight: bold; color: #1f2937; margin: 20px 0 15px 0; }
         .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #666; font-size: 12px; }
+        table { border-collapse: collapse; }
       </style>
     </head>
     <body>
@@ -692,54 +799,22 @@ function generateFraudEmailHTML(rapport) {
           <p style="margin: 10px 0 0 0;">Semaine du ${rapport.weekStart} au ${rapport.weekEnd}</p>
         </div>
         <div class="content">
-          <div class="section-title">📊 Statistiques Globales</div>
-          <div style="background-color: #ecfdf5; border: 1px solid #6ee7b7; border-radius: 8px; padding: 20px; margin: 15px 0;">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-              <div>
-                <div style="color: #059669; font-size: 12px; font-weight: bold;">Nombre d'étudiants</div>
-                <div style="color: #065f46; font-size: 20px; font-weight: bold;">${rapport.statistiques.totalInscriptions}</div>
-              </div>
-              <div>
-                <div style="color: #059669; font-size: 12px; font-weight: bold;">CA Total</div>
-                <div style="color: #065f46; font-size: 20px; font-weight: bold;">${rapport.statistiques.totalCA} DH</div>
-              </div>
-            </div>
-            <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #a7f3d0;">
-              <div style="color: #059669; font-size: 12px; font-weight: bold;">Moyenne par étudiant</div>
-              <div style="color: #065f46; font-size: 16px; font-weight: bold;">${rapport.statistiques.moyenneParInscription} DH</div>
-            </div>
-          </div>
+          <div class="section-title">📊 Résumé Exécutif</div>
+          ${resumeHTML}
 
-          ${rapport.matieres && rapport.matieres.length > 0 ? `
-          <div class="section-title">📚 Top Matières</div>
-          <div style="background-color: #f3f4f6; border-radius: 8px; padding: 15px;">
-            ${rapport.matieres.slice(0, 5).map((m, i) => `
-              <div style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; ${i === rapport.matieres.slice(0, 5).length - 1 ? 'border-bottom: none;' : ''}">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <div>
-                    <div style="font-weight: bold; color: #1f2937;">${m.matiere}</div>
-                    <div style="font-size: 12px; color: #6b7280;">${m.nombreEtudiants} étudiants</div>
-                  </div>
-                  <div style="text-align: right;">
-                    <div style="font-weight: bold; color: #059669;">${m.ca} DH</div>
-                    <div style="font-size: 12px; color: #6b7280;">Moy: ${m.moyenneParEtudiant} DH</div>
-                  </div>
-                </div>
-              </div>
-            `).join('')}
-          </div>
-          ` : ''}
+          <div class="section-title">📈 Statistiques Détaillées</div>
+          ${statsHTML}
 
-          <div class="section-title">🚨 Variations de Prix Suspectes (±25%)</div>
-          ${suspicionsHTML}
+          ${top5HTML}
 
-          <div class="section-title">💼 Encaissements par Centre</div>
-          ${encaissementsHTML}
+          ${recidivistesHTML}
 
-          ${anomaliesHTML}
+          ${centresHTML}
+
+          ${detailsHTML}
 
           <div class="footer">
-            <p>Ce rapport a été généré automatiquement chaque dimanche à 09h00</p>
+            <p>Ce rapport a été généré automatiquement</p>
             <p>Intellection ClassBoard © 2026</p>
           </div>
         </div>

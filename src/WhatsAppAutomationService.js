@@ -271,6 +271,42 @@ class WhatsAppAutomationService {
   }
 
   /**
+   * Initialiser et charger les groupes depuis WhatsApp
+   * @returns {Promise<Object>} {success, groups, message}
+   */
+  static async initializeGroups() {
+    try {
+      const response = await fetch(`${BACKEND_URL}/initialize-groups`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || errorData.error || `HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('✅ Groupes initialisés:', data);
+      return {
+        success: true,
+        groups: data.groups || [],
+        message: data.message
+      };
+    } catch (error) {
+      console.error('❌ Erreur initialisation groupes:', error);
+      return {
+        success: false,
+        groups: [],
+        error: error.message,
+        message: 'Impossible de charger les groupes. Assurez-vous que le bot est lancé.'
+      };
+    }
+  }
+
+  /**
    * Envoyer un PDF immédiatement (test)
    * @param {string} pdfUrl - URL du PDF
    * @param {Array} groupIds - IDs des groupes WhatsApp

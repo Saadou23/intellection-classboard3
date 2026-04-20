@@ -11,6 +11,8 @@ const WhatsAppAutomationAdmin = ({ sessions, branches, branchesData, onClose }) 
   const [loading, setLoading] = useState(false);
   const [testingJobId, setTestingJobId] = useState(null);
   const [editingJobId, setEditingJobId] = useState(null);
+  const [initializingGroups, setInitializingGroups] = useState(false);
+  const [pollCount, setPollCount] = useState(0);
 
   // Form pour nouveau job
   const [newJob, setNewJob] = useState({
@@ -283,11 +285,33 @@ const WhatsAppAutomationAdmin = ({ sessions, branches, branchesData, onClose }) 
       setLoading(true);
       const groupsData = await WhatsAppAutomationService.getWhatsAppGroups();
       setAvailableGroups(groupsData);
-      alert(`✅ ${groupsData.length} groupes trouvés`);
+      if (groupsData.length > 0) {
+        alert(`✅ ${groupsData.length} groupes trouvés`);
+      } else {
+        alert('⚠️  Aucun groupe trouvé. Essayez "Charger les groupes".');
+      }
     } catch (error) {
       alert('❌ Erreur: ' + error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const initializeGroups = async () => {
+    try {
+      setInitializingGroups(true);
+      const result = await WhatsAppAutomationService.initializeGroups();
+
+      if (result.success) {
+        setAvailableGroups(result.groups);
+        alert(`✅ ${result.groups.length} groupes trouvés et sauvegardés!`);
+      } else {
+        alert(`❌ ${result.error}\n\nAssurez-vous que:\n1. Le bot est lancé (npm start)\n2. Vous êtes connecté à WhatsApp`);
+      }
+    } catch (error) {
+      alert('❌ Erreur: ' + error.message);
+    } finally {
+      setInitializingGroups(false);
     }
   };
 
@@ -492,23 +516,45 @@ const WhatsAppAutomationAdmin = ({ sessions, branches, branchesData, onClose }) 
                   <div>
                     <div className="flex justify-between items-center mb-2">
                       <label className="block text-sm font-bold text-gray-700">👥 Groupes WhatsApp</label>
-                      <button
-                        type="button"
-                        onClick={refreshGroups}
-                        className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 flex items-center gap-1"
-                      >
-                        <RefreshCw className="w-3 h-3" />
-                        Rafraîchir
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={initializeGroups}
+                          disabled={initializingGroups}
+                          className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:bg-gray-200 flex items-center gap-1 font-bold"
+                        >
+                          <Plus className="w-3 h-3" />
+                          {initializingGroups ? 'Chargement...' : 'Charger'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={refreshGroups}
+                          className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 flex items-center gap-1"
+                        >
+                          <RefreshCw className="w-3 h-3" />
+                          Rafraîchir
+                        </button>
+                      </div>
                     </div>
 
                     {availableGroups.length === 0 ? (
-                      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-700 text-sm">
-                        ⚠️ Aucun groupe trouvé. Assurez-vous que:
-                        <ul className="list-disc list-inside mt-2">
-                          <li>Le bot WhatsApp est lancé (`npm start` dans intellection-whatsapp-bot/)</li>
-                          <li>Vous êtes connecté avec votre compte WhatsApp</li>
-                        </ul>
+                      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-700 text-sm space-y-2">
+                        <div className="font-bold">⚠️ Aucun groupe trouvé</div>
+                        <p>Pour voir vos groupes WhatsApp:</p>
+                        <ol className="list-decimal list-inside space-y-1">
+                          <li>Lancez le bot: <code className="bg-yellow-100 px-1 rounded">npm start</code> dans <code className="bg-yellow-100 px-1 rounded">intellection-whatsapp-bot/</code></li>
+                          <li>Scannez le code QR avec WhatsApp</li>
+                          <li>Cliquez sur le bouton <strong>"Charger"</strong> ci-dessus</li>
+                        </ol>
+                        <button
+                          type="button"
+                          onClick={initializeGroups}
+                          disabled={initializingGroups}
+                          className="mt-3 w-full px-3 py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 disabled:bg-gray-400 flex items-center justify-center gap-2"
+                        >
+                          <Plus className="w-4 h-4" />
+                          {initializingGroups ? 'Chargement...' : 'Charger les groupes maintenant'}
+                        </button>
                       </div>
                     ) : (
                       <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3">
@@ -633,19 +679,40 @@ const WhatsAppAutomationAdmin = ({ sessions, branches, branchesData, onClose }) 
                   <div>
                     <div className="flex justify-between items-center mb-2">
                       <label className="block text-sm font-bold text-gray-700">👥 Groupes WhatsApp</label>
-                      <button
-                        type="button"
-                        onClick={refreshGroups}
-                        className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 flex items-center gap-1"
-                      >
-                        <RefreshCw className="w-3 h-3" />
-                        Rafraîchir
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={initializeGroups}
+                          disabled={initializingGroups}
+                          className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:bg-gray-200 flex items-center gap-1 font-bold"
+                        >
+                          <Plus className="w-3 h-3" />
+                          {initializingGroups ? 'Chargement...' : 'Charger'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={refreshGroups}
+                          className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 flex items-center gap-1"
+                        >
+                          <RefreshCw className="w-3 h-3" />
+                          Rafraîchir
+                        </button>
+                      </div>
                     </div>
 
                     {availableGroups.length === 0 ? (
-                      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-700 text-sm">
-                        ⚠️ Aucun groupe trouvé. Assurez-vous que le bot est lancé.
+                      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-700 text-sm space-y-2">
+                        <div className="font-bold">⚠️ Aucun groupe trouvé</div>
+                        <p>Cliquez sur le bouton <strong>"Charger"</strong> pour récupérer vos groupes WhatsApp.</p>
+                        <button
+                          type="button"
+                          onClick={initializeGroups}
+                          disabled={initializingGroups}
+                          className="mt-3 w-full px-3 py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 disabled:bg-gray-400 flex items-center justify-center gap-2"
+                        >
+                          <Plus className="w-4 h-4" />
+                          {initializingGroups ? 'Chargement...' : 'Charger les groupes'}
+                        </button>
                       </div>
                     ) : (
                       <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3">
@@ -825,46 +892,70 @@ const WhatsAppAutomationAdmin = ({ sessions, branches, branchesData, onClose }) 
               {/* Instructions */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <h4 className="font-bold text-blue-900 mb-3 flex items-center gap-2">
-                  <AlertCircle className="w-5 h-5" /> Instructions
+                  <AlertCircle className="w-5 h-5" /> Instructions - Charger les groupes
                 </h4>
 
                 <div className="space-y-3 text-sm text-blue-900">
                   <div>
-                    <p className="font-bold">1️⃣ Démarrer le bot (une seule fois)</p>
-                    <pre className="bg-white p-2 rounded mt-1 text-xs overflow-x-auto">
+                    <p className="font-bold">1️⃣ Démarrer le bot</p>
+                    <pre className="bg-white p-2 rounded mt-1 text-xs overflow-x-auto text-gray-700 font-mono">
 cd intellection-whatsapp-bot && npm install && npm start
                     </pre>
                   </div>
 
                   <div>
-                    <p className="font-bold">2️⃣ Scanner le QR code</p>
-                    <p>Scannez le code QR affiché dans le terminal avec votre téléphone WhatsApp.</p>
+                    <p className="font-bold">2️⃣ Scanner le code QR</p>
+                    <p>Vous verrez un code QR dans le terminal. Scannez-le avec WhatsApp sur votre téléphone.</p>
                   </div>
 
                   <div>
-                    <p className="font-bold">3️⃣ Vérifier la connexion</p>
-                    <p>Cliquez sur "Rafraîchir" ci-dessus. Le statut doit passer à "Connecté".</p>
+                    <p className="font-bold">3️⃣ Charger les groupes</p>
+                    <p>Une fois connecté, cliquez sur le bouton <strong>"Charger les groupes"</strong> dans l'onglet "Nouveau Job". Vos groupes WhatsApp apparaîtront.</p>
+                    <button
+                      type="button"
+                      onClick={initializeGroups}
+                      disabled={initializingGroups}
+                      className="mt-2 px-4 py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 disabled:bg-gray-400 flex items-center gap-2 w-full justify-center"
+                    >
+                      <Plus className="w-4 h-4" />
+                      {initializingGroups ? 'Chargement...' : 'Charger les groupes maintenant'}
+                    </button>
                   </div>
 
                   <div>
-                    <p className="font-bold">4️⃣ Créer des jobs</p>
-                    <p>Une fois connecté, allez dans l'onglet "Nouveau Job" pour configurer les envois.</p>
+                    <p className="font-bold">4️⃣ Créer les jobs d'envoi</p>
+                    <p>Allez à l'onglet "Nouveau Job" et sélectionnez les groupes où envoyer les emplois du temps.</p>
+                  </div>
+
+                  <div>
+                    <p className="font-bold">📊 Groupes chargés: <span className="text-green-700">{availableGroups.length}</span></p>
                   </div>
                 </div>
               </div>
 
               {/* Debugging */}
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                <h4 className="font-bold text-gray-900 mb-3">🔧 Debugging</h4>
+                <h4 className="font-bold text-gray-900 mb-3">🔧 Informations Système</h4>
                 <div className="space-y-2 text-sm text-gray-700">
                   <p>
                     <strong>Backend URL:</strong> <code className="bg-white p-1 rounded">http://localhost:3001</code>
+                  </p>
+                  <p>
+                    <strong>Statut:</strong> <span className={backendStatus?.connected ? 'text-green-600 font-bold' : 'text-red-600 font-bold'}>
+                      {backendStatus?.connected ? '✅ Connecté' : '❌ Non connecté'}
+                    </span>
+                  </p>
+                  <p>
+                    <strong>Groupes chargés:</strong> <span className="font-bold">{availableGroups.length}</span>
                   </p>
                   <p>
                     <strong>Service:</strong> whatsapp-web.js + Node.js + Express
                   </p>
                   <p>
                     <strong>Logs du bot:</strong> Consultez le terminal où vous avez lancé `npm start`
+                  </p>
+                  <p className="text-xs text-gray-500 mt-3 pt-3 border-t">
+                    💡 Si aucun groupe ne s'affiche: assurez-vous que le bot est en cours d'exécution et que vous êtes connecté à WhatsApp
                   </p>
                 </div>
               </div>
