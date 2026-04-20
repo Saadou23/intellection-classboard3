@@ -516,9 +516,39 @@ async function generateFraudReport() {
     });
   });
 
+  // Calculer les statistiques globales
+  const totalInscriptions = inscriptions.length;
+  const totalCA = inscriptions.reduce((sum, i) => sum + (parseFloat(i.amount) || 0), 0);
+  const moyenneParInscription = totalInscriptions > 0 ? totalCA / totalInscriptions : 0;
+
+  // Statistiques par matière
+  const statsParMatiere = {};
+  inscriptions.forEach(insc => {
+    const matiere = insc.matiere || 'Unknown';
+    if (!statsParMatiere[matiere]) {
+      statsParMatiere[matiere] = { count: 0, total: 0 };
+    }
+    statsParMatiere[matiere].count++;
+    statsParMatiere[matiere].total += parseFloat(insc.amount) || 0;
+  });
+
+  const matieresSorted = Object.entries(statsParMatiere)
+    .map(([matiere, data]) => ({
+      matiere,
+      nombreEtudiants: data.count,
+      ca: Math.round(data.total * 100) / 100,
+      moyenneParEtudiant: Math.round((data.total / data.count) * 100) / 100
+    }))
+    .sort((a, b) => b.ca - a.ca);
+
   return {
     weekStart: lastMonday.toLocaleDateString('fr-FR'),
     weekEnd: lastSunday.toLocaleDateString('fr-FR'),
+    statistiques: {
+      totalInscriptions: totalInscriptions,
+      totalCA: Math.round(totalCA * 100) / 100,
+      moyenneParInscription: Math.round(moyenneParInscription * 100) / 100
+    },
     suspicions: suspicions.slice(0, 20), // Limit to 20
     encaissements: {
       parCentre: Object.entries(encaisementsParCentre).map(([centre, data]) => ({
@@ -528,7 +558,8 @@ async function generateFraudReport() {
         moyenneParInscription: Math.round((data.total / data.count) * 100) / 100
       })),
       anormaux: encaissementsAnormaux
-    }
+    },
+    matieres: matieresSorted
     };
   } catch (error) {
     console.error('Error in generateFraudReport:', error);
@@ -661,6 +692,44 @@ function generateFraudEmailHTML(rapport) {
           <p style="margin: 10px 0 0 0;">Semaine du ${rapport.weekStart} au ${rapport.weekEnd}</p>
         </div>
         <div class="content">
+          <div class="section-title">📊 Statistiques Globales</div>
+          <div style="background-color: #ecfdf5; border: 1px solid #6ee7b7; border-radius: 8px; padding: 20px; margin: 15px 0;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+              <div>
+                <div style="color: #059669; font-size: 12px; font-weight: bold;">Nombre d'étudiants</div>
+                <div style="color: #065f46; font-size: 20px; font-weight: bold;">${rapport.statistiques.totalInscriptions}</div>
+              </div>
+              <div>
+                <div style="color: #059669; font-size: 12px; font-weight: bold;">CA Total</div>
+                <div style="color: #065f46; font-size: 20px; font-weight: bold;">${rapport.statistiques.totalCA} DH</div>
+              </div>
+            </div>
+            <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #a7f3d0;">
+              <div style="color: #059669; font-size: 12px; font-weight: bold;">Moyenne par étudiant</div>
+              <div style="color: #065f46; font-size: 16px; font-weight: bold;">${rapport.statistiques.moyenneParInscription} DH</div>
+            </div>
+          </div>
+
+          ${rapport.matieres && rapport.matieres.length > 0 ? `
+          <div class="section-title">📚 Top Matières</div>
+          <div style="background-color: #f3f4f6; border-radius: 8px; padding: 15px;">
+            ${rapport.matieres.slice(0, 5).map((m, i) => `
+              <div style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; ${i === rapport.matieres.slice(0, 5).length - 1 ? 'border-bottom: none;' : ''}">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <div>
+                    <div style="font-weight: bold; color: #1f2937;">${m.matiere}</div>
+                    <div style="font-size: 12px; color: #6b7280;">${m.nombreEtudiants} étudiants</div>
+                  </div>
+                  <div style="text-align: right;">
+                    <div style="font-weight: bold; color: #059669;">${m.ca} DH</div>
+                    <div style="font-size: 12px; color: #6b7280;">Moy: ${m.moyenneParEtudiant} DH</div>
+                  </div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+          ` : ''}
+
           <div class="section-title">🚨 Variations de Prix Suspectes (±25%)</div>
           ${suspicionsHTML}
 
