@@ -14,11 +14,40 @@ const OTPDashboard = ({ onBack }) => {
   const [filterDateStart, setFilterDateStart] = useState('');
   const [filterDateEnd, setFilterDateEnd] = useState('');
   const [directeurs, setDirecteurs] = useState([]);
+  const [viewMode, setViewMode] = useState('current');
+
+  const getWeekBoundaries = () => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+    const monday = new Date(today.getFullYear(), today.getMonth(), diff);
+    monday.setHours(0, 0, 0, 0);
+    const sunday = new Date(monday);
+    sunday.setDate(sunday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+    return {
+      start: monday.toISOString().split('T')[0],
+      end: sunday.toISOString().split('T')[0]
+    };
+  };
+
+  useEffect(() => {
+    const week = getWeekBoundaries();
+    if (viewMode === 'current') {
+      setFilterDateStart(week.start);
+      setFilterDateEnd(week.end);
+    } else {
+      setFilterDateStart('');
+      const beforeMonday = new Date(week.start);
+      beforeMonday.setDate(beforeMonday.getDate() - 1);
+      setFilterDateEnd(beforeMonday.toISOString().split('T')[0]);
+    }
+    loadDirecteurs();
+  }, [viewMode]);
 
   useEffect(() => {
     loadData();
-    loadDirecteurs();
-  }, []);
+  }, [filterDateStart, filterDateEnd, filterDirecteur]);
 
   const loadDirecteurs = async () => {
     try {
@@ -110,11 +139,48 @@ const OTPDashboard = ({ onBack }) => {
           </button>
         </div>
 
+        {/* View Mode Toggle */}
+        <div className="mb-6">
+          <div className="flex gap-3 mb-3">
+            <button
+              onClick={() => setViewMode('current')}
+              className={`px-6 py-2 rounded-lg transition flex items-center gap-2 font-semibold ${
+                viewMode === 'current'
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              <Calendar className="w-4 h-4" />
+              Semaine actuelle
+            </button>
+            <button
+              onClick={() => setViewMode('archive')}
+              className={`px-6 py-2 rounded-lg transition flex items-center gap-2 font-semibold ${
+                viewMode === 'archive'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              📦 Archives
+            </button>
+          </div>
+          {viewMode === 'current' && (
+            <p className="text-xs text-gray-400">
+              Affichage: {filterDateStart} → {filterDateEnd}
+            </p>
+          )}
+          {viewMode === 'archive' && (
+            <p className="text-xs text-gray-400">
+              Affichage: Avant {filterDateEnd || 'aujourd\'hui'}
+            </p>
+          )}
+        </div>
+
         {/* Filters */}
         <div className="bg-gray-800 rounded-lg p-6 border border-gray-700 mb-6">
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
             <Calendar className="w-5 h-5" />
-            Filtres
+            Filtres avancés
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -135,22 +201,32 @@ const OTPDashboard = ({ onBack }) => {
             </div>
 
             <div>
-              <label className="block text-sm mb-2">Date début</label>
+              <label className="block text-sm mb-2">Date début {viewMode === 'current' && '(semaine)'}</label>
               <input
                 type="date"
                 value={filterDateStart}
                 onChange={e => setFilterDateStart(e.target.value)}
-                className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"
+                disabled={viewMode === 'current'}
+                className={`w-full border border-gray-600 rounded px-3 py-2 text-white ${
+                  viewMode === 'current'
+                    ? 'bg-gray-600 cursor-not-allowed opacity-60'
+                    : 'bg-gray-700'
+                }`}
               />
             </div>
 
             <div>
-              <label className="block text-sm mb-2">Date fin</label>
+              <label className="block text-sm mb-2">Date fin {viewMode === 'current' && '(semaine)'}</label>
               <input
                 type="date"
                 value={filterDateEnd}
                 onChange={e => setFilterDateEnd(e.target.value)}
-                className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"
+                disabled={viewMode === 'current'}
+                className={`w-full border border-gray-600 rounded px-3 py-2 text-white ${
+                  viewMode === 'current'
+                    ? 'bg-gray-600 cursor-not-allowed opacity-60'
+                    : 'bg-gray-700'
+                }`}
               />
             </div>
 
