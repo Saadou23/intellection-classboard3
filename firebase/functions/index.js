@@ -633,7 +633,20 @@ async function sendFraudEmail(rapport) {
 
 // Générer le HTML de l'email fraude - version avancée
 function generateFraudEmailHTML(rapport) {
-  const stats = rapport.statistiques;
+  if (!rapport) {
+    return `<html><body><h1>Erreur: Rapport invalide</h1></body></html>`;
+  }
+
+  const stats = rapport.statistiques || {
+    totalInscriptions: 0,
+    totalCA: 0,
+    totalAnomalies: 0,
+    totalEcart: 0,
+    surFacturations: 0,
+    sousFacturations: 0,
+    conformite: 100,
+    moyenneParInscription: 0
+  };
 
   // Résumé court
   const resumeHTML = `
@@ -684,10 +697,11 @@ function generateFraudEmailHTML(rapport) {
   `;
 
   // Top 5 anomalies
-  const top5HTML = (rapport.top5 && Array.isArray(rapport.top5) && rapport.top5.length > 0) ? `
+  const top5Array = (rapport.top5 && Array.isArray(rapport.top5)) ? rapport.top5 : [];
+  const top5HTML = top5Array.length > 0 ? `
     <h3 style="color: #dc2626; font-size: 16px; margin: 20px 0 15px 0;">🔴 Top 5 Anomalies</h3>
     <div style="background-color: #fef2f2; border-radius: 8px; padding: 15px;">
-      ${rapport.top5.map((anom, idx) => `
+      ${top5Array.map((anom, idx) => `
         <div style="padding: 12px; margin: 8px 0; background-color: white; border-left: 4px solid #dc2626; border-radius: 4px;">
           <div style="display: flex; justify-content: space-between; align-items: flex-start;">
             <div>
@@ -716,7 +730,8 @@ function generateFraudEmailHTML(rapport) {
   ` : '';
 
   // Récidivistes
-  const recidivistesHTML = (rapport.recidivistes && Array.isArray(rapport.recidivistes) && rapport.recidivistes.length > 0) ? `
+  const recidivistesArray = (rapport.recidivistes && Array.isArray(rapport.recidivistes)) ? rapport.recidivistes : [];
+  const recidivistesHTML = recidivistesArray.length > 0 ? `
     <h3 style="color: #dc2626; font-size: 16px; margin: 20px 0 15px 0;">⚠️ Étudiants Récidivistes</h3>
     <div style="background-color: #fef3c7; border-radius: 8px; padding: 15px;">
       <table style="width: 100%; font-size: 13px;">
@@ -725,7 +740,7 @@ function generateFraudEmailHTML(rapport) {
           <th style="text-align: center; padding: 8px; color: #92400e; font-weight: bold;">Anomalies</th>
           <th style="text-align: right; padding: 8px; color: #92400e; font-weight: bold;">Écart Total</th>
         </tr>
-        ${rapport.recidivistes.slice(0, 10).map(rec => `
+        ${recidivistesArray.slice(0, 10).map(rec => `
           <tr style="border-bottom: 1px solid #fcd34d;">
             <td style="padding: 8px; color: #78350f;">${rec.etudiant}</td>
             <td style="text-align: center; padding: 8px; color: #92400e; font-weight: bold;">${rec.nombreAnomalies}</td>
@@ -737,7 +752,8 @@ function generateFraudEmailHTML(rapport) {
   ` : '';
 
   // Statistiques par centre
-  const centresHTML = (rapport.centres && Array.isArray(rapport.centres) && rapport.centres.length > 0) ? `
+  const centresArray = (rapport.centres && Array.isArray(rapport.centres)) ? rapport.centres : [];
+  const centresHTML = centresArray.length > 0 ? `
     <h3 style="color: #1f2937; font-size: 16px; margin: 20px 0 15px 0;">📍 Récapitulatif par Centre</h3>
     <div style="background-color: #f3f4f6; border-radius: 8px; padding: 15px; font-size: 13px;">
       <table style="width: 100%;">
@@ -748,7 +764,7 @@ function generateFraudEmailHTML(rapport) {
           <th style="text-align: center; padding: 8px; color: #374151; font-weight: bold;">Anom.</th>
           <th style="text-align: center; padding: 8px; color: #374151; font-weight: bold;">Conf.</th>
         </tr>
-        ${rapport.centres.map(c => `
+        ${centresArray.map(c => `
           <tr style="border-bottom: 1px solid #e5e7eb;">
             <td style="padding: 8px; color: #1f2937; font-weight: bold;">${c.centre}</td>
             <td style="text-align: center; padding: 8px; color: #6b7280;">${c.inscriptions}</td>
@@ -762,7 +778,8 @@ function generateFraudEmailHTML(rapport) {
   ` : '';
 
   // Tableau détaillé des anomalies
-  const detailsHTML = (rapport.anomalies && Array.isArray(rapport.anomalies) && rapport.anomalies.length > 0) ? `
+  const anomaliesArray = (rapport.anomalies && Array.isArray(rapport.anomalies)) ? rapport.anomalies : [];
+  const detailsHTML = anomaliesArray.length > 0 ? `
     <h3 style="color: #dc2626; font-size: 16px; margin: 20px 0 15px 0;">📋 Détail des Anomalies</h3>
     <div style="background-color: #fef2f2; border-radius: 8px; overflow-x: auto;">
       <table style="width: 100%; font-size: 12px;">
@@ -775,7 +792,7 @@ function generateFraudEmailHTML(rapport) {
           <th style="padding: 8px; text-align: right; color: #991b1b; font-weight: bold;">Écart</th>
           <th style="padding: 8px; text-align: center; color: #991b1b; font-weight: bold;">Type</th>
         </tr>
-        ${rapport.anomalies.slice(0, 50).map((anom, idx) => `
+        ${anomaliesArray.slice(0, 50).map((anom, idx) => `
           <tr style="border-bottom: 1px solid #fecaca;">
             <td style="padding: 6px; color: #6b7280;">${idx + 1}</td>
             <td style="padding: 6px; color: #1f2937;">${anom.etudiant}</td>
@@ -789,9 +806,9 @@ function generateFraudEmailHTML(rapport) {
           </tr>
         `).join('')}
       </table>
-      ${rapport.anomalies.length > 50 ? `
+      ${anomaliesArray.length > 50 ? `
         <div style="padding: 12px; text-align: center; color: #6b7280; font-size: 12px;">
-          ... et ${rapport.anomalies.length - 50} autres anomalies
+          ... et ${anomaliesArray.length - 50} autres anomalies
         </div>
       ` : ''}
     </div>
