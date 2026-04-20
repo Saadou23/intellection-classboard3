@@ -265,6 +265,294 @@ function generateEmailHTML(rapport) {
 }
 
 // ============================================================================
+// Fonction : Audit fraude - Détection variations de prix et encaissements anormaux
+// ============================================================================
+
+exports.checkFraudAudit = functions
+  .region('us-central1')
+  .pubsub.schedule('0 8 * * 0')  // UTC 8:00 = Maroc 9:00 (GMT+1) - Dimanche
+  .timeZone('UTC')
+  .onRun(async (context) => {
+    try {
+      console.log('Audit fraude - Dimanche 9h00');
+      const rapport = await generateFraudReport();
+      if (rapport.suspicions.length > 0 || rapport.encaissements.anormaux.length > 0) {
+        await sendFraudEmail(rapport);
+      }
+      return { success: true };
+    } catch (error) {
+      console.error('Erreur checkFraudAudit:', error);
+      return { error: error.message };
+    }
+  });
+
+// Générer le rapport de fraude
+async function generateFraudReport() {
+  try {
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+
+    const lastMonday = new Date(now);
+    lastMonday.setDate(now.getDate() - diffToMonday - 7);
+    lastMonday.setHours(0, 0, 0, 0);
+
+    const lastSunday = new Date(lastMonday);
+    lastSunday.setDate(lastMonday.getDate() + 6);
+    lastSunday.setHours(23, 59, 59, 999);
+
+    // 1. Récupérer les inscriptions de la semaine depuis payment_records
+    let inscriptions = [];
+    const paymentSnap = await db
+      .collection('payment_records')
+      .limit(1000)
+      .get();
+
+    inscriptions = paymentSnap.docs.map(d => ({
+      id: d.id,
+      ...d.data(),
+      createdAt: d.data().date?.toDate() || d.data().createdAt?.toDate() || new Date()
+    })).filter(i => {
+      const date = i.createdAt || new Date();
+      return date >= lastMonday && date <= lastSunday;
+    });
+
+  // 2. Grouper par matière et calculer prix moyen
+  const prixParMatiere = {};
+  inscriptions.forEach(insc => {
+    const matiere = insc.matiere || 'Unknown';
+    if (!prixParMatiere[matiere]) {
+      prixParMatiere[matiere] = {
+        total: 0,
+        count: 0,
+        montants: [],
+        inscriptions: []
+      };
+    }
+    const montant = parseFloat(insc.amount) || 0;
+    prixParMatiere[matiere].total += montant;
+    prixParMatiere[matiere].count++;
+    prixParMatiere[matiere].montants.push(montant);
+    prixParMatiere[matiere].inscriptions.push(insc);
+  });
+
+  // 3. Calculer moyennes et détecter variations ±25%
+  const suspicions = [];
+  Object.entries(prixParMatiere).forEach(([matiere, data]) => {
+    if (data.count < 2) return; // Besoin d'au moins 2 pour comparer
+
+    const moyenne = data.total / data.count;
+    const tolerance = moyenne * 0.25; // 25%
+    const minAcceptable = moyenne - tolerance;
+    const maxAcceptable = moyenne + tolerance;
+
+    data.inscriptions.forEach((insc, idx) => {
+      const montant = parseFloat(insc.amount) || 0;
+      if (montant < minAcceptable || montant > maxAcceptable) {
+        const variation = Math.abs(montant - moyenne);
+        suspicions.push({
+          matiere,
+          etudiant: insc.studentName || 'Unknown',
+          centre: insc.centre || 'Unknown',
+          montantFacture: montant,
+          montantMoyen: Math.round(moyenne * 100) / 100,
+          variation: Math.round((variation / moyenne * 100) * 10) / 10,
+          date: insc.createdAt?.toLocaleDateString('fr-FR') || new Date().toLocaleDateString('fr-FR'),
+          type: montant < minAcceptable ? '📉 Trop bas' : '📈 Trop haut'
+        });
+      }
+    });
+  });
+
+  // 4. Analyser encaissements par centre
+  const encaisementsParCentre = {};
+  inscriptions.forEach(insc => {
+    const centre = insc.centre || 'Unknown';
+    if (!encaisementsParCentre[centre]) {
+      encaisementsParCentre[centre] = { total: 0, count: 0, montants: [], matières: {} };
+    }
+    const montant = parseFloat(insc.amount) || 0;
+    const matiere = insc.matiere || 'Unknown';
+
+    encaisementsParCentre[centre].total += montant;
+    encaisementsParCentre[centre].count++;
+    encaisementsParCentre[centre].montants.push(montant);
+
+    if (!encaisementsParCentre[centre].matières[matiere]) {
+      encaisementsParCentre[centre].matières[matiere] = 0;
+    }
+    encaisementsParCentre[centre].matières[matiere] += montant;
+  });
+
+  // Détecter encaissements anormaux (écart > 30% de la moyenne)
+  const encaissementsAnormaux = [];
+  Object.entries(encaisementsParCentre).forEach(([centre, data]) => {
+    if (data.count < 3) return;
+    const moyenne = data.total / data.count;
+    const tolerance = moyenne * 0.30; // 30%
+    const minAcceptable = moyenne - tolerance;
+    const maxAcceptable = moyenne + tolerance;
+
+    data.montants.forEach((montant, idx) => {
+      if (montant < minAcceptable || montant > maxAcceptable) {
+        const variation = Math.abs(montant - moyenne);
+        encaissementsAnormaux.push({
+          centre,
+          montant,
+          moyenneParInscription: Math.round(moyenne * 100) / 100,
+          variation: Math.round((variation / moyenne * 100) * 10) / 10,
+          type: montant < minAcceptable ? '📉 Montant anormalement bas' : '📈 Montant anormalement haut'
+        });
+      }
+    });
+  });
+
+  return {
+    weekStart: lastMonday.toLocaleDateString('fr-FR'),
+    weekEnd: lastSunday.toLocaleDateString('fr-FR'),
+    suspicions: suspicions.slice(0, 20), // Limit to 20
+    encaissements: {
+      parCentre: Object.entries(encaisementsParCentre).map(([centre, data]) => ({
+        centre,
+        totalEncaisse: Math.round(data.total * 100) / 100,
+        nombreInscriptions: data.count,
+        moyenneParInscription: Math.round((data.total / data.count) * 100) / 100
+      })),
+      anormaux: encaissementsAnormaux
+    }
+    };
+  } catch (error) {
+    console.error('Error in generateFraudReport:', error);
+    return { suspicions: [], encaissements: { parCentre: [], anormaux: [] }, weekStart: '', weekEnd: '', error: error.message };
+  }
+}
+
+// Envoyer l'email de fraude
+async function sendFraudEmail(rapport) {
+  const subject = `🔍 AUDIT FRAUDE - Semaine du ${rapport.weekStart} : ${rapport.suspicions.length + rapport.encaissements.anormaux.length} anomalie(s)`;
+
+  const htmlContent = generateFraudEmailHTML(rapport);
+
+  const mailOptions = {
+    from: `Audit Fraude <${EMAIL_USER}>`,
+    to: EMAIL_TO,
+    subject: subject,
+    html: htmlContent
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Email fraude envoyé:', info.messageId);
+    return `Email envoyé avec succès`;
+  } catch (error) {
+    console.error('Erreur envoi email fraude:', error);
+    throw error;
+  }
+}
+
+// Générer le HTML de l'email fraude
+function generateFraudEmailHTML(rapport) {
+  let suspicionsHTML = '';
+  if (rapport.suspicions.length === 0) {
+    suspicionsHTML = `
+      <div style="background-color: #dcfce7; border: 1px solid #22c55e; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
+        <h3 style="color: #166534; margin: 0; font-size: 16px;">✅ Aucune variation de prix suspecte (±25%)</h3>
+      </div>
+    `;
+  } else {
+    suspicionsHTML = rapport.suspicions.map(s => `
+      <div style="background-color: #fee2e2; border-left: 4px solid #ef4444; padding: 15px; margin: 10px 0; border-radius: 4px;">
+        <div style="font-weight: bold; color: #991b1b; font-size: 14px;">${s.type} ${s.matiere}</div>
+        <div style="color: #7f1d1d; font-size: 13px; margin-top: 5px;">
+          👤 ${s.etudiant} | 📍 ${s.centre}
+        </div>
+        <div style="color: #7f1d1d; font-size: 13px; margin-top: 3px;">
+          💰 Montant: <strong>${s.montantFacture}DH</strong> | Moyenne: ${s.montantMoyen}DH
+        </div>
+        <div style="color: #991b1b; font-size: 13px; font-weight: bold; margin-top: 3px;">
+          ⚠️ Écart: ${s.variation}% du prix moyen
+        </div>
+        <div style="color: #9ca3af; font-size: 12px; margin-top: 3px;">📅 ${s.date}</div>
+      </div>
+    `).join('');
+  }
+
+  let encaissementsHTML = rapport.encaissements.parCentre.map(e => `
+    <div style="background-color: #f0f4f8; padding: 15px; margin: 8px 0; border-radius: 4px; border-left: 4px solid #3b82f6;">
+      <div style="font-weight: bold; color: #1e40af; font-size: 14px;">📍 ${e.centre}</div>
+      <div style="color: #475569; font-size: 13px; margin-top: 5px;">
+        💰 Total encaissé: <strong>${e.totalEncaisse}DH</strong>
+      </div>
+      <div style="color: #475569; font-size: 13px; margin-top: 2px;">
+        📊 ${e.nombreInscriptions} inscriptions | Moyenne: ${e.moyenneParInscription}DH/inscription
+      </div>
+    </div>
+  `).join('');
+
+  let anomaliesHTML = '';
+  if (rapport.encaissements.anormaux.length > 0) {
+    anomaliesHTML = `
+      <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #fbbf24;">
+        <h3 style="color: #92400e; font-size: 16px; margin: 0 0 15px 0;">⚠️ Montants Anormaux (variation > 30%)</h3>
+        ${rapport.encaissements.anormaux.map(a => `
+          <div style="background-color: #fef3c7; padding: 12px; margin: 8px 0; border-radius: 4px; border-left: 3px solid #f59e0b;">
+            <div style="color: #92400e; font-size: 13px; font-weight: bold;">
+              ${a.type} - ${a.centre}
+            </div>
+            <div style="color: #92400e; font-size: 13px; margin-top: 3px;">
+              💰 Montant: <strong>${a.montant}DH</strong> | Moyenne: ${a.moyenneParInscription}DH
+            </div>
+            <div style="color: #92400e; font-size: 13px; margin-top: 2px;">
+              📊 Écart: <strong>${a.variation}%</strong> du prix moyen
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 700px; margin: 0 auto; background-color: #f9fafb; padding: 20px; }
+        .header { background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); color: white; padding: 30px; border-radius: 8px 8px 0 0; text-align: center; }
+        .header h1 { margin: 0; font-size: 24px; }
+        .content { background-color: white; padding: 30px; border-radius: 0 0 8px 8px; }
+        .section-title { font-size: 18px; font-weight: bold; color: #1f2937; margin: 20px 0 15px 0; }
+        .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #666; font-size: 12px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>🔍 AUDIT FRAUDE - RAPPORT HEBDOMADAIRE</h1>
+          <p style="margin: 10px 0 0 0;">Semaine du ${rapport.weekStart} au ${rapport.weekEnd}</p>
+        </div>
+        <div class="content">
+          <div class="section-title">🚨 Variations de Prix Suspectes (±25%)</div>
+          ${suspicionsHTML}
+
+          <div class="section-title">💼 Encaissements par Centre</div>
+          ${encaissementsHTML}
+
+          ${anomaliesHTML}
+
+          <div class="footer">
+            <p>Ce rapport a été généré automatiquement chaque dimanche à 09h00</p>
+            <p>Intellection ClassBoard © 2026</p>
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
+// ============================================================================
 // RESTORED FUNCTIONS - Recreated from standard Firebase patterns
 // ============================================================================
 
