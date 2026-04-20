@@ -285,9 +285,8 @@ exports.checkFraudAudit = functions
     try {
       console.log('Audit fraude - Dimanche 9h00');
       const rapport = await generateFraudReport();
-      if (rapport.suspicions.length > 0 || rapport.encaissements.anormaux.length > 0) {
-        await sendFraudEmail(rapport);
-      }
+      // Toujours envoyer l'email (même avec 0 anomalies)
+      await sendFraudEmail(rapport);
       return { success: true };
     } catch (error) {
       console.error('Erreur checkFraudAudit:', error);
@@ -313,12 +312,9 @@ exports.sendFraudAuditNow = functions
 
     try {
       const rapport = await generateFraudReport();
-      if (rapport.suspicions.length > 0 || rapport.encaissements.anormaux.length > 0) {
-        const result = await sendFraudEmail(rapport);
-        res.status(200).json({ success: true, message: result, rapport });
-      } else {
-        res.status(200).json({ success: true, message: 'Aucune anomalie détectée', rapport });
-      }
+      // Toujours envoyer l'email (même avec 0 anomalies)
+      const result = await sendFraudEmail(rapport);
+      res.status(200).json({ success: true, message: result, rapport });
     } catch (error) {
       console.error('Erreur sendFraudAuditNow:', error);
       res.status(500).json({ success: false, error: error.message });
