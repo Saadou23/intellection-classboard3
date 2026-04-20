@@ -50,6 +50,15 @@ exports.checkSupervisionMondayMorning = functions
 exports.sendSupervisionReportNow = functions
   .region('us-central1')
   .https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+      res.status(200).send('OK');
+      return;
+    }
+
     try {
       const rapport = req.body.rapport || await generateSupervisionReport();
       const result = await sendSupervisionEmail(rapport);
@@ -293,6 +302,15 @@ exports.checkFraudAudit = functions
 exports.sendFraudAuditNow = functions
   .region('us-central1')
   .https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+      res.status(200).send('OK');
+      return;
+    }
+
     try {
       const rapport = await generateFraudReport();
       if (rapport.suspicions.length > 0 || rapport.encaissements.anormaux.length > 0) {
@@ -306,6 +324,34 @@ exports.sendFraudAuditNow = functions
       res.status(500).json({ success: false, error: error.message });
     }
   });
+
+// Récupérer les anomalies déjà rapportées pour cette semaine
+async function getReportedAnomaliesForWeek(weekStart) {
+  const weekKey = weekStart.toISOString().split('T')[0];
+  const snap = await db.collection('fraud_anomalies_reported')
+    .where('weekStart', '==', weekKey)
+    .get();
+
+  const reported = {};
+  snap.docs.forEach(doc => {
+    reported[doc.data().anomalyId] = true;
+  });
+  return reported;
+}
+
+// Sauvegarder une anomalie comme rapportée
+async function saveReportedAnomaly(anomalyId, anomalyData, weekStart) {
+  const weekKey = weekStart.toISOString().split('T')[0];
+  await db.collection('fraud_anomalies_reported').add({
+    anomalyId: anomalyId,
+    weekStart: weekKey,
+    type: anomalyData.type,
+    matiere: anomalyData.matiere,
+    montant: anomalyData.montant || anomalyData.montantFacture,
+    prixNormal: anomalyData.prixNormal || anomalyData.montantNormal,
+    reportedAt: admin.firestore.FieldValue.serverTimestamp()
+  });
+}
 
 // Générer le rapport de fraude
 async function generateFraudReport() {
@@ -321,6 +367,9 @@ async function generateFraudReport() {
     const lastSunday = new Date(lastMonday);
     lastSunday.setDate(lastMonday.getDate() + 6);
     lastSunday.setHours(23, 59, 59, 999);
+
+    // Récupérer les anomalies déjà rapportées pour cette semaine
+    const reportedAnomalies = await getReportedAnomaliesForWeek(lastMonday);
 
     // 1. Récupérer les inscriptions de la semaine depuis payment_records
     let inscriptions = [];
@@ -382,7 +431,15 @@ async function generateFraudReport() {
       const montant = parseFloat(insc.amount) || 0;
       if (montant < minAcceptable || montant > maxAcceptable) {
         const variation = Math.abs(montant - prixNormal);
+        const anomalyId = `${matiere}-${montant}-${insc.createdAt?.toISOString().split('T')[0] || 'unknown'}`;
+
+        // Ne pas ajouter si déjà rapportée
+        if (reportedAnomalies[anomalyId]) {
+          return;
+        }
+
         suspicions.push({
+          id: anomalyId,
           matiere,
           etudiant: insc.studentName || 'Unknown',
           centre: insc.centre || 'Unknown',
@@ -443,7 +500,15 @@ async function generateFraudReport() {
     data.montants.forEach((montant) => {
       if (montant < minAcceptable || montant > maxAcceptable) {
         const variation = Math.abs(montant - montantNormal);
+        const anomalyId = `encaissement-${centre}-${montant}`;
+
+        // Ne pas ajouter si déjà rapportée
+        if (reportedAnomalies[anomalyId]) {
+          return;
+        }
+
         encaissementsAnormaux.push({
+          id: anomalyId,
           centre,
           montant,
           montantNormal: montantNormal,
@@ -491,6 +556,25 @@ async function sendFraudEmail(rapport) {
   try {
     const info = await transporter.sendMail(mailOptions);
     console.log('Email fraude envoyé:', info.messageId);
+
+    // Sauvegarder les anomalies rapportées
+    const weekStart = new Date(rapport.weekStart.split('/').reverse().join('-'));
+
+    // Sauvegarder les suspicions (variations de prix)
+    for (const suspicion of rapport.suspicions) {
+      if (suspicion.id) {
+        await saveReportedAnomaly(suspicion.id, suspicion, weekStart);
+      }
+    }
+
+    // Sauvegarder les encaissements anormaux
+    for (const anomaly of rapport.encaissements.anormaux) {
+      if (anomaly.id) {
+        await saveReportedAnomaly(anomaly.id, anomaly, weekStart);
+      }
+    }
+
+    console.log(`✅ ${rapport.suspicions.length + rapport.encaissements.anormaux.length} anomalies sauvegardées`);
     return `Email envoyé avec succès`;
   } catch (error) {
     console.error('Erreur envoi email fraude:', error);
