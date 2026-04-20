@@ -317,46 +317,57 @@ async function generateFraudReport() {
       return date >= lastMonday && date <= lastSunday;
     });
 
-  // 2. Grouper par matière et calculer prix moyen
+  // 2. Grouper par matière et trouver le prix normal (modal - le plus fréquent)
   const prixParMatiere = {};
   inscriptions.forEach(insc => {
     const matiere = insc.matiere || 'Unknown';
     if (!prixParMatiere[matiere]) {
       prixParMatiere[matiere] = {
-        total: 0,
-        count: 0,
         montants: [],
         inscriptions: []
       };
     }
     const montant = parseFloat(insc.amount) || 0;
-    prixParMatiere[matiere].total += montant;
-    prixParMatiere[matiere].count++;
     prixParMatiere[matiere].montants.push(montant);
     prixParMatiere[matiere].inscriptions.push(insc);
   });
 
-  // 3. Calculer moyennes et détecter variations ±25%
+  // 3. Trouver le prix MODAL (le plus fréquent) et détecter variations ±25%
   const suspicions = [];
   Object.entries(prixParMatiere).forEach(([matiere, data]) => {
-    if (data.count < 2) return; // Besoin d'au moins 2 pour comparer
+    if (data.montants.length < 2) return; // Besoin d'au moins 2 pour comparer
 
-    const moyenne = data.total / data.count;
-    const tolerance = moyenne * 0.25; // 25%
-    const minAcceptable = moyenne - tolerance;
-    const maxAcceptable = moyenne + tolerance;
+    // Compter les fréquences de chaque montant
+    const frequences = {};
+    data.montants.forEach(m => {
+      frequences[m] = (frequences[m] || 0) + 1;
+    });
 
-    data.inscriptions.forEach((insc, idx) => {
+    // Trouver le prix qui revient le plus souvent (mode)
+    let prixNormal = data.montants[0];
+    let maxFrequence = 0;
+    Object.entries(frequences).forEach(([prix, freq]) => {
+      if (freq > maxFrequence) {
+        maxFrequence = freq;
+        prixNormal = parseFloat(prix);
+      }
+    });
+
+    const tolerance = prixNormal * 0.25; // 25% du prix normal
+    const minAcceptable = prixNormal - tolerance;
+    const maxAcceptable = prixNormal + tolerance;
+
+    data.inscriptions.forEach((insc) => {
       const montant = parseFloat(insc.amount) || 0;
       if (montant < minAcceptable || montant > maxAcceptable) {
-        const variation = Math.abs(montant - moyenne);
+        const variation = Math.abs(montant - prixNormal);
         suspicions.push({
           matiere,
           etudiant: insc.studentName || 'Unknown',
           centre: insc.centre || 'Unknown',
           montantFacture: montant,
-          montantMoyen: Math.round(moyenne * 100) / 100,
-          variation: Math.round((variation / moyenne * 100) * 10) / 10,
+          prixNormal: prixNormal,
+          variation: Math.round((variation / prixNormal * 100) * 10) / 10,
           date: insc.createdAt?.toLocaleDateString('fr-FR') || new Date().toLocaleDateString('fr-FR'),
           type: montant < minAcceptable ? '📉 Trop bas' : '📈 Trop haut'
         });
@@ -384,23 +395,39 @@ async function generateFraudReport() {
     encaisementsParCentre[centre].matières[matiere] += montant;
   });
 
-  // Détecter encaissements anormaux (écart > 30% de la moyenne)
+  // Détecter encaissements anormaux (écart > 30% du prix modal)
   const encaissementsAnormaux = [];
   Object.entries(encaisementsParCentre).forEach(([centre, data]) => {
     if (data.count < 3) return;
-    const moyenne = data.total / data.count;
-    const tolerance = moyenne * 0.30; // 30%
-    const minAcceptable = moyenne - tolerance;
-    const maxAcceptable = moyenne + tolerance;
 
-    data.montants.forEach((montant, idx) => {
+    // Trouver le montant modal pour ce centre
+    const frequences = {};
+    data.montants.forEach(m => {
+      frequences[m] = (frequences[m] || 0) + 1;
+    });
+    let montantNormal = data.montants[0];
+    let maxFrequence = 0;
+    Object.entries(frequences).forEach(([m, freq]) => {
+      if (freq > maxFrequence) {
+        maxFrequence = freq;
+        montantNormal = parseFloat(m);
+      }
+    });
+
+    const tolerance = montantNormal * 0.30; // 30%
+    const minAcceptable = montantNormal - tolerance;
+    const maxAcceptable = montantNormal + tolerance;
+    const moyenne = data.total / data.count;
+
+    data.montants.forEach((montant) => {
       if (montant < minAcceptable || montant > maxAcceptable) {
-        const variation = Math.abs(montant - moyenne);
+        const variation = Math.abs(montant - montantNormal);
         encaissementsAnormaux.push({
           centre,
           montant,
+          montantNormal: montantNormal,
           moyenneParInscription: Math.round(moyenne * 100) / 100,
-          variation: Math.round((variation / moyenne * 100) * 10) / 10,
+          variation: Math.round((variation / montantNormal * 100) * 10) / 10,
           type: montant < minAcceptable ? '📉 Montant anormalement bas' : '📈 Montant anormalement haut'
         });
       }
@@ -467,10 +494,10 @@ function generateFraudEmailHTML(rapport) {
           👤 ${s.etudiant} | 📍 ${s.centre}
         </div>
         <div style="color: #7f1d1d; font-size: 13px; margin-top: 3px;">
-          💰 Montant: <strong>${s.montantFacture}DH</strong> | Moyenne: ${s.montantMoyen}DH
+          💰 Montant facturé: <strong>${s.montantFacture}DH</strong> | Prix normal: ${s.prixNormal}DH
         </div>
         <div style="color: #991b1b; font-size: 13px; font-weight: bold; margin-top: 3px;">
-          ⚠️ Écart: ${s.variation}% du prix moyen
+          ⚠️ Écart: <strong>${s.variation}%</strong> du prix normal
         </div>
         <div style="color: #9ca3af; font-size: 12px; margin-top: 3px;">📅 ${s.date}</div>
       </div>
@@ -500,10 +527,10 @@ function generateFraudEmailHTML(rapport) {
               ${a.type} - ${a.centre}
             </div>
             <div style="color: #92400e; font-size: 13px; margin-top: 3px;">
-              💰 Montant: <strong>${a.montant}DH</strong> | Moyenne: ${a.moyenneParInscription}DH
+              💰 Montant: <strong>${a.montant}DH</strong> | Normal: ${a.montantNormal}DH
             </div>
             <div style="color: #92400e; font-size: 13px; margin-top: 2px;">
-              📊 Écart: <strong>${a.variation}%</strong> du prix moyen
+              📊 Écart: <strong>${a.variation}%</strong> | Moyenne générale: ${a.moyenneParInscription}DH
             </div>
           </div>
         `).join('')}
