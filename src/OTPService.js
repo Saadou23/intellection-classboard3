@@ -34,6 +34,10 @@ export function generateOTPAuthURL(secret, accountName) {
 export function validateOTP(secret, token) {
   try {
     if (!secret || !token) return false;
+
+    // Ensure token is a string and pad with zeros if needed
+    const paddedToken = String(token).padStart(6, '0');
+
     const totp = new OTPAuth.TOTP({
       issuer: 'Intellection',
       algorithm: 'SHA1',
@@ -41,7 +45,9 @@ export function validateOTP(secret, token) {
       period: 30,
       secret: OTPAuth.Secret.fromBase32(secret)
     });
-    const delta = totp.validate({ token, window: 1 });
+
+    // Increase window to 2 to account for time sync issues (accepts codes from -60s to +60s)
+    const delta = totp.validate({ token: paddedToken, window: 2 });
     return delta !== null;
   } catch (e) {
     console.error('OTP validation error:', e);

@@ -417,12 +417,21 @@ const OTPSystemAdmin = ({ onClose }) => {
       {/* QR Code Modal */}
       {showQR && selectedUser && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-800 rounded-lg p-8 max-w-md w-full text-center">
-            <h3 className="text-xl font-bold mb-4">{selectedUser.name}</h3>
-            <p className="text-gray-300 mb-6 text-sm">Scanner ce code avec Google Authenticator</p>
+          <div className="bg-gray-800 rounded-lg p-8 max-w-md w-full text-left">
+            <h3 className="text-xl font-bold mb-4 text-center">{selectedUser.name}</h3>
 
-            <div className="bg-white p-4 rounded-lg mb-6 inline-block">
-              <img src={qrDataUrl} alt="OTP QR Code" className="w-64 h-64" />
+            <div className="space-y-4 mb-6 bg-blue-900/30 border border-blue-500 rounded p-4">
+              <p className="text-blue-200 font-semibold text-sm">📱 Instructions d'installation:</p>
+              <ol className="text-blue-100 text-sm space-y-2 list-decimal list-inside">
+                <li>Télécharger <strong>Google Authenticator</strong></li>
+                <li>Appuyer sur <strong>+</strong> pour ajouter un compte</li>
+                <li>Scanner le code QR ci-dessous</li>
+                <li>Sauvegarder (une clé de 6 chiffres sera générée)</li>
+              </ol>
+            </div>
+
+            <div className="bg-white p-4 rounded-lg mb-6 flex justify-center">
+              <img src={qrDataUrl} alt="OTP QR Code" className="w-56 h-56" />
             </div>
 
             <div className="mb-6">
@@ -441,9 +450,8 @@ const OTPSystemAdmin = ({ onClose }) => {
               )}
             </div>
 
-            <div className="bg-red-900/30 border border-red-500 rounded p-3 mb-6 text-red-200 text-sm">
-              <strong>Important :</strong> Cette clé secrète ne sera plus affichée. Conservez-la en lieu sûr ou utilisez
-              directement le QR code.
+            <div className="bg-orange-900/30 border border-orange-500 rounded p-3 mb-6 text-orange-200 text-xs">
+              <strong>⚠️ Important:</strong> L'horloge du téléphone doit être synchronisée. Si le code OTP ne fonctionne pas, vérifiez l'heure du téléphone.
             </div>
 
             <button

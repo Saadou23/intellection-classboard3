@@ -90,10 +90,16 @@ const OTPPointagePanel = ({ onBack }) => {
       }
 
       const { secretKey } = dirSnap.data();
+
+      if (!secretKey) {
+        setError('❌ Clé OTP non configurée pour ce directeur. Contactez l\'administrateur.');
+        return;
+      }
+
       const valid = validateOTP(secretKey, otpToken);
 
       if (!valid) {
-        setError('❌ Code OTP invalide ou expiré. Vérifiez le code fourni par le directeur.');
+        setError('❌ Code OTP invalide ou expiré.\n\n💡 Vérifications:\n• Code à 6 chiffres?\n• Pas plus de 2 minutes depuis la génération?\n• Horloge du téléphone synchronisée?\n\nRéessayez avec un nouveau code.');
         setOtpToken('');
         return;
       }
