@@ -26,6 +26,9 @@ import ProfessorSettingsManager from './ProfessorSettingsManager';
 import StudentIndividualLessonsManager from './StudentIndividualLessonsManager';
 import MessageManager from './MessageManager';
 import AppAdvertisement from './AppAdvertisement';
+import ConcoursPrepAd from './ConcoursPrepAd';
+import LanguagesCoursesAd from './LanguagesCoursesAd';
+import BrandingBanner from './BrandingBanner';
 import { loadTodayRecords, createDisciplineRecord } from './disciplineService';
 import { Volume2, VolumeX, Eye } from 'lucide-react';
 import SecurityDashboard from './SecurityDashboard';
@@ -883,6 +886,9 @@ const branchNames = branchesArray.map(b => b.name) || [];
 
             {/* Publicité Application Mobile */}
             <AppAdvertisement onAdVisibilityChange={setIsAdDisplayed} />
+            <ConcoursPrepAd />
+            <LanguagesCoursesAd />
+            <BrandingBanner />
 
             <div className="bg-blue-700 py-2 px-6">
               <div className="flex justify-between items-center">

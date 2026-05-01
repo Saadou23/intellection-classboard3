@@ -13,6 +13,10 @@ const MessageManager = () => {
   const [adSuccess, setAdSuccess] = useState(false);
   const [launchingBranding, setLaunchingBranding] = useState(false);
   const [brandingSuccess, setBrandingSuccess] = useState(false);
+  const [launchingConcours, setLaunchingConcours] = useState(false);
+  const [concoursSuccess, setConcoursSuccess] = useState(false);
+  const [launchingLanguages, setLaunchingLanguages] = useState(false);
+  const [languagesSuccess, setLanguagesSuccess] = useState(false);
 
   // Charger les messages depuis Firebase
   useEffect(() => {
@@ -105,6 +109,42 @@ const MessageManager = () => {
     }
   };
 
+  // Lancer la pub Préparation Concours
+  const launchConcoursPrepAd = async () => {
+    setLaunchingConcours(true);
+    try {
+      await addDoc(collection(db, 'concours_prep_trigger'), {
+        triggeredAt: new Date(),
+        type: 'concours_prep'
+      });
+      setConcoursSuccess(true);
+      setTimeout(() => setConcoursSuccess(false), 3000);
+    } catch (error) {
+      console.error('Erreur:', error);
+      alert('❌ Erreur lors du lancement');
+    } finally {
+      setLaunchingConcours(false);
+    }
+  };
+
+  // Lancer la pub Inscriptions Langues
+  const launchLanguagesCoursesAd = async () => {
+    setLaunchingLanguages(true);
+    try {
+      await addDoc(collection(db, 'languages_courses_trigger'), {
+        triggeredAt: new Date(),
+        type: 'languages_courses'
+      });
+      setLanguagesSuccess(true);
+      setTimeout(() => setLanguagesSuccess(false), 3000);
+    } catch (error) {
+      console.error('Erreur:', error);
+      alert('❌ Erreur lors du lancement');
+    } finally {
+      setLaunchingLanguages(false);
+    }
+  };
+
   // Déclencher une annonce immédiatement
   const triggerAnnouncement = async (message) => {
     try {
@@ -142,6 +182,24 @@ const MessageManager = () => {
       {adSuccess && (
         <div className="bg-blue-100 border-l-4 border-blue-600 p-4 mb-4 rounded">
           <p className="text-blue-700 font-medium">🚀 Publicité lancée! Elle s'affiche pendant 15 secondes.</p>
+        </div>
+      )}
+
+      {brandingSuccess && (
+        <div className="bg-indigo-100 border-l-4 border-indigo-600 p-4 mb-4 rounded">
+          <p className="text-indigo-700 font-medium">🎯 Branding INTELLECTION lancé! Il s'affiche pendant 8 secondes.</p>
+        </div>
+      )}
+
+      {concoursSuccess && (
+        <div className="bg-yellow-100 border-l-4 border-yellow-600 p-4 mb-4 rounded">
+          <p className="text-yellow-700 font-medium">🎓 Pub Préparation Concours lancée! Elle s'affiche pendant 30 secondes.</p>
+        </div>
+      )}
+
+      {languagesSuccess && (
+        <div className="bg-blue-100 border-l-4 border-blue-600 p-4 mb-4 rounded">
+          <p className="text-blue-700 font-medium">🌍 Pub Inscriptions Langues lancée! Elle s'affiche pendant 20 secondes.</p>
         </div>
       )}
 
@@ -294,6 +352,50 @@ const MessageManager = () => {
               <>
                 <Send className="w-5 h-5" />
                 🎯 Branding
+              </>
+            )}
+          </button>
+
+          <button
+            onClick={launchConcoursPrepAd}
+            disabled={launchingConcours}
+            className={`flex-1 py-3 rounded-lg font-bold text-white flex items-center justify-center gap-2 transition ${
+              launchingConcours
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-yellow-600 hover:bg-yellow-700'
+            }`}
+          >
+            {launchingConcours ? (
+              <>
+                <span className="animate-spin">⏳</span>
+                Lancement...
+              </>
+            ) : (
+              <>
+                <Send className="w-5 h-5" />
+                🎓 Concours
+              </>
+            )}
+          </button>
+
+          <button
+            onClick={launchLanguagesCoursesAd}
+            disabled={launchingLanguages}
+            className={`flex-1 py-3 rounded-lg font-bold text-white flex items-center justify-center gap-2 transition ${
+              launchingLanguages
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700'
+            }`}
+          >
+            {launchingLanguages ? (
+              <>
+                <span className="animate-spin">⏳</span>
+                Lancement...
+              </>
+            ) : (
+              <>
+                <Send className="w-5 h-5" />
+                🌍 Langues
               </>
             )}
           </button>
