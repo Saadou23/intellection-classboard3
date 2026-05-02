@@ -28,14 +28,17 @@ const COLORS = [
 
 const BRANCH_INFO = {
   'Hay Salam': {
+    img: '/branch-hay-salam.jpg',
     fr: 'Hay Salam, à côté du café Qualita',
     ar: 'حي السلام، بجانب مقهى كواليتا',
   },
   'Doukkali': {
+    img: '/branch-doukkali.jpg',
     fr: 'Av. Chouaib Doukkali, en face clinique Sekkat',
     ar: 'ش. شعيب الدكالي، فوق جمعية محاربة السكري',
   },
   'Saada': {
+    img: '/branch-saada.jpg',
     fr: 'En face école Ilyas, à côté de l\'auto école',
     ar: 'أمام مدرسة إلياس، بجانب مدرسة تعليم السياقة',
   },
@@ -253,28 +256,37 @@ const PublicSchedule = () => {
                 />
                 <p className="text-center text-xs text-gray-400 mb-5">Étape 1 / 3 · الخطوة 1 من 3</p>
 
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {branches.map(branch => (
                     <button
                       key={branch}
                       onClick={() => { setTempBranch(branch); setWizardStep(2); }}
-                      className="w-full flex items-center justify-between p-4 border-2 border-gray-100 rounded-xl hover:border-red-500 hover:bg-red-50 transition-all group"
+                      className="rounded-xl overflow-hidden border-2 border-gray-200 hover:border-red-500 transition-all group shadow-sm hover:shadow-md"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gray-100 group-hover:bg-red-100 rounded-xl flex items-center justify-center transition-colors">
-                          <MapPin className="w-5 h-5 text-gray-400 group-hover:text-red-600 transition-colors" />
-                        </div>
-                        <div className="text-left">
-                          <div className="font-bold text-gray-800">{branch}</div>
-                          <div className="text-xs text-gray-500 leading-tight">
-                            {BRANCH_INFO[branch]?.fr}
-                          </div>
-                          <div className="text-xs text-gray-400 leading-tight" dir="rtl" style={{ fontFamily: "'Cairo','Segoe UI',sans-serif" }}>
-                            {BRANCH_INFO[branch]?.ar}
+                      {/* Photo en haut */}
+                      <div className="relative w-full h-32 overflow-hidden bg-gray-200">
+                        <img
+                          src={BRANCH_INFO[branch]?.img}
+                          alt={branch}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        {/* Overlay gradient + text */}
+                        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/60 flex items-end">
+                          <div className="w-full p-3">
+                            <h3 className="font-bold text-white text-lg">{branch}</h3>
                           </div>
                         </div>
                       </div>
-                      <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-red-500 transition-colors" />
+
+                      {/* Adresse en dessous */}
+                      <div className="p-4 bg-white">
+                        <div className="text-xs text-gray-600 leading-tight font-medium">
+                          {BRANCH_INFO[branch]?.fr}
+                        </div>
+                        <div className="text-xs text-gray-400 leading-tight mt-2" dir="rtl" style={{ fontFamily: "'Cairo','Segoe UI',sans-serif" }}>
+                          {BRANCH_INFO[branch]?.ar}
+                        </div>
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -521,6 +533,18 @@ const PublicSchedule = () => {
       <header className="bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-4">
           <img src="/logo-intellection.png" alt="Intellection" className="h-32 object-contain" />
+
+          {/* Branch thumbnail */}
+          {BRANCH_INFO[filterBranch]?.img && (
+            <div className="flex-shrink-0">
+              <img
+                src={BRANCH_INFO[filterBranch]?.img}
+                alt={filterBranch}
+                className="w-16 h-16 rounded-full object-cover border-2 border-red-500 shadow-sm"
+              />
+            </div>
+          )}
+
           <div className="border-l border-gray-200 pl-4 flex-1">
             <h1 className="text-lg font-bold text-gray-900 leading-tight">
               Emploi du Temps · <span dir="rtl" style={{ fontFamily: "'Cairo','Segoe UI',sans-serif" }}>جدول الدروس</span>
