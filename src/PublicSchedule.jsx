@@ -62,13 +62,6 @@ const applyLastGroupFilter = (sessions) => {
   return result;
 };
 
-/* ── WhatsApp icon ───────────────────────────────────────── */
-const WhatsAppIcon = ({ size = 20 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-  </svg>
-);
-
 /* ── Bilingual label ─────────────────────────────────────── */
 const Bi = ({ fr, ar, className = '' }) => (
   <div className={className}>
@@ -110,7 +103,6 @@ const PublicSchedule = () => {
   const [filterLevel, setFilterLevel]                 = useState('');
   const [filterPeriod, setFilterPeriod]               = useState('normal');
   const [filterLastGroupOnly, setFilterLastGroupOnly] = useState(false);
-  const [isGeneratingPDF, setIsGeneratingPDF]         = useState(false);
 
   /* ── Load all data on mount ── */
   useEffect(() => {
@@ -408,120 +400,6 @@ const PublicSchedule = () => {
   }
 
   /* ── SCHEDULE VIEW ───────────────────────────────────────── */
-  const generatePDFBlob = async () => {
-    const { default: jsPDF } = await import('jspdf');
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const W = 210, margin = 14, cw = W - margin * 2;
-    const periodLbl = filterPeriod !== 'normal'
-      ? availablePeriods.find(p => p.id === filterPeriod)?.name || ''
-      : 'Emploi Normal';
-    let y = 16;
-
-    /* ── Header ── */
-    pdf.setFillColor(220, 38, 38);
-    pdf.rect(0, 0, W, 28, 'F');
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(18); pdf.setFont('helvetica', 'bold');
-    pdf.text('INTELLECTION', margin, 12);
-    pdf.setFontSize(10); pdf.setFont('helvetica', 'normal');
-    pdf.text(`${filterBranch || 'Tous les centres'}  ·  ${filterLevel || 'Tous les niveaux'}  ·  ${periodLbl}`, margin, 21);
-    y = 36;
-
-    /* ── Sessions by day ── */
-    for (const day of daysOfWeek) {
-      const daySessions = filteredSessions.filter(s => s.dayOfWeek === day.value);
-      if (!daySessions.length) continue;
-
-      if (y > 262) { pdf.addPage(); y = 16; }
-
-      /* day header */
-      pdf.setFillColor(30, 30, 30);
-      pdf.roundedRect(margin, y - 4, cw, 9, 1, 1, 'F');
-      pdf.setTextColor(255, 255, 255);
-      pdf.setFontSize(10); pdf.setFont('helvetica', 'bold');
-      pdf.text(day.label.toUpperCase(), margin + 3, y + 2);
-      y += 11;
-      pdf.setTextColor(30, 30, 30);
-
-      for (const s of daySessions) {
-        if (y > 268) { pdf.addPage(); y = 16; }
-
-        /* left accent bar */
-        pdf.setFillColor(220, 38, 38);
-        pdf.rect(margin, y - 3, 1.5, 10, 'F');
-
-        pdf.setFontSize(10); pdf.setFont('helvetica', 'bold');
-        pdf.text(`${s.startTime?.substring(0,5)} – ${s.endTime?.substring(0,5)}`, margin + 4, y + 3);
-
-        pdf.setFont('helvetica', 'normal');
-        pdf.text(s.subject || '', margin + 38, y + 3);
-
-        pdf.setTextColor(100, 100, 100);
-        pdf.setFontSize(9);
-        if (s.groupe) pdf.text(s.groupe, margin + 100, y + 3);
-        pdf.text(s.professor || '', margin + 118, y + 3);
-        if (s.room)   pdf.text(`Salle ${s.room}`, margin + 160, y + 3);
-        pdf.setTextColor(30, 30, 30);
-
-        y += 10;
-        pdf.setDrawColor(230, 230, 230);
-        pdf.line(margin + 4, y - 1, W - margin, y - 1);
-      }
-      y += 5;
-    }
-
-    /* ── Footer ── */
-    const pages = pdf.getNumberOfPages();
-    for (let i = 1; i <= pages; i++) {
-      pdf.setPage(i);
-      pdf.setFontSize(8); pdf.setTextColor(160);
-      pdf.text(
-        `Centre de Soutien Intellection  ·  0649 69 87 37  ·  ${new Date().toLocaleDateString('fr-FR')}`,
-        margin, 290
-      );
-      pdf.text(`Page ${i}/${pages}`, W - margin, 290, { align: 'right' });
-    }
-
-    return pdf.output('blob');
-  };
-
-  const handleWhatsAppShare = async () => {
-    setIsGeneratingPDF(true);
-    try {
-      const blob = await generatePDFBlob();
-      const fileName = `emploi-${(filterBranch || 'intellection').replace(/\s/g,'-')}-${(filterLevel || 'tous').replace(/\s/g,'-')}.pdf`;
-      const file = new File([blob], fileName, { type: 'application/pdf' });
-
-      /* Mobile : Web Share API → feuille de partage native (WhatsApp, etc.) */
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: 'Emploi du Temps - Intellection',
-          text: `جدول الدروس · ${filterBranch} · ${filterLevel}\nCentre de Soutien Intellection`,
-        });
-        return;
-      }
-
-      /* Desktop fallback : téléchargement + ouvrir WhatsApp */
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = fileName; a.click();
-      URL.revokeObjectURL(url);
-      setTimeout(() => {
-        const text =
-          `📚 *Emploi du Temps - Intellection*\n` +
-          `📍 ${filterBranch || ''} · ${filterLevel || ''}\n\n` +
-          `📎 Le PDF vient d'être téléchargé — envoyez-le ici !\n\n` +
-          `جدول الدروس مرفق كـ PDF 📄`;
-        window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
-      }, 800);
-    } catch (e) {
-      if (e.name !== 'AbortError') console.error('PDF share error:', e);
-    } finally {
-      setIsGeneratingPDF(false);
-    }
-  };
-
   const periodLabel = filterPeriod !== 'normal'
     ? availablePeriods.find(p => p.id === filterPeriod)?.name
     : null;
@@ -557,7 +435,7 @@ const PublicSchedule = () => {
         </div>
       </header>
 
-      {/* Sub-bar: last group checkbox + whatsapp + count */}
+      {/* Sub-bar: last group checkbox + count */}
       <div className="bg-white border-b border-gray-100 sticky top-0 z-10 shadow-sm">
         <div className="max-w-4xl mx-auto px-4 py-2 flex flex-wrap items-center gap-2">
           <span className="text-xs text-gray-400 mr-auto">{filteredSessions.length} cours</span>
@@ -573,20 +451,6 @@ const PublicSchedule = () => {
               Dernier groupe · <span dir="rtl" style={{ fontFamily: "'Cairo','Segoe UI',sans-serif" }}>المجموعة الأخيرة فقط</span>
             </span>
           </label>
-
-          <button
-            onClick={handleWhatsAppShare}
-            disabled={isGeneratingPDF}
-            className="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 active:bg-green-700 disabled:bg-green-300 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm"
-          >
-            {isGeneratingPDF
-              ? <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              : <WhatsAppIcon size={14} />
-            }
-            <span dir="rtl" style={{ fontFamily: "'Cairo','Segoe UI',sans-serif" }}>
-              {isGeneratingPDF ? '...' : 'شارك PDF'}
-            </span>
-          </button>
         </div>
       </div>
 
@@ -659,21 +523,6 @@ const PublicSchedule = () => {
         {/* Footer */}
         <div className="mt-12 border-t border-gray-200 pt-8 text-center space-y-4">
           <img src="/logo-intellection.png" alt="Intellection" className="h-28 object-contain mx-auto" />
-
-          {/* WhatsApp share — big CTA */}
-          <button
-            onClick={handleWhatsAppShare}
-            disabled={isGeneratingPDF}
-            className="inline-flex items-center gap-3 bg-green-500 hover:bg-green-600 active:bg-green-700 disabled:bg-green-300 text-white px-6 py-3.5 rounded-2xl font-bold text-base transition-colors shadow-lg w-full max-w-sm justify-center"
-          >
-            {isGeneratingPDF
-              ? <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              : <WhatsAppIcon size={22} />
-            }
-            <span dir="rtl" style={{ fontFamily: "'Cairo','Segoe UI',sans-serif" }}>
-              {isGeneratingPDF ? 'جارٍ إنشاء PDF...' : 'شارك جدول الزمن مع أصدقاءك'}
-            </span>
-          </button>
 
           <a
             href="tel:0649698737"
