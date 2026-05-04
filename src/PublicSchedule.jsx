@@ -47,7 +47,7 @@ const BRANCH_INFO = {
 const applyLastGroupFilter = (sessions) => {
   const byKey = {};
   sessions.forEach(s => {
-    const key = `${s.branch}__${s.subject || 'Unknown'}`;
+    const key = `${s.branch}__${s.subject || 'Unknown'}__${s.professor || 'Unknown'}`;
     (byKey[key] = byKey[key] || []).push(s);
   });
   const result = [];

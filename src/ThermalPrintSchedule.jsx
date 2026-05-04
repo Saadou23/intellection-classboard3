@@ -75,23 +75,23 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
       : branchSessions.filter(s => sessionIncludesLevel(s, level));
 
     if (filterLastGroupOnly) {
-      const sessionsBySubject = {};
+      const sessionsByKey = {};
       filteredSessions.forEach(session => {
-        const key = session.subject || 'Unknown';
-        if (!sessionsBySubject[key]) sessionsBySubject[key] = [];
-        sessionsBySubject[key].push(session);
+        const key = `${session.subject || 'Unknown'}__${session.professor || 'Unknown'}`;
+        if (!sessionsByKey[key]) sessionsByKey[key] = [];
+        sessionsByKey[key].push(session);
       });
       const filteredByGroup = [];
-      Object.values(sessionsBySubject).forEach(subjectSessions => {
+      Object.values(sessionsByKey).forEach(groupSessions => {
         const groupsSet = new Set();
-        subjectSessions.forEach(s => { if (s.groupe) groupsSet.add(s.groupe); });
+        groupSessions.forEach(s => { if (s.groupe) groupsSet.add(s.groupe); });
         const sortedGroups = Array.from(groupsSet).sort((a, b) => {
           const numA = parseInt(a.replace(/\D/g, '')) || 0;
           const numB = parseInt(b.replace(/\D/g, '')) || 0;
           return numB - numA;
         });
         const lastGroup = sortedGroups[0];
-        subjectSessions.forEach(s => { if (s.groupe === lastGroup) filteredByGroup.push(s); });
+        groupSessions.forEach(s => { if (s.groupe === lastGroup) filteredByGroup.push(s); });
       });
       filteredSessions = filteredByGroup;
     }
