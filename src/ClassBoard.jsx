@@ -292,6 +292,101 @@ const branchNames = branchesArray.map(b => b.name) || [];
     loadGlobalSettings();
   }, []);
 
+  // 🧹 Nettoyer les séances exceptionnelles terminées toutes les minutes
+  useEffect(() => {
+    const cleanupExceptionalSessions = async () => {
+      const currentH = currentTime.getHours();
+      const currentM = currentTime.getMinutes();
+      const currentMinutes = currentH * 60 + currentM;
+
+      // Vérifier chaque branche
+      for (const branch of Object.keys(sessions)) {
+        const branchSessions = sessions[branch] || [];
+        const updatedSessions = branchSessions.filter(session => {
+          // Garder les séances qui ne sont pas exceptionnelles
+          if (!session.isExceptional) return true;
+
+          // Pour les séances exceptionnelles, les garder si elles ne sont pas terminées
+          const [endH, endM] = session.endTime.split(':').map(Number);
+          const endMinutes = endH * 60 + endM;
+          return currentMinutes < endMinutes;
+        });
+
+        // Si des séances ont été supprimées, sauvegarder les changements
+        if (updatedSessions.length < branchSessions.length) {
+          await saveBranchData(branch, updatedSessions);
+          console.log(`🧹 ${updatedSessions.length} séance(s) exceptionnelle(s) terminée(s) supprimée(s) de ${branch}`);
+        }
+      }
+    };
+
+    // Exécuter le nettoyage toutes les minutes
+    const interval = setInterval(cleanupExceptionalSessions, 60000); // 60000ms = 1 minute
+
+    // Exécuter une première fois au chargement
+    cleanupExceptionalSessions();
+
+    return () => clearInterval(interval);
+  }, [sessions, currentTime]);
+
+  // 🔄 Réinitialiser les statuts "absent" à "prévu" après minuit
+  useEffect(() => {
+    const resetAbsentStatus = async () => {
+      const today = currentTime.toISOString().split('T')[0];
+      const currentH = currentTime.getHours();
+      const currentM = currentTime.getMinutes();
+
+      // Vérifier si on est passé minuit (00:00 à 00:05)
+      const isAfterMidnight = currentH === 0 && currentM < 5;
+
+      if (!isAfterMidnight) return; // Ne rien faire en dehors de cette fenêtre
+
+      // Réinitialiser les statuts "absent" pour les séances d'hier
+      for (const branch of Object.keys(sessions)) {
+        const branchSessions = sessions[branch] || [];
+        let hasChanges = false;
+
+        const updatedSessions = branchSessions.map(session => {
+          // Vérifier si la séance était pour hier
+          const sessionDate = session.sessionDate || session.specificDate;
+          if (!sessionDate) {
+            // Si pas de date spécifique, utiliser le dayOfWeek (séances récurrentes)
+            // Pour les récurrentes, garder le statut
+            return session;
+          }
+
+          // Si la séance est d'hier et a le statut "absent", la réinitialiser
+          const sessionDateObj = new Date(sessionDate);
+          const yesterdayDate = new Date(currentTime);
+          yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+          yesterdayDate.setHours(0, 0, 0, 0);
+          sessionDateObj.setHours(0, 0, 0, 0);
+
+          if (sessionDateObj.getTime() === yesterdayDate.getTime() && session.status === 'absent') {
+            hasChanges = true;
+            console.log(`🔄 Réinitialisation du statut "absent" → "normal" pour ${session.professor} (${branch})`);
+            return { ...session, status: 'normal' };
+          }
+
+          return session;
+        });
+
+        // Sauvegarder si des changements ont été faits
+        if (hasChanges) {
+          await saveBranchData(branch, updatedSessions);
+        }
+      }
+    };
+
+    // Exécuter toutes les minutes pour vérifier si on est passé minuit
+    const interval = setInterval(resetAbsentStatus, 60000); // 60000ms = 1 minute
+
+    // Exécuter une première fois au chargement
+    resetAbsentStatus();
+
+    return () => clearInterval(interval);
+  }, [sessions, currentTime]);
+
   // Défilement automatique pour l'affichage public
   useEffect(() => {
     if ((view !== 'public' && view !== 'display') || !selectedBranch) return;
@@ -678,22 +773,30 @@ const branchNames = branchesArray.map(b => b.name) || [];
   // Trier par heure
   let sorted = todaySessions.sort((a, b) => a.startTime.localeCompare(b.startTime));
 
-  // MASQUER LES COURS TERMINÉS sur l'affichage étudiant
-  if (view === 'display') {
-    const currentH = currentTime.getHours();
-    const currentM = currentTime.getMinutes();
-    const currentMinutes = currentH * 60 + currentM;
+  // Calculer l'heure actuelle en minutes une fois
+  const currentH = currentTime.getHours();
+  const currentM = currentTime.getMinutes();
+  const currentMinutes = currentH * 60 + currentM;
 
-    sorted = sorted.filter(session => {
-      const [endH, endM] = session.endTime.split(':').map(Number);
-      const endMinutes = endH * 60 + endM;
+  // MASQUER LES COURS TERMINÉS
+  sorted = sorted.filter(session => {
+    const [endH, endM] = session.endTime.split(':').map(Number);
+    const endMinutes = endH * 60 + endM;
 
-      // Masquer tous les cours terminés (peu importe leur statut)
-      // Statuts spéciaux redeviennent 'normal' après la fin
+    // Pour les séances exceptionnelles : toujours les masquer si terminées
+    if (session.isExceptional) {
       return currentMinutes < endMinutes;
-    });
-  }
-  
+    }
+
+    // Pour les séances normales : masquer si terminées en affichage étudiant
+    if (view === 'display') {
+      return currentMinutes < endMinutes;
+    }
+
+    // En affichage admin, garder toutes les séances normales
+    return true;
+  });
+
   // Pour l'affichage public/display : TOUTES les séances actives (pas de limite)
   // Pour l'admin : limiter à 6 séances pour ne pas surcharger
   return (view === 'public' || view === 'display') ? sorted : sorted.slice(0, 6);
@@ -1188,128 +1291,158 @@ const branchNames = branchesArray.map(b => b.name) || [];
             <h1 className="text-2xl font-bold">INTELLECTION CLASSBOARD</h1>
             <p className="text-blue-200 text-sm">Interface de gestion</p>
           </div>
-          <div className="flex gap-3">
-            <button
-              onClick={() => setShowBranchManager(true)}
-              className="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
-            >
-              <Building2 className="w-4 h-4" />
-              Gérer Filiales
-            </button>
-            <button
-onClick={() => setShowAvailableRooms(true)}
-  className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-all"
->
-  <MapPin className="w-5 h-5" />
-  Vérifier les Salles Disponibles
-</button>
-            <button
-              onClick={() => setShowSettingsManager(true)}
-              className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
-            >
-              <Sliders className="w-4 h-4" />
-              Profs, Niveaux Profs & Niveaux Matières
-            </button>
-            <button
-              onClick={() => setShowProfessorSettings(true)}
-              className="bg-pink-600 hover:bg-pink-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
-            >
-              <BookOpen className="w-4 h-4" />
-              Professeurs - Cours Individuels
-            </button>
-            <button
-              onClick={() => setShowStudentIndividualLessons(true)}
-              className="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
-            >
-              <Users className="w-4 h-4" />
-              Étudiants - Accès Cours Individuels
-            </button>
 
-            <button
-              onClick={() => setShowMessageManager(true)}
-              className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
-            >
-              <MessageSquare className="w-4 h-4" />
-              Gestion des Messages
-            </button>
-            <button
-              onClick={() => setView('dashboard')}
-              className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
-            >
-              <BarChart3 className="w-4 h-4" />
-              Dashboard
-            </button>
-            <button
-              onClick={() => setShowThermalPrint(true)}
-              className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
-            >
-              <Printer className="w-4 h-4" />
-              Ticket Thermique
-            </button>
-            <button
-              onClick={() => setShowWhatsAppAutomation(true)}
-              className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
-            >
-              <MessageCircle className="w-4 h-4" />
-              WhatsApp Auto
-            </button>
-            <button
-              onClick={() => setShowPDFExport(true)}
-              className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
-            >
-              <FileDown className="w-4 h-4" />
-              📄 Export PDF
-            </button>
-            <button
-              onClick={() => setShowDisciplineBoard(true)}
-              className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
-            >
-              📊 Discipline
-            </button>
-            <button
-              onClick={() => setShowSecurityDashboard(true)}
-              className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
-            >
-              🔒 Sécurité
-            </button>
-            <button
-              onClick={() => setShowOTPSystem(true)}
-              className="bg-teal-600 hover:bg-teal-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
-            >
-              <Shield className="w-4 h-4" />
-              Gestion OTP
-            </button>
-            <button
-              onClick={() => setShowOTPDashboard(true)}
-              className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
-            >
-              <Clock className="w-4 h-4" />
-              Pointages
-            </button>
-            <button
-              onClick={() => setShowSupervisionAdmin(true)}
-              className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
-            >
-              <Calendar className="w-4 h-4" />
-              Supervision
-            </button>
-            <button
-              onClick={() => setShowTimeSettings(!showTimeSettings)}
-              className="bg-blue-700 hover:bg-blue-600 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
-            >
-              <Clock className="w-4 h-4" />
-              Régler l'heure
-            </button>
-            <button
-              onClick={() => {
-                setView('login');
-                setIsAuthenticated(false);
-                setPassword('');
-              }}
-              className="bg-blue-700 hover:bg-blue-600 px-4 py-2 rounded-lg transition-all text-sm"
-            >
-              Déconnexion
-            </button>
+          {/* Admin Menu - Grouped by Theme */}
+          <div className="space-y-3">
+            {/* Gestion des Filiales & Salles */}
+            <div className="flex gap-3 items-center flex-wrap">
+              <div className="text-xs font-semibold text-gray-600 uppercase px-2 py-2 bg-gray-200 rounded">🏢 Filiales & Salles</div>
+              <button
+                onClick={() => setShowBranchManager(true)}
+                className="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
+              >
+                <Building2 className="w-4 h-4" />
+                Gérer Filiales
+              </button>
+              <button
+                onClick={() => setShowAvailableRooms(true)}
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-all text-sm"
+              >
+                <MapPin className="w-4 h-4" />
+                Vérifier les Salles Disponibles
+              </button>
+            </div>
+
+            {/* Configuration du Système */}
+            <div className="flex gap-3 items-center flex-wrap">
+              <div className="text-xs font-semibold text-gray-600 uppercase px-2 py-2 bg-gray-200 rounded">⚙️ Configuration</div>
+              <button
+                onClick={() => setShowSettingsManager(true)}
+                className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
+              >
+                <Sliders className="w-4 h-4" />
+                Profs, Niveaux Profs & Niveaux Matières
+              </button>
+              <button
+                onClick={() => setShowProfessorSettings(true)}
+                className="bg-pink-600 hover:bg-pink-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
+              >
+                <BookOpen className="w-4 h-4" />
+                Professeurs - Cours Individuels
+              </button>
+              <button
+                onClick={() => setShowStudentIndividualLessons(true)}
+                className="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
+              >
+                <Users className="w-4 h-4" />
+                Étudiants - Accès Cours Individuels
+              </button>
+            </div>
+
+            {/* Communications */}
+            <div className="flex gap-3 items-center flex-wrap">
+              <div className="text-xs font-semibold text-gray-600 uppercase px-2 py-2 bg-gray-200 rounded">💬 Communications</div>
+              <button
+                onClick={() => setShowMessageManager(true)}
+                className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
+              >
+                <MessageSquare className="w-4 h-4" />
+                Gestion des Messages
+              </button>
+            </div>
+
+            {/* Rapports & Exports */}
+            <div className="flex gap-3 items-center flex-wrap">
+              <div className="text-xs font-semibold text-gray-600 uppercase px-2 py-2 bg-gray-200 rounded">📊 Rapports & Exports</div>
+              <button
+                onClick={() => setView('dashboard')}
+                className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
+              >
+                <BarChart3 className="w-4 h-4" />
+                Dashboard
+              </button>
+              <button
+                onClick={() => setShowThermalPrint(true)}
+                className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
+              >
+                <Printer className="w-4 h-4" />
+                Ticket Thermique
+              </button>
+              <button
+                onClick={() => setShowWhatsAppAutomation(true)}
+                className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
+              >
+                <MessageCircle className="w-4 h-4" />
+                WhatsApp Auto
+              </button>
+              <button
+                onClick={() => setShowPDFExport(true)}
+                className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
+              >
+                <FileDown className="w-4 h-4" />
+                📄 Export PDF
+              </button>
+            </div>
+
+            {/* Supervision & Sécurité */}
+            <div className="flex gap-3 items-center flex-wrap">
+              <div className="text-xs font-semibold text-gray-600 uppercase px-2 py-2 bg-gray-200 rounded">🔒 Supervision & Sécurité</div>
+              <button
+                onClick={() => setShowDisciplineBoard(true)}
+                className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
+              >
+                📊 Discipline
+              </button>
+              <button
+                onClick={() => setShowSecurityDashboard(true)}
+                className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
+              >
+                🔒 Sécurité
+              </button>
+              <button
+                onClick={() => setShowOTPSystem(true)}
+                className="bg-teal-600 hover:bg-teal-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
+              >
+                <Shield className="w-4 h-4" />
+                Gestion OTP
+              </button>
+              <button
+                onClick={() => setShowOTPDashboard(true)}
+                className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
+              >
+                <Clock className="w-4 h-4" />
+                Pointages
+              </button>
+              <button
+                onClick={() => setShowSupervisionAdmin(true)}
+                className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
+              >
+                <Calendar className="w-4 h-4" />
+                Supervision
+              </button>
+            </div>
+
+            {/* Paramètres */}
+            <div className="flex gap-3 items-center flex-wrap">
+              <div className="text-xs font-semibold text-gray-600 uppercase px-2 py-2 bg-gray-200 rounded">⚙️ Paramètres</div>
+              <button
+                onClick={() => setShowTimeSettings(!showTimeSettings)}
+                className="bg-blue-700 hover:bg-blue-600 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
+              >
+                <Clock className="w-4 h-4" />
+                Régler l'heure
+              </button>
+              <button
+                onClick={() => {
+                  setView('login');
+                  setIsAuthenticated(false);
+                  setPassword('');
+                }}
+                className="bg-blue-700 hover:bg-blue-600 px-4 py-2 rounded-lg transition-all text-sm"
+              >
+                Déconnexion
+              </button>
+            </div>
           </div>
         </div>
       </div>

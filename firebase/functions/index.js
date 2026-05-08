@@ -7,7 +7,7 @@ const db = admin.firestore();
 
 // Email configuration
 const EMAIL_USER = 'intellectionaudit@gmail.com';
-const EMAIL_PASS = 'pskbhozznaabffaa';
+const EMAIL_PASS = 'plcyojeqnxxwvktr';
 const EMAIL_TO = 'saaddalili@gmail.com';
 
 const transporter = nodemailer.createTransport({
@@ -998,3 +998,325 @@ exports.notifyOnSessionStatusChange = functions
       console.error('Error in notifyOnSessionStatusChange:', error);
     }
   });
+
+// ============================================================================
+// Test Email - Envoi manuel du rapport
+// ============================================================================
+
+exports.testAgentScheduleReport = functions
+  .region('us-central1')
+  .https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+      res.status(200).send('OK');
+      return;
+    }
+
+    try {
+      console.log('🧪 TEST: Génération rapport horaires agents');
+      const rapport = await generateAgentScheduleReport();
+      console.log('📧 TEST: Envoi email de test');
+      await sendAgentScheduleEmail(rapport);
+      res.status(200).json({
+        success: true,
+        message: '✅ Email de test envoyé avec succès',
+        rapport: rapport
+      });
+    } catch (error) {
+      console.error('❌ Erreur testAgentScheduleReport:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+// ============================================================================
+// Rapport Hebdomadaire Horaires Agents (Vendredi 18h00 UTC = Samedi 19h00 Maroc)
+// ============================================================================
+
+exports.weeklyAgentScheduleReport = functions
+  .region('us-central1')
+  .pubsub.schedule('0 18 * * 5')  // Vendredi 18h UTC = Samedi 19h Maroc (GMT+1)
+  .timeZone('UTC')
+  .onRun(async (context) => {
+    try {
+      console.log('Génération du rapport hebdomadaire horaires agents');
+      const rapport = await generateAgentScheduleReport();
+      await sendAgentScheduleEmail(rapport);
+      return { success: true };
+    } catch (error) {
+      console.error('Erreur weeklyAgentScheduleReport:', error);
+      return { error: error.message };
+    }
+  });
+
+// ============================================================================
+// Générer rapport horaires agents
+// ============================================================================
+
+async function generateAgentScheduleReport() {
+  // Calculer la semaine passée (lundi → dimanche)
+  const now = new Date();
+  const dayOfWeek = now.getDay();
+  const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+
+  const lastMonday = new Date(now);
+  lastMonday.setDate(now.getDate() - diffToMonday - 7);
+  lastMonday.setHours(0, 0, 0, 0);
+
+  const lastSunday = new Date(lastMonday);
+  lastSunday.setDate(lastMonday.getDate() + 6);
+  lastSunday.setHours(23, 59, 59, 999);
+
+  // 1. Charger tous les agents
+  const agentsSnap = await db
+    .collection('otp_users')
+    .where('role', '==', 'agent')
+    .where('isActive', '==', true)
+    .get();
+
+  const agents = agentsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const rapportData = [];
+
+  // 2. Pour chaque agent
+  for (const agent of agents) {
+    // Charger ses horaires programmés
+    const scheduleSnap = await db.collection('agent_schedules').doc(agent.id).get();
+    const schedule = scheduleSnap.exists ? scheduleSnap.data().schedule : null;
+
+    // Charger ses pointages de la semaine
+    const pointagesSnap = await db
+      .collection('agent_pointages')
+      .where('agentId', '==', agent.id)
+      .where('timestamp', '>=', admin.firestore.Timestamp.fromDate(lastMonday))
+      .where('timestamp', '<=', admin.firestore.Timestamp.fromDate(lastSunday))
+      .orderBy('timestamp', 'asc')
+      .get();
+
+    const pointages = pointagesSnap.docs.map(d => ({
+      id: d.id,
+      ...d.data(),
+      timestamp: d.data().timestamp?.toDate?.() || new Date()
+    }));
+
+    // 3. Analyser la semaine
+    const weekAnalysis = analyzeAgentWeek(schedule, pointages, lastMonday);
+
+    rapportData.push({
+      agent: agent.name,
+      centre: agent.centre || '—',
+      analysis: weekAnalysis
+    });
+  }
+
+  return {
+    weekStart: lastMonday.toLocaleDateString('fr-FR'),
+    weekEnd: lastSunday.toLocaleDateString('fr-FR'),
+    agents: rapportData
+  };
+}
+
+// ============================================================================
+// Analyser respect des horaires d'un agent
+// ============================================================================
+
+function analyzeAgentWeek(schedule, pointages, weekStart) {
+  const JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+  const dayAnalysis = [];
+  let totalEcarts = 0;
+
+  // Pour chaque jour de la semaine
+  for (let i = 0; i < 7; i++) {
+    const day = new Date(weekStart);
+    day.setDate(weekStart.getDate() + i);
+    const dayName = JOURS[day.getDay()];
+    const dayKey = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][day.getDay()];
+
+    const daySchedule = schedule ? schedule[dayKey] : null;
+
+    // Si le jour n'est pas travaillé
+    if (!daySchedule || !daySchedule.enabled) {
+      dayAnalysis.push({
+        jour: dayName,
+        statut: 'REPOS',
+        details: '—'
+      });
+      continue;
+    }
+
+    // Récupérer les pointages du jour
+    const dayPointages = pointages.filter(p => {
+      const pDate = new Date(p.timestamp);
+      return pDate.getDate() === day.getDate() &&
+             pDate.getMonth() === day.getMonth() &&
+             pDate.getFullYear() === day.getFullYear();
+    });
+
+    // Analyser entrée/sortie
+    const entree = dayPointages.find(p => p.type === 'entrée');
+    const sortie = dayPointages.find(p => p.type === 'sortie');
+
+    let statut = '✅ OK';
+    let details = `${daySchedule.centre} | ${daySchedule.start}-${daySchedule.end}`;
+    let ecart = 0;
+
+    if (!entree && !sortie) {
+      statut = '❌ ABSENT';
+      details += ' | Pas d\'entrée/sortie';
+      ecart = 480; // 8h de perte
+    } else if (!entree) {
+      statut = '⚠️ ABSENT ENTREE';
+      details += ' | Pas d\'entrée';
+      ecart = 240;
+    } else if (!sortie) {
+      statut = '⚠️ ABSENT SORTIE';
+      details += ' | Pas de sortie';
+      ecart = 240;
+    } else {
+      // Vérifier les heures
+      const entreeHeure = entree.timestamp.getHours().toString().padStart(2, '0') + ':' +
+                         entree.timestamp.getMinutes().toString().padStart(2, '0');
+      const sortieHeure = sortie.timestamp.getHours().toString().padStart(2, '0') + ':' +
+                         sortie.timestamp.getMinutes().toString().padStart(2, '0');
+
+      details += ` | Entrée: ${entreeHeure} | Sortie: ${sortieHeure}`;
+
+      // Calculer écarts
+      const [startH, startM] = daySchedule.start.split(':').map(Number);
+      const [endH, endM] = daySchedule.end.split(':').map(Number);
+
+      const startMinutes = startH * 60 + startM;
+      const endMinutes = endH * 60 + endM;
+      const entreeMinutes = entree.timestamp.getHours() * 60 + entree.timestamp.getMinutes();
+      const sortieMinutes = sortie.timestamp.getHours() * 60 + sortie.timestamp.getMinutes();
+
+      const retardEntree = Math.max(0, entreeMinutes - startMinutes);
+      const avanceSortie = Math.max(0, endMinutes - sortieMinutes);
+
+      if (retardEntree > 5) {
+        statut = '⚠️ RETARD';
+        ecart = retardEntree;
+        details += ` | Retard: +${retardEntree}min`;
+      } else if (avanceSortie > 5) {
+        statut = '⚠️ SORTIE ANTICIPÉE';
+        ecart = avanceSortie;
+        details += ` | Sortie anticipée: -${avanceSortie}min`;
+      }
+    }
+
+    totalEcarts += ecart;
+
+    dayAnalysis.push({
+      jour: dayName,
+      statut,
+      details,
+      ecart
+    });
+  }
+
+  // Résumé semaine
+  const daysPresent = dayAnalysis.filter(d => d.statut.includes('OK') || d.statut.includes('RETARD') || d.statut.includes('SORTIE')).length;
+  const daysAbsent = dayAnalysis.filter(d => d.statut.includes('ABSENT')).length;
+
+  return {
+    days: dayAnalysis,
+    summary: {
+      daysPresent,
+      daysAbsent,
+      totalEcarts,
+      status: totalEcarts === 0 ? '✅ CONFORME' : `⚠️ ÉCARTS: ${totalEcarts}min`
+    }
+  };
+}
+
+// ============================================================================
+// Envoyer email rapport horaires
+// ============================================================================
+
+async function sendAgentScheduleEmail(rapport) {
+  const htmlContent = `
+    <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; color: #333; }
+          h1 { color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px; }
+          h2 { color: #34495e; margin-top: 20px; }
+          table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+          th, td { padding: 10px; text-align: left; border: 1px solid #ddd; }
+          th { background-color: #3498db; color: white; }
+          tr:nth-child(even) { background-color: #f9f9f9; }
+          .ok { color: #27ae60; font-weight: bold; }
+          .warning { color: #e67e22; font-weight: bold; }
+          .error { color: #e74c3c; font-weight: bold; }
+          .summary { background-color: #ecf0f1; padding: 15px; border-radius: 5px; margin: 15px 0; }
+        </style>
+      </head>
+      <body>
+        <h1>📋 Rapport Hebdomadaire - Respect des Horaires des Agents</h1>
+        <p><strong>Période:</strong> ${rapport.weekStart} → ${rapport.weekEnd}</p>
+
+        ${rapport.agents.map(agent => `
+          <div class="summary">
+            <h2>👤 ${agent.agent}</h2>
+            <p><strong>Centre:</strong> ${agent.centre}</p>
+            <p><strong>Statut Global:</strong> <span class="${
+              agent.analysis.summary.status.includes('CONFORME') ? 'ok' : 'warning'
+            }">${agent.analysis.summary.status}</span></p>
+            <p>Jours présents: ${agent.analysis.summary.daysPresent} | Jours absents: ${agent.analysis.summary.daysAbsent} | Total écarts: ${agent.analysis.summary.totalEcarts}min</p>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>Jour</th>
+                  <th>Statut</th>
+                  <th>Détails</th>
+                  <th>Écart (min)</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${agent.analysis.days.map(day => `
+                  <tr>
+                    <td>${day.jour}</td>
+                    <td class="${
+                      day.statut.includes('OK') ? 'ok' :
+                      day.statut.includes('ABSENT') ? 'error' : 'warning'
+                    }">${day.statut}</td>
+                    <td>${day.details}</td>
+                    <td>${day.ecart || '—'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `).join('')}
+
+        <p style="color: #7f8c8d; font-size: 12px; margin-top: 30px;">
+          Email généré automatiquement. Veuillez ne pas répondre à cet email.
+        </p>
+      </body>
+    </html>
+  `;
+
+  const mailOptions = {
+    from: EMAIL_USER,
+    to: EMAIL_TO,
+    subject: `📋 Rapport Horaires Agents - Semaine du ${rapport.weekStart}`,
+    html: htmlContent
+  };
+
+  return new Promise((resolve, reject) => {
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.error('Erreur envoi email:', error);
+        reject(error);
+      } else {
+        console.log('Email envoyé:', info.response);
+        resolve('Email envoyé avec succès');
+      }
+    });
+  });
+}

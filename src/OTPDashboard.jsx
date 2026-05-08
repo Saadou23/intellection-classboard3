@@ -1,19 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { X, Download, Calendar, BarChart3, Users, Clock, AlertCircle } from 'lucide-react';
+import { X, Download, Calendar, BarChart3, Users, Clock, AlertCircle, Smartphone, FileText } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { getDirecteurs, getPointages, calculateWorkHours } from './OTPService';
+import CheckoutResponsesViewer from './CheckoutResponsesViewer';
+import {
+  getDirecteurs,
+  getAgents,
+  getPointages,
+  calculateWorkHours,
+  getAgentPointages,
+  calculateAgentWorkHours
+} from './OTPService';
 
 const OTPDashboard = ({ onBack }) => {
   const [activeTab, setActiveTab] = useState('history');
   const [records, setRecords] = useState([]);
   const [workStats, setWorkStats] = useState([]);
+  const [agentRecords, setAgentRecords] = useState([]);
+  const [agentWorkStats, setAgentWorkStats] = useState([]);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
 
   const [filterDirecteur, setFilterDirecteur] = useState('');
+  const [filterAgent, setFilterAgent] = useState('');
   const [filterDateStart, setFilterDateStart] = useState('');
   const [filterDateEnd, setFilterDateEnd] = useState('');
   const [directeurs, setDirecteurs] = useState([]);
+  const [agents, setAgents] = useState([]);
   const [viewMode, setViewMode] = useState('current');
 
   const getWeekBoundaries = () => {
@@ -47,14 +59,18 @@ const OTPDashboard = ({ onBack }) => {
 
   useEffect(() => {
     loadData();
-  }, [filterDateStart, filterDateEnd, filterDirecteur]);
+  }, [filterDateStart, filterDateEnd, filterDirecteur, filterAgent]);
 
   const loadDirecteurs = async () => {
     try {
-      const dirs = await getDirecteurs();
+      const [dirs, agentsList] = await Promise.all([
+        getDirecteurs(),
+        getAgents()
+      ]);
       setDirecteurs(dirs);
+      setAgents(agentsList);
     } catch (e) {
-      console.error('Error loading directeurs:', e);
+      console.error('Error loading directeurs/agents:', e);
     }
   };
 
@@ -71,6 +87,17 @@ const OTPDashboard = ({ onBack }) => {
 
       const stats = calculateWorkHours(data);
       setWorkStats(stats);
+
+      const agentParams = {};
+      if (filterAgent) agentParams.agentId = filterAgent;
+      if (filterDateStart) agentParams.startDate = filterDateStart;
+      if (filterDateEnd) agentParams.endDate = filterDateEnd;
+
+      const agentData = await getAgentPointages(agentParams);
+      setAgentRecords(agentData);
+
+      const agentStats = calculateAgentWorkHours(agentData);
+      setAgentWorkStats(agentStats);
     } catch (e) {
       console.error('Error loading data:', e);
     } finally {
@@ -183,7 +210,7 @@ const OTPDashboard = ({ onBack }) => {
             Filtres avancés
           </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
               <label className="block text-sm mb-2">Directeur</label>
               <select
@@ -195,6 +222,22 @@ const OTPDashboard = ({ onBack }) => {
                 {directeurs.map(d => (
                   <option key={d.id} value={d.id}>
                     {d.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm mb-2">Agent</label>
+              <select
+                value={filterAgent}
+                onChange={e => setFilterAgent(e.target.value)}
+                className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"
+              >
+                <option value="">Tous les agents</option>
+                {agents.map(a => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
                   </option>
                 ))}
               </select>
@@ -251,7 +294,7 @@ const OTPDashboard = ({ onBack }) => {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-4 mb-6">
+        <div className="flex gap-4 mb-6 flex-wrap">
           <button
             onClick={() => setActiveTab('history')}
             className={`px-6 py-2 rounded-lg transition flex items-center gap-2 ${
@@ -261,7 +304,7 @@ const OTPDashboard = ({ onBack }) => {
             }`}
           >
             <Clock className="w-4 h-4" />
-            Historique
+            Historique Directeurs
           </button>
           <button
             onClick={() => setActiveTab('stats')}
@@ -272,7 +315,29 @@ const OTPDashboard = ({ onBack }) => {
             }`}
           >
             <BarChart3 className="w-4 h-4" />
-            Statistiques
+            Statistiques Directeurs
+          </button>
+          <button
+            onClick={() => setActiveTab('agents')}
+            className={`px-6 py-2 rounded-lg transition flex items-center gap-2 ${
+              activeTab === 'agents'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            <Smartphone className="w-4 h-4" />
+            Pointages Agents
+          </button>
+          <button
+            onClick={() => setActiveTab('checkout-responses')}
+            className={`px-6 py-2 rounded-lg transition flex items-center gap-2 ${
+              activeTab === 'checkout-responses'
+                ? 'bg-purple-600 text-white'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            <FileText className="w-4 h-4" />
+            Réponses Questionnaires
           </button>
         </div>
 
@@ -410,6 +475,121 @@ const OTPDashboard = ({ onBack }) => {
               </div>
             )}
           </div>
+        )}
+
+        {/* Agents Tab */}
+        {activeTab === 'agents' && (
+          <div className="space-y-6">
+            {/* Agent History Table */}
+            <div>
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Clock className="w-5 h-5" />
+                Historique des pointages agents
+              </h3>
+              <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-700">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-sm font-semibold">Date</th>
+                        <th className="px-6 py-3 text-left text-sm font-semibold">Heure</th>
+                        <th className="px-6 py-3 text-left text-sm font-semibold">Agent</th>
+                        <th className="px-6 py-3 text-left text-sm font-semibold">Zone</th>
+                        <th className="px-6 py-3 text-left text-sm font-semibold">Type</th>
+                        <th className="px-6 py-3 text-left text-sm font-semibold">Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-700">
+                      {agentRecords.map(r => (
+                        <tr key={r.id} className="hover:bg-gray-700/50">
+                          <td className="px-6 py-4 text-sm">{r.timestamp.toLocaleDateString('fr-FR')}</td>
+                          <td className="px-6 py-4 text-sm font-mono">{r.timestamp.toLocaleTimeString('fr-FR')}</td>
+                          <td className="px-6 py-4 font-semibold">{r.agentName}</td>
+                          <td className="px-6 py-4 text-gray-400 text-sm">{r.zone}</td>
+                          <td className="px-6 py-4">
+                            <span
+                              className={`px-3 py-1 rounded text-xs font-semibold ${
+                                r.type === 'entrée'
+                                  ? 'bg-green-900 text-green-200'
+                                  : 'bg-orange-900 text-orange-200'
+                              }`}
+                            >
+                              {r.type === 'entrée' ? '🟢 Entrée' : '🟠 Sortie'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-300">
+                            {r.commentaire ? (
+                              <div className="bg-gray-700 rounded p-2 max-w-xs">
+                                <p className="text-xs italic">{r.commentaire}</p>
+                              </div>
+                            ) : (
+                              <span className="text-gray-500 text-xs">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {agentRecords.length === 0 && !loading && (
+                  <div className="text-center py-12 text-gray-400">Aucun pointage agent trouvé</div>
+                )}
+              </div>
+            </div>
+
+            {/* Agent Daily Cards */}
+            <div>
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Users className="w-5 h-5" />
+                Détail des heures travaillées par agent
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {agentWorkStats.map(stat => (
+                  <div
+                    key={`${stat.agentId}_${stat.date}`}
+                    className="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-gray-600 transition"
+                  >
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <h4 className="font-semibold text-white">{stat.agentName}</h4>
+                        <p className="text-xs text-gray-400">{stat.date}</p>
+                      </div>
+                      <span className="bg-blue-900 text-blue-200 px-2 py-1 rounded text-xs font-semibold">
+                        Agent
+                      </span>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400">Heures travaillées:</span>
+                        <span className="font-semibold text-blue-400">{stat.heuresTravaillees}h</span>
+                      </div>
+
+                      {stat.retardMinutes > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-400">Retard:</span>
+                          <span className="font-semibold text-red-400">{stat.retardMinutes}min</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {agentWorkStats.length === 0 && !loading && (
+                <div className="bg-gray-800 rounded-lg p-12 text-center border border-gray-700">
+                  <AlertCircle className="w-8 h-8 text-gray-500 mx-auto mb-2" />
+                  <p className="text-gray-400">Aucune donnée de présence agent</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Checkout Responses Tab */}
+        {activeTab === 'checkout-responses' && (
+          <CheckoutResponsesViewer />
         )}
       </div>
     </div>

@@ -8,6 +8,7 @@ import ProfessorExamCreator from './ProfessorExamCreator';
 import PrivacyPolicy from './PrivacyPolicy';
 import Dashboard from './Dashboard';
 import OTPPointagePanel from './OTPPointagePanel';
+import ProfessorSalaryCollection from './ProfessorSalaryCollection';
 import './App.css';
 
 function App() {
@@ -31,6 +32,8 @@ function App() {
     pageComponent = <Dashboard sessions={{}} />;
   } else if (path === '/pointage') {
     pageComponent = <OTPPointagePanel />;
+  } else if (path === '/salaire-collecte') {
+    pageComponent = <ProfessorSalaryCollection />;
   } else {
     pageComponent = <ClassBoard />;
   }
