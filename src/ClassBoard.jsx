@@ -723,7 +723,7 @@ const branchNames = branchesArray.map(b => b.name) || [];
       endTime: session.endTime,
       levels: levelsArray, // Convertir en tableau
       subject: session.subject,
-      groupes: session.groupes || session.groupe ? [session.groupe] : [], // 📌 Charger les groupes (avec rétro-compatibilité pour groupe)
+      groupes: session.groupes || (session.groupe ? [session.groupe] : []), // 📌 Charger les groupes (avec rétro-compatibilité pour groupe)
       professor: session.professor,
       room: session.room,
       status: session.status,
