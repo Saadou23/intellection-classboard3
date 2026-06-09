@@ -340,29 +340,29 @@ const PublicSchedule = () => {
                 <Bi
                   fr="Choisissez votre niveau"
                   ar="اختر مستواك الدراسي"
-                  className="text-center text-gray-800 font-bold text-lg mb-1"
+                  className="text-center text-gray-900 font-black text-2xl mb-3"
                 />
-                <p className="text-center text-xs text-gray-400 mb-2">Étape 2 / 3 · الخطوة 2 من 3</p>
-                <div className="flex justify-center mb-4">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-700 text-xs rounded-full font-semibold">
-                    <MapPin className="w-3 h-3" /> {tempBranch}
+                <p className="text-center text-sm text-gray-500 mb-5 font-semibold">Étape 2 / 3 · الخطوة 2 من 3</p>
+                <div className="flex justify-center mb-6">
+                  <span className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-red-50 to-red-100 text-red-700 text-sm rounded-full font-bold border-2 border-red-200">
+                    <MapPin className="w-4 h-4" /> {tempBranch}
                   </span>
                 </div>
 
                 {allLevels.length === 0 ? (
-                  <p className="text-center text-gray-400 text-sm py-4">Chargement des niveaux…</p>
+                  <p className="text-center text-gray-400 text-sm py-8">Chargement des niveaux…</p>
                 ) : (
-                  <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="grid grid-cols-2 gap-4 mb-6">
                     {allLevels.map(level => (
                       <button
                         key={level}
                         onClick={() => { setTempLevel(level); setWizardStep(3); }}
-                        className="p-4 border-2 border-gray-100 rounded-xl hover:border-red-500 hover:bg-red-50 transition-all group text-center"
+                        className="p-6 border-3 border-blue-200 rounded-2xl hover:border-red-500 hover:bg-gradient-to-br hover:from-red-50 hover:to-red-100 transition-all group text-center shadow-md hover:shadow-lg"
                       >
-                        <div className="w-10 h-10 bg-gray-100 group-hover:bg-red-100 rounded-xl mx-auto mb-2 flex items-center justify-center transition-colors">
-                          <BookOpen className="w-5 h-5 text-gray-400 group-hover:text-red-600 transition-colors" />
+                        <div className="w-14 h-14 bg-blue-100 group-hover:bg-red-200 rounded-2xl mx-auto mb-3 flex items-center justify-center transition-colors shadow-sm">
+                          <BookOpen className="w-7 h-7 text-blue-600 group-hover:text-red-700 transition-colors" />
                         </div>
-                        <div className="font-bold text-gray-800 text-sm">{level}</div>
+                        <div className="font-black text-gray-900 text-lg group-hover:text-red-700 transition-colors">{level}</div>
                       </button>
                     ))}
                   </div>
