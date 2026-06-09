@@ -12,6 +12,7 @@ import ConflictDetector, { hasConflicts } from './ConflictDetector';
 import ExceptionalSessionManager from './ExceptionalSessionManager';
 import { filterSessionsForDate, getTodaySessions, getSessionDisplayStatus } from './sessionFilters';
 import { getAllPeriods, getActivePeriodId, filterSessionsByPeriod, getPeriodIcon, getPeriodName } from './periodUtils';
+import { getSessionLevels, sessionIncludesLevel } from './levelUtils';
 import AvailableRoomsViewer from './AvailableRoomsViewer';
 import SoundTester from './SoundTester';
 import UpcomingSessionsPreview from './UpcomingSessionsPreview';
@@ -83,6 +84,8 @@ const [showWhatsAppAutomation, setShowWhatsAppAutomation] = useState(false);
   const [showPeriodSelector, setShowPeriodSelector] = useState(false);
   const [viewPeriodFilter, setViewPeriodFilter] = useState(null); // null = toutes, "normal" = normales, "period-id" = période spécifique
   const [viewDayFilter, setViewDayFilter] = useState(null); // null = tous les jours, 0-6 = jour spécifique
+  const [viewLevelFilter, setViewLevelFilter] = useState(null); // null = tous, "1BAC" = niveau spécifique
+  const [viewGroupFilter, setViewGroupFilter] = useState(null); // null = tous, "G1" = groupe spécifique
   const [showMessageManager, setShowMessageManager] = useState(false);
   const [showSecurityDashboard, setShowSecurityDashboard] = useState(false);
   const [showOTPSystem, setShowOTPSystem] = useState(false);
@@ -1115,7 +1118,7 @@ const branchNames = branchesArray.map(b => b.name) || [];
                           animation: `slideDown 0.5s ease-out ${idx * 0.15}s forwards`,
                         }}
                       >
-                        <div className="grid grid-cols-12 gap-2 items-start">
+                        <div className="grid grid-cols-13 gap-2 items-start">
                           <div className="col-span-2 text-lg font-bold font-mono break-words">
                             <div>{formatTime(session.startTime)}</div>
                             <div className="text-xs text-gray-400 mt-0.5">→ {formatTime(session.endTime)}</div>
@@ -1133,17 +1136,19 @@ const branchNames = branchesArray.map(b => b.name) || [];
                             {session.level}
                           </div>
                           <div className="col-span-2 text-sm break-words leading-tight">
-                            <div>{session.subject}</div>
+                            {session.subject}
+                          </div>
+                          <div className="col-span-1.5 text-sm break-words leading-tight">
                             {(session.groupes?.length > 0 || session.groupe) && (
-                              <div className="text-xs text-blue-500 font-medium mt-0.5">
-                                {session.groupes?.length > 0 ? session.groupes.join(', ') : session.groupe}
+                              <div className="bg-blue-600 text-white font-bold px-2 py-1 rounded-lg text-center whitespace-nowrap">
+                                👥 {session.groupes?.length > 0 ? session.groupes.join(',') : session.groupe}
                               </div>
                             )}
                           </div>
                           <div className="col-span-2 text-sm break-words leading-tight">
                             {session.professor}
                           </div>
-                          <div className="col-span-2 text-lg font-bold text-yellow-400 break-words">
+                          <div className="col-span-1.5 text-lg font-bold text-yellow-400 break-words">
                             {session.room}
                           </div>
                           <div className="col-span-2">
@@ -1908,8 +1913,99 @@ const branchNames = branchesArray.map(b => b.name) || [];
                       ))}
                     </div>
                   </div>
+
+                  {/* Filtre par niveau */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      🎓 Filtrer par niveau :
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => { setViewLevelFilter(null); setViewGroupFilter(null); }}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                          viewLevelFilter === null
+                            ? 'bg-green-600 text-white'
+                            : 'bg-white text-gray-700 border border-gray-300 hover:border-green-400'
+                        }`}
+                      >
+                        Tous
+                      </button>
+                      {(() => {
+                        const levelsSet = new Set();
+                        (sessions[selectedBranch] || []).forEach(s => {
+                          const sessionLevels = getSessionLevels(s);
+                          sessionLevels.forEach(l => levelsSet.add(l));
+                        });
+                        const levelsList = [...levelsSet].sort();
+                        return levelsList.map(level => (
+                          <button
+                            key={level}
+                            onClick={() => { setViewLevelFilter(level); setViewGroupFilter(null); }}
+                            className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                              viewLevelFilter === level
+                                ? 'bg-green-600 text-white'
+                                : 'bg-white text-gray-700 border border-gray-300 hover:border-green-400'
+                            }`}
+                          >
+                            {level}
+                          </button>
+                        ));
+                      })()}
+                    </div>
+                  </div>
+
+                  {/* Filtre par groupe (dépend du niveau) */}
+                  {viewLevelFilter && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        👥 Filtrer par groupe ({viewLevelFilter}) :
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() => setViewGroupFilter(null)}
+                          className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                            viewGroupFilter === null
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-white text-gray-700 border border-gray-300 hover:border-blue-400'
+                          }`}
+                        >
+                          Tous
+                        </button>
+                        {(() => {
+                          const groupsSet = new Set();
+                          (sessions[selectedBranch] || []).forEach(s => {
+                            if (sessionIncludesLevel(s, viewLevelFilter)) {
+                              if (s.groupes?.length > 0) {
+                                s.groupes.forEach(g => groupsSet.add(g));
+                              } else if (s.groupe) {
+                                groupsSet.add(s.groupe);
+                              }
+                            }
+                          });
+                          const groups = [...groupsSet].sort((a, b) => {
+                            const numA = parseInt(a.replace(/\D/g, '')) || 0;
+                            const numB = parseInt(b.replace(/\D/g, '')) || 0;
+                            return numA - numB;
+                          });
+                          return groups.map(group => (
+                            <button
+                              key={group}
+                              onClick={() => setViewGroupFilter(group)}
+                              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                viewGroupFilter === group
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-white text-gray-700 border border-gray-300 hover:border-blue-400'
+                              }`}
+                            >
+                              {group}
+                            </button>
+                          ));
+                        })()}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                
+
                 {/* Statistiques filtrées */}
                 <div className="mt-4 pt-4 border-t border-blue-200">
                   <div className="flex items-center gap-4 text-sm">
@@ -1930,7 +2026,24 @@ const branchNames = branchesArray.map(b => b.name) || [];
                           if (viewDayFilter !== null) {
                             filtered = filtered.filter(s => s.dayOfWeek === viewDayFilter);
                           }
-                          
+
+                          // Filtre par niveau
+                          if (viewLevelFilter !== null) {
+                            filtered = filtered.filter(s => sessionIncludesLevel(s, viewLevelFilter));
+                          }
+
+                          // Filtre par groupe
+                          if (viewGroupFilter !== null) {
+                            filtered = filtered.filter(s => {
+                              if (s.groupes?.length > 0) {
+                                return s.groupes.includes(viewGroupFilter);
+                              } else if (s.groupe) {
+                                return s.groupe === viewGroupFilter;
+                              }
+                              return false;
+                            });
+                          }
+
                           return filtered.length;
                         })()}
                       </span>
@@ -1971,6 +2084,7 @@ const branchNames = branchesArray.map(b => b.name) || [];
                       <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Horaire</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Filière</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Matière</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">👥 Groupes</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Professeur</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Salle</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Statut</th>
@@ -1992,7 +2106,24 @@ const branchNames = branchesArray.map(b => b.name) || [];
                       if (viewDayFilter !== null) {
                         filtered = filtered.filter(s => s.dayOfWeek === viewDayFilter);
                       }
-                      
+
+                      // Filtre par niveau
+                      if (viewLevelFilter !== null) {
+                        filtered = filtered.filter(s => sessionIncludesLevel(s, viewLevelFilter));
+                      }
+
+                      // Filtre par groupe
+                      if (viewGroupFilter !== null) {
+                        filtered = filtered.filter(s => {
+                          if (s.groupes?.length > 0) {
+                            return s.groupes.includes(viewGroupFilter);
+                          } else if (s.groupe) {
+                            return s.groupe === viewGroupFilter;
+                          }
+                          return false;
+                        });
+                      }
+
                       return filtered.sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.startTime.localeCompare(b.startTime));
                     })().map(session => (
                       <tr 
@@ -2021,6 +2152,13 @@ const branchNames = branchesArray.map(b => b.name) || [];
                         </td>
                         <td className="px-4 py-3 text-sm">{session.level}</td>
                         <td className="px-4 py-3 text-sm">{session.subject}</td>
+                        <td className="px-4 py-3 text-sm">
+                          {(session.groupes?.length > 0 || session.groupe) && (
+                            <span className="bg-blue-600 text-white font-bold px-2 py-1 rounded-lg text-xs whitespace-nowrap">
+                              👥 {session.groupes?.length > 0 ? session.groupes.join(',') : session.groupe}
+                            </span>
+                          )}
+                        </td>
                         <td className="px-4 py-3 text-sm">{session.professor}</td>
                         <td className="px-4 py-3 text-sm font-semibold">{session.room}</td>
                         <td className="px-4 py-3 text-sm">

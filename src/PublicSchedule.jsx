@@ -110,6 +110,7 @@ const PublicSchedule = () => {
   const [filterLastGroupOnly, setFilterLastGroupOnly] = useState(false);
   const [filterGroup, setFilterGroup]                 = useState('');
   const [availableGroups, setAvailableGroups]         = useState([]);
+  const [availableLevelsForFilter, setAvailableLevelsForFilter] = useState([]);
 
   /* ── Load all data on mount ── */
   useEffect(() => {
@@ -162,6 +163,24 @@ const PublicSchedule = () => {
     src.forEach(s => getSessionLevels(s).forEach(l => set.add(l)));
     setAllLevels([...set].sort());
   }, [tempBranch, allSessions]);
+
+  // Charger les niveaux disponibles selon la branche sélectionnée
+  useEffect(() => {
+    if (!filterBranch) {
+      setAvailableLevelsForFilter([]);
+      return;
+    }
+
+    const branchSessions = allSessions.filter(s => s.branch === filterBranch && s.status !== 'cancelled');
+    const levelsSet = new Set();
+    branchSessions.forEach(s => {
+      const sessionLevels = getSessionLevels(s);
+      sessionLevels.forEach(level => levelsSet.add(level));
+    });
+
+    const levels = [...levelsSet].sort();
+    setAvailableLevelsForFilter(levels);
+  }, [filterBranch, allSessions]);
 
   // Charger les groupes disponibles selon la branche et le niveau
   useEffect(() => {
@@ -484,16 +503,33 @@ const PublicSchedule = () => {
         </div>
       </header>
 
-      {/* Sub-bar: group filter + last group checkbox + count */}
-      <div className="bg-white border-b border-gray-100 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 py-2 flex flex-wrap items-center gap-2">
-          <span className="text-xs text-gray-400 mr-auto">{filteredSessions.length} cours</span>
+      {/* Sub-bar: filters (level + group) */}
+      <div className="bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-200 sticky top-0 z-10 shadow-sm">
+        <div className="max-w-4xl mx-auto px-4 py-3 flex flex-wrap items-center gap-3">
+          <span className="text-sm font-semibold text-gray-700 mr-auto">
+            📚 {filteredSessions.length} cours
+          </span>
 
+          {/* Level filter */}
+          {availableLevelsForFilter.length > 0 && (
+            <select
+              value={filterLevel}
+              onChange={e => setFilterLevel(e.target.value)}
+              className="text-sm bg-white border-2 border-green-300 text-gray-800 px-3 py-2 rounded-lg hover:border-green-400 hover:bg-green-50 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 font-semibold"
+            >
+              <option value="">🎓 Tous les niveaux</option>
+              {availableLevelsForFilter.map(level => (
+                <option key={level} value={level}>{level}</option>
+              ))}
+            </select>
+          )}
+
+          {/* Group filter */}
           {availableGroups.length > 0 && (
             <select
               value={filterGroup}
               onChange={e => setFilterGroup(e.target.value)}
-              className="text-xs bg-blue-50 border border-blue-200 text-blue-800 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="text-sm bg-white border-2 border-blue-300 text-gray-800 px-3 py-2 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold"
             >
               <option value="">👥 Tous les groupes</option>
               {availableGroups.map(group => (
@@ -502,15 +538,15 @@ const PublicSchedule = () => {
             </select>
           )}
 
-          <label className="flex items-center gap-2 cursor-pointer bg-orange-50 border border-orange-200 px-3 py-1.5 rounded-lg hover:bg-orange-100 transition-colors select-none">
+          <label className="flex items-center gap-2 cursor-pointer bg-orange-100 border-2 border-orange-300 px-3 py-2 rounded-lg hover:bg-orange-200 transition-colors select-none font-semibold text-sm text-orange-800">
             <input
               type="checkbox"
               checked={filterLastGroupOnly}
               onChange={e => setFilterLastGroupOnly(e.target.checked)}
-              className="w-4 h-4 accent-orange-500 cursor-pointer"
+              className="w-4 h-4 accent-orange-600 cursor-pointer"
             />
-            <span className="text-xs font-semibold text-orange-800">
-              Dernier groupe · <span dir="rtl" style={{ fontFamily: "'Cairo','Segoe UI',sans-serif" }}>المجموعة الأخيرة فقط</span>
+            <span>
+              Dernier groupe · <span dir="rtl" style={{ fontFamily: "'Cairo','Segoe UI',sans-serif" }}>المجموعة الأخيرة</span>
             </span>
           </label>
         </div>
@@ -546,31 +582,37 @@ const PublicSchedule = () => {
                     {daySessions.map((session, idx) => {
                       const color = subjectColorMap[session.subject] || COLORS[0];
                       return (
-                        <div key={idx} className={`bg-white rounded-xl border-l-4 ${color.border} shadow-sm hover:shadow-md transition-shadow`}>
-                          <div className="p-4 flex flex-wrap items-center gap-x-5 gap-y-2">
-                            <div className="flex items-center gap-1.5 font-bold text-gray-800 text-sm min-w-[110px]">
-                              <Clock className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                              {session.startTime?.substring(0, 5)} – {session.endTime?.substring(0, 5)}
-                            </div>
-                            <div className="flex-1 min-w-[130px]">
-                              <div className="font-semibold text-gray-800 text-sm">{session.subject}</div>
-                              {session.level && <div className="text-xs text-gray-400 mt-0.5">{session.level}</div>}
-                            </div>
-                            {(session.groupes?.length > 0 || session.groupe) && (
-                              <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${color.badge}`}>
-                                {session.groupes?.length > 0 ? session.groupes.join(', ') : session.groupe}
-                              </span>
-                            )}
-                            <div className="flex items-center gap-1.5 text-sm text-gray-500 min-w-[100px]">
-                              <User className="w-4 h-4 text-gray-300 flex-shrink-0" />
-                              {session.professor}
-                            </div>
-                            {session.room && (
-                              <div className="flex items-center gap-1.5 text-sm text-gray-400">
-                                <MapPin className="w-4 h-4 text-gray-300 flex-shrink-0" />
-                                Salle {session.room}
+                        <div key={idx} className={`bg-white rounded-xl border-l-4 ${color.border} shadow-sm hover:shadow-lg transition-all border-r-2 border-r-gray-200`}>
+                          <div className="p-4">
+                            {/* First row: Time + Subject + Group */}
+                            <div className="flex flex-wrap items-start gap-3 mb-3">
+                              <div className="flex items-center gap-1.5 font-bold text-gray-900 text-base min-w-[110px]">
+                                <Clock className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                                {session.startTime?.substring(0, 5)} – {session.endTime?.substring(0, 5)}
                               </div>
-                            )}
+                              <div className="flex-1">
+                                <div className="font-bold text-gray-900 text-base">{session.subject}</div>
+                                {session.level && <div className="text-sm text-gray-500 mt-1">{session.level}</div>}
+                              </div>
+                              {(session.groupes?.length > 0 || session.groupe) && (
+                                <span className={`px-3 py-1 rounded-lg text-sm font-black ${color.badge} border border-opacity-30 border-gray-900`}>
+                                  👥 {session.groupes?.length > 0 ? session.groupes.join(', ') : session.groupe}
+                                </span>
+                              )}
+                            </div>
+                            {/* Second row: Professor + Room */}
+                            <div className="flex flex-wrap items-center gap-4 text-sm">
+                              <div className="flex items-center gap-1.5 text-gray-600">
+                                <User className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                <span className="font-medium">{session.professor}</span>
+                              </div>
+                              {session.room && (
+                                <div className="flex items-center gap-1.5 text-gray-600">
+                                  <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                  <span className="font-medium">Salle {session.room}</span>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       );
