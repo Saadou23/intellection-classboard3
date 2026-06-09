@@ -108,6 +108,8 @@ const PublicSchedule = () => {
   const [filterLevel, setFilterLevel]                 = useState('');
   const [filterPeriod, setFilterPeriod]               = useState('normal');
   const [filterLastGroupOnly, setFilterLastGroupOnly] = useState(false);
+  const [filterGroup, setFilterGroup]                 = useState('');
+  const [availableGroups, setAvailableGroups]         = useState([]);
 
   /* ── Load all data on mount ── */
   useEffect(() => {
@@ -161,6 +163,38 @@ const PublicSchedule = () => {
     setAllLevels([...set].sort());
   }, [tempBranch, allSessions]);
 
+  // Charger les groupes disponibles selon la branche et le niveau
+  useEffect(() => {
+    if (!filterBranch) {
+      setAvailableGroups([]);
+      setFilterGroup('');
+      return;
+    }
+
+    let filtered = allSessions.filter(s => s.branch === filterBranch && s.status !== 'cancelled');
+
+    if (filterLevel) {
+      filtered = filtered.filter(s => sessionIncludesLevel(s, filterLevel));
+    }
+
+    const groupsSet = new Set();
+    filtered.forEach(s => {
+      if (s.groupes?.length > 0) {
+        s.groupes.forEach(g => groupsSet.add(g));
+      } else if (s.groupe) {
+        groupsSet.add(s.groupe);
+      }
+    });
+
+    const groups = [...groupsSet].sort((a, b) => {
+      const numA = parseInt(a.replace(/\D/g, '')) || 0;
+      const numB = parseInt(b.replace(/\D/g, '')) || 0;
+      return numA - numB;
+    });
+
+    setAvailableGroups(groups);
+  }, [filterBranch, filterLevel, allSessions]);
+
   /* subject → color map */
   const subjectColorMap = useMemo(() => {
     const map = {}; let ci = 0;
@@ -176,12 +210,22 @@ const PublicSchedule = () => {
       : list.filter(s => s.period === filterPeriod);
     if (filterBranch) list = list.filter(s => s.branch === filterBranch);
     if (filterLevel)  list = list.filter(s => sessionIncludesLevel(s, filterLevel));
+    if (filterGroup) {
+      list = list.filter(s => {
+        if (s.groupes?.length > 0) {
+          return s.groupes.includes(filterGroup);
+        } else if (s.groupe) {
+          return s.groupe === filterGroup;
+        }
+        return false;
+      });
+    }
     if (filterLastGroupOnly) list = applyLastGroupFilter(list);
     list.sort((a, b) =>
       a.dayOfWeek !== b.dayOfWeek ? a.dayOfWeek - b.dayOfWeek : a.startTime.localeCompare(b.startTime)
     );
     return list;
-  }, [allSessions, filterBranch, filterLevel, filterPeriod, filterLastGroupOnly]);
+  }, [allSessions, filterBranch, filterLevel, filterPeriod, filterLastGroupOnly, filterGroup]);
 
   const handleWizardComplete = (period) => {
     setFilterBranch(tempBranch);
@@ -432,7 +476,7 @@ const PublicSchedule = () => {
             <h1 className="text-lg font-bold text-gray-900 leading-tight">
               Emploi du Temps · <span dir="rtl" style={{ fontFamily: "'Cairo','Segoe UI',sans-serif" }}>جدول الدروس</span>
             </h1>
-            <p className="text-xs text-gray-400">{filterBranch} · {filterLevel}{periodLabel ? ` · ${periodLabel}` : ''}</p>
+            <p className="text-xs text-gray-400">{filterBranch} · {filterLevel}{filterGroup ? ` · ${filterGroup}` : ''}{periodLabel ? ` · ${periodLabel}` : ''}</p>
           </div>
           <a href="tel:0649698737" className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-red-600 transition-colors">
             <Phone className="w-3.5 h-3.5" /> 0649 69 87 37
@@ -440,10 +484,23 @@ const PublicSchedule = () => {
         </div>
       </header>
 
-      {/* Sub-bar: last group checkbox + count */}
+      {/* Sub-bar: group filter + last group checkbox + count */}
       <div className="bg-white border-b border-gray-100 sticky top-0 z-10 shadow-sm">
         <div className="max-w-4xl mx-auto px-4 py-2 flex flex-wrap items-center gap-2">
           <span className="text-xs text-gray-400 mr-auto">{filteredSessions.length} cours</span>
+
+          {availableGroups.length > 0 && (
+            <select
+              value={filterGroup}
+              onChange={e => setFilterGroup(e.target.value)}
+              className="text-xs bg-blue-50 border border-blue-200 text-blue-800 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">👥 Tous les groupes</option>
+              {availableGroups.map(group => (
+                <option key={group} value={group}>{group}</option>
+              ))}
+            </select>
+          )}
 
           <label className="flex items-center gap-2 cursor-pointer bg-orange-50 border border-orange-200 px-3 py-1.5 rounded-lg hover:bg-orange-100 transition-colors select-none">
             <input

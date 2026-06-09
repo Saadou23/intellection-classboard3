@@ -14,6 +14,8 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
   const [selectedPeriod, setSelectedPeriod] = useState('normal');
   const [availablePeriods, setAvailablePeriods] = useState([]);
   const [filterLastGroupOnly, setFilterLastGroupOnly] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState('ALL');
+  const [availableGroups, setAvailableGroups] = useState([]);
 
   const daysOfWeek = [
     { value: 1, label: 'Lundi' },
@@ -61,18 +63,59 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
     }
   }, [selectedBranch, sessions]);
 
-  const generateSchedule = (branch, level = 'ALL', period = 'normal') => {
+  // Charger les groupes disponibles selon le niveau sélectionné
+  useEffect(() => {
+    if (selectedBranch) {
+      let branchSessions = sessions[selectedBranch] || [];
+
+      // Filtrer par niveau si sélectionné
+      if (selectedLevel !== 'ALL') {
+        branchSessions = branchSessions.filter(s => sessionIncludesLevel(s, selectedLevel));
+      }
+
+      // Extraire tous les groupes
+      const groupsSet = new Set();
+      branchSessions.forEach(s => {
+        if (s.groupes?.length > 0) {
+          s.groupes.forEach(g => groupsSet.add(g));
+        } else if (s.groupe) {
+          groupsSet.add(s.groupe);
+        }
+      });
+      const groups = [...groupsSet].sort((a, b) => {
+        const numA = parseInt(a.replace(/\D/g, '')) || 0;
+        const numB = parseInt(b.replace(/\D/g, '')) || 0;
+        return numA - numB;
+      });
+      setAvailableGroups(groups);
+      setSelectedGroup('ALL');
+    }
+  }, [selectedBranch, selectedLevel, sessions]);
+
+  const generateSchedule = (branch, level = 'ALL', period = 'normal', group = 'ALL') => {
     let branchSessions = sessions[branch] || [];
-    
+
     if (period === 'normal') {
       branchSessions = branchSessions.filter(s => !s.period || s.period === null);
     } else {
       branchSessions = branchSessions.filter(s => s.period === period);
     }
-    
-    let filteredSessions = level === 'ALL' 
-      ? branchSessions 
+
+    let filteredSessions = level === 'ALL'
+      ? branchSessions
       : branchSessions.filter(s => sessionIncludesLevel(s, level));
+
+    // Filtrer par groupe si sélectionné
+    if (group !== 'ALL') {
+      filteredSessions = filteredSessions.filter(s => {
+        if (s.groupes?.length > 0) {
+          return s.groupes.includes(group);
+        } else if (s.groupe) {
+          return s.groupe === group;
+        }
+        return false;
+      });
+    }
 
     if (filterLastGroupOnly) {
       const sessionsByKey = {};
@@ -137,8 +180,8 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
     }
 
     setIsPrinting(true);
-    
-    const schedule = generateSchedule(selectedBranch, selectedLevel, selectedPeriod);
+
+    const schedule = generateSchedule(selectedBranch, selectedLevel, selectedPeriod, selectedGroup);
     const printWindow = window.open('', '_blank');
     
     const periodName = selectedPeriod === 'normal' 
@@ -151,6 +194,9 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
     }
     if (selectedLevel !== 'ALL') {
       title += ` - ${selectedLevel}`;
+    }
+    if (selectedGroup !== 'ALL') {
+      title += ` - ${selectedGroup}`;
     }
     
     // HTML OPTIMISÉ avec Bebas Neue
@@ -393,6 +439,22 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
                 <option value="ALL">Tous les niveaux</option>
                 {availableLevels.map(level => (
                   <option key={level} value={level}>{level}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {selectedBranch && availableGroups.length > 0 && (
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">👥 Groupe</label>
+              <select
+                value={selectedGroup}
+                onChange={(e) => setSelectedGroup(e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+              >
+                <option value="ALL">Tous les groupes</option>
+                {availableGroups.map(group => (
+                  <option key={group} value={group}>{group}</option>
                 ))}
               </select>
             </div>

@@ -9,7 +9,7 @@ const LanguagesCoursesAd = () => {
   const [progress, setProgress] = useState(100);
 
   const DISPLAY_DURATION = 20000;
-  const AUTO_TRIGGER_INTERVAL = 180000;
+  const AUTO_TRIGGER_INTERVAL = 300000;
 
   // Auto-display every 3 minutes
   useEffect(() => {
