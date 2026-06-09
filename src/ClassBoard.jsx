@@ -124,7 +124,7 @@ useSessionNotifications(sessions, selectedBranch, currentTime, soundEnabled);
     endTime: '20:30',
     levels: [], // Changé de 'level' à 'levels' en tableau
     subject: '',
-    groupe: '',
+    groupes: [], // Changé de 'groupe' (string) à 'groupes' (array)
     professor: '',
     room: '',
     status: 'normal',
@@ -610,9 +610,9 @@ const branchNames = branchesArray.map(b => b.name) || [];
       return;
     }
 
-    // Vérifier que le groupe est sélectionné (OBLIGATOIRE)
-    if (!formData.groupe || formData.groupe.trim() === '') {
-      alert('⚠️ Veuillez sélectionner un groupe');
+    // Vérifier que au moins un groupe est sélectionné (OBLIGATOIRE)
+    if (!formData.groupes || formData.groupes.length === 0) {
+      alert('⚠️ Veuillez sélectionner au moins un groupe');
       return;
     }
 
@@ -637,7 +637,7 @@ const branchNames = branchesArray.map(b => b.name) || [];
       const updatedSession = {
         ...formData,
         level: formData.levels.join(' + '), // Combiner les niveaux : "1BAC + 2BAC"
-        groupe: formData.groupe,  // 📌 Ajouter explicitement le groupe
+        groupes: formData.groupes,  // 📌 Ajouter explicitement les groupes (array)
         filiale: selectedBranch,  // 📌 SYNC: Ajouter centre/filiale
         id: editingSession.id,
         period: periodMode
@@ -650,7 +650,7 @@ const branchNames = branchesArray.map(b => b.name) || [];
       await saveBranchData(selectedBranch, updatedSessions);
       
     } else {
-      // MODE AJOUT : Créer une session par niveau
+      // MODE AJOUT : Créer une session par niveau + groupes
       const sessionsToAdd = [];
 
       for (const level of formData.levels) {
@@ -669,7 +669,7 @@ const branchNames = branchesArray.map(b => b.name) || [];
         sessionsToAdd.push({
           ...formData,
           level: level,
-          groupe: formData.groupe,  // 📌 Ajouter explicitement le groupe
+          groupes: formData.groupes,  // 📌 Ajouter explicitement les groupes (array)
           filiale: selectedBranch,  // 📌 SYNC: Ajouter centre/filiale
           id: `${Date.now()}-${level}`,
           period: periodMode
@@ -723,7 +723,7 @@ const branchNames = branchesArray.map(b => b.name) || [];
       endTime: session.endTime,
       levels: levelsArray, // Convertir en tableau
       subject: session.subject,
-      groupe: session.groupe || '', // 📌 AJOUTER: Charger le groupe existant
+      groupes: session.groupes || session.groupe ? [session.groupe] : [], // 📌 Charger les groupes (avec rétro-compatibilité pour groupe)
       professor: session.professor,
       room: session.room,
       status: session.status,
@@ -1134,9 +1134,9 @@ const branchNames = branchesArray.map(b => b.name) || [];
                           </div>
                           <div className="col-span-2 text-sm break-words leading-tight">
                             <div>{session.subject}</div>
-                            {session.groupe && (
+                            {(session.groupes?.length > 0 || session.groupe) && (
                               <div className="text-xs text-blue-500 font-medium mt-0.5">
-                                {session.groupe}
+                                {session.groupes?.length > 0 ? session.groupes.join(', ') : session.groupe}
                               </div>
                             )}
                           </div>
@@ -1701,20 +1701,43 @@ const branchNames = branchesArray.map(b => b.name) || [];
                       )}
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Groupe <span className="text-red-500">*</span>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Groupes <span className="text-red-500">*</span>
                       </label>
-                      <select
-                        value={formData.groupe}
-                        onChange={(e) => setFormData({ ...formData, groupe: e.target.value })}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
-                      >
-                        <option value="">-- Sélectionner un groupe --</option>
-                        {Array.from({ length: maxGroups }, (_, i) => (
-                          <option key={i + 1} value={`G${i + 1}`}>Groupe {i + 1}</option>
-                        ))}
-                      </select>
+                      <div className="grid grid-cols-3 gap-3 border border-gray-300 rounded-lg p-3 bg-white">
+                        {Array.from({ length: maxGroups }, (_, i) => {
+                          const groupId = `G${i + 1}`;
+                          const isSelected = formData.groupes.includes(groupId);
+                          return (
+                            <label key={i + 1} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setFormData({
+                                      ...formData,
+                                      groupes: [...formData.groupes, groupId]
+                                    });
+                                  } else {
+                                    setFormData({
+                                      ...formData,
+                                      groupes: formData.groupes.filter(g => g !== groupId)
+                                    });
+                                  }
+                                }}
+                                className="w-4 h-4 rounded border-gray-300 text-blue-600 cursor-pointer"
+                              />
+                              <span className="text-sm">Groupe {i + 1}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                      {formData.groupes.length > 0 && (
+                        <p className="text-xs text-gray-500 mt-2">
+                          Sélectionnés: {formData.groupes.join(', ')}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <SearchableSelect

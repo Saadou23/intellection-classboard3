@@ -369,10 +369,10 @@ const PublicToday = () => {
                               <span className="text-lg">{session.professor}</span>
                             </div>
                           )}
-                          {session.groupe && (
+                          {(session.groupes?.length > 0 || session.groupe) && (
                             <div className="flex items-center gap-2">
                               <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
-                                {session.groupe}
+                                {session.groupes?.length > 0 ? session.groupes.join(', ') : session.groupe}
                               </span>
                             </div>
                           )}

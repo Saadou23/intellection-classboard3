@@ -19,7 +19,7 @@ const ExceptionalSessionManager = ({
     endTime: '20:30',
     level: '',
     subject: '',
-    groupe: '', // 📌 AJOUTÉ: Groupe (obligatoire)
+    groupes: [], // 📌 CHANGÉ: Groupes (multiples, optionnel)
     professor: '',
     room: '',
     reason: '', // Raison de la séance (rattrapage, supplémentaire, etc.)
@@ -75,11 +75,6 @@ const ExceptionalSessionManager = ({
       return;
     }
 
-    if (!formData.groupe || formData.groupe.trim() === '') {
-      alert('⚠️ Veuillez sélectionner un groupe');
-      return;
-    }
-
     // Calculer dayOfWeek depuis la date
     const selectedDate = new Date(formData.date + 'T00:00:00');
     const dayOfWeek = selectedDate.getDay();
@@ -106,7 +101,7 @@ const ExceptionalSessionManager = ({
       endTime: '20:30',
       level: '',
       subject: '',
-      groupe: '',
+      groupes: [],
       professor: '',
       room: '',
       reason: '',
@@ -245,21 +240,40 @@ const ExceptionalSessionManager = ({
               )}
             </div>
 
-            {/* Groupe */}
+            {/* Groupes */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Groupe <span className="text-gray-400 text-xs">(optionnel)</span>
+                Groupes <span className="text-gray-400 text-xs">(optionnel)</span>
               </label>
-              <select
-                value={formData.groupe}
-                onChange={(e) => setFormData({ ...formData, groupe: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
-              >
-                <option value="">-- Aucun groupe --</option>
-                {Array.from({ length: maxGroups }, (_, i) => (
-                  <option key={i + 1} value={`G${i + 1}`}>Groupe {i + 1}</option>
-                ))}
-              </select>
+              <div className="grid grid-cols-3 gap-3 border border-gray-300 rounded-lg p-3 bg-gray-50">
+                {Array.from({ length: maxGroups }, (_, i) => {
+                  const groupId = `G${i + 1}`;
+                  const isSelected = formData.groupes.includes(groupId);
+                  return (
+                    <label key={i + 1} className="flex items-center gap-2 cursor-pointer hover:bg-white p-2 rounded">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFormData({
+                              ...formData,
+                              groupes: [...formData.groupes, groupId]
+                            });
+                          } else {
+                            setFormData({
+                              ...formData,
+                              groupes: formData.groupes.filter(g => g !== groupId)
+                            });
+                          }
+                        }}
+                        className="w-4 h-4 rounded border-gray-300 text-purple-600 cursor-pointer"
+                      />
+                      <span className="text-sm">Groupe {i + 1}</span>
+                    </label>
+                  );
+                })}
+              </div>
             </div>
 
                         {/* Professeur */}

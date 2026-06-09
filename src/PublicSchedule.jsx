@@ -52,12 +52,17 @@ const applyLastGroupFilter = (sessions) => {
   });
   const result = [];
   Object.values(byKey).forEach(list => {
-    const groups = [...new Set(list.map(s => s.groupe).filter(Boolean))];
+    const groups = [...new Set(list.flatMap(s => s.groupes?.length > 0 ? s.groupes : (s.groupe ? [s.groupe] : [])).filter(Boolean))];
     if (!groups.length) { result.push(...list); return; }
     const lastGroup = groups.sort(
       (a, b) => (parseInt(b.replace(/\D/g, '')) || 0) - (parseInt(a.replace(/\D/g, '')) || 0)
     )[0];
-    list.forEach(s => { if (s.groupe === lastGroup) result.push(s); });
+    list.forEach(s => {
+      const hasGroup = s.groupes?.length > 0
+        ? s.groupes.includes(lastGroup)
+        : s.groupe === lastGroup;
+      if (hasGroup) result.push(s);
+    });
   });
   return result;
 };
@@ -494,9 +499,9 @@ const PublicSchedule = () => {
                               <div className="font-semibold text-gray-800 text-sm">{session.subject}</div>
                               {session.level && <div className="text-xs text-gray-400 mt-0.5">{session.level}</div>}
                             </div>
-                            {session.groupe && (
+                            {(session.groupes?.length > 0 || session.groupe) && (
                               <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${color.badge}`}>
-                                {session.groupe}
+                                {session.groupes?.length > 0 ? session.groupes.join(', ') : session.groupe}
                               </span>
                             )}
                             <div className="flex items-center gap-1.5 text-sm text-gray-500 min-w-[100px]">

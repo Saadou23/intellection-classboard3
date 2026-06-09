@@ -17,7 +17,8 @@ export const DataSyncService = {
       level: session.level || session.niveau || 'N/A',
       subject: session.subject || session.matiere || 'N/A',
       professor: session.professor || session.professorName || 'N/A',
-      groupe: session.groupe || 'N/A',
+      groupes: session.groupes || (session.groupe ? [session.groupe] : []),
+      groupe: session.groupes?.length > 0 ? session.groupes.join(', ') : (session.groupe || 'N/A'),
       filiale: session.filiale || 'N/A',
 
       // Timing
@@ -62,10 +63,6 @@ export const DataSyncService = {
 
     if (!normalized.professor || normalized.professor === 'N/A') {
       errors.push('❌ Missing: professor/professorName');
-    }
-
-    if (!normalized.groupe || normalized.groupe === 'N/A') {
-      errors.push('❌ Missing: groupe');
     }
 
     if (!normalized.filiale || normalized.filiale === 'N/A') {
@@ -189,7 +186,7 @@ export const DataSyncService = {
     // Add recommendations
     if (syncReadiness.invalid > 0) {
       report.recommendations.push('⚠️  Fix invalid sessions before syncing with mobile');
-      report.recommendations.push('📋 Check sessions missing required fields: level, subject, professor, groupe');
+      report.recommendations.push('📋 Check sessions missing required fields: level, subject, professor');
     }
 
     if (syncReadiness.syncReadyPercentage < 100) {

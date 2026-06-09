@@ -84,14 +84,25 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
       const filteredByGroup = [];
       Object.values(sessionsByKey).forEach(groupSessions => {
         const groupsSet = new Set();
-        groupSessions.forEach(s => { if (s.groupe) groupsSet.add(s.groupe); });
+        groupSessions.forEach(s => {
+          if (s.groupes?.length > 0) {
+            s.groupes.forEach(g => groupsSet.add(g));
+          } else if (s.groupe) {
+            groupsSet.add(s.groupe);
+          }
+        });
         const sortedGroups = Array.from(groupsSet).sort((a, b) => {
           const numA = parseInt(a.replace(/\D/g, '')) || 0;
           const numB = parseInt(b.replace(/\D/g, '')) || 0;
           return numB - numA;
         });
         const lastGroup = sortedGroups[0];
-        groupSessions.forEach(s => { if (s.groupe === lastGroup) filteredByGroup.push(s); });
+        groupSessions.forEach(s => {
+          const hasGroup = s.groupes?.length > 0
+            ? s.groupes.includes(lastGroup)
+            : s.groupe === lastGroup;
+          if (hasGroup) filteredByGroup.push(s);
+        });
       });
       filteredSessions = filteredByGroup;
     }
@@ -284,12 +295,13 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
 `;
         
         dayData.sessions.forEach(session => {
+          const groupesDisplay = session.groupes?.length > 0 ? session.groupes.join(', ') : (session.groupe || '-');
           printContent += `
     <div class="session">
       <div class="time">${formatTime(session.startTime)} - ${formatTime(session.endTime)}</div>
       <div class="details">
         <div>${session.subject || '-'}</div>
-        <div>${session.professor || '-'} - Groupe: ${session.groupe || '-'}</div>
+        <div>${session.professor || '-'} - Groupes: ${groupesDisplay}</div>
       </div>
     </div>
 `;

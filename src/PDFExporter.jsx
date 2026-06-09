@@ -102,6 +102,7 @@ const PDFExporter = ({ sessions, filterValue, filterType = 'branch', periodName 
           session.startTime + ' - ' + session.endTime,
           session.level || '-',
           session.subject || '-',
+          session.groupes?.length > 0 ? session.groupes.join(', ') : session.groupe || '-',
           session.professor || '-',
           session.room || '-',
           session.branch || '-',
@@ -111,7 +112,7 @@ const PDFExporter = ({ sessions, filterValue, filterType = 'branch', periodName 
         // Générer le tableau
         doc.autoTable({
           startY: yPosition,
-          head: [['Horaire', 'Niveau', 'Matière', 'Professeur', 'Salle', 'Centre', 'Statut']],
+          head: [['Horaire', 'Niveau', 'Matière', 'Groupes', 'Professeur', 'Salle', 'Centre', 'Statut']],
           body: tableData,
           theme: 'grid',
           headStyles: {
@@ -124,13 +125,14 @@ const PDFExporter = ({ sessions, filterValue, filterType = 'branch', periodName 
             fontSize: 9
           },
           columnStyles: {
-            0: { cellWidth: 30 },
-            1: { cellWidth: 28 },
-            2: { cellWidth: 45 },
-            3: { cellWidth: 45 },
-            4: { cellWidth: 20 },
-            5: { cellWidth: 30 },
-            6: { cellWidth: 25 }
+            0: { cellWidth: 28 },
+            1: { cellWidth: 22 },
+            2: { cellWidth: 35 },
+            3: { cellWidth: 25 },
+            4: { cellWidth: 38 },
+            5: { cellWidth: 18 },
+            6: { cellWidth: 25 },
+            7: { cellWidth: 22 }
           },
           margin: { left: 15, right: 15 },
           didDrawPage: (data) => {
