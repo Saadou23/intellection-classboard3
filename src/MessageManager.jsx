@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { MessageSquare, Save, X, Plus, Trash2, Send } from 'lucide-react';
-import { db } from './firebase';
+import { MessageSquare, Save, X, Plus, Trash2, Send, Upload } from 'lucide-react';
+import { db, storage } from './firebase';
 import { doc, setDoc, getDoc, addDoc, collection } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 const MessageManager = () => {
   const [messages, setMessages] = useState([]);
@@ -17,6 +18,45 @@ const MessageManager = () => {
   const [concoursSuccess, setConcoursSuccess] = useState(false);
   const [launchingLanguages, setLaunchingLanguages] = useState(false);
   const [languagesSuccess, setLanguagesSuccess] = useState(false);
+
+  // Paramètres des publicités
+  const [adParams, setAdParams] = useState({
+    enabled: true,
+    frequencyMinutes: 4,
+    featureSlideDuration: 2,
+    qrSlideDuration: 15,
+    resultSlideDuration: 10
+  });
+  const [savingAdParams, setSavingAdParams] = useState(false);
+  const [adParamsSuccess, setAdParamsSuccess] = useState(false);
+
+  // Slides des publicités
+  const [adSlides, setAdSlides] = useState([
+    { icon: 'Calendar', color: 'blue', title: 'Consultez vos emplois du temps', description: 'Accédez instantanément à votre emploi du temps complet' },
+    { icon: 'Bell', color: 'red', title: 'Recevez les notifications', description: 'Soyez alerté des absences ou retards des professeurs' },
+    { icon: 'BookOpen', color: 'purple', title: 'Demandez des cours individuels', description: 'Accédez aux supports de cours et exercices électroniques' },
+    { icon: 'Zap', color: 'amber', title: 'Restez connectés', description: 'Suivi en temps réel de votre scolarité' },
+    { icon: 'Bell', color: 'green', title: 'Suivi Parental en Temps Réel', description: 'Les parents suivent précisément: présences, emploi du temps, performances et communications directes' }
+  ]);
+  const [savingAdSlides, setSavingAdSlides] = useState(false);
+  const [adSlidesSuccess, setAdSlidesSuccess] = useState(false);
+
+  // Images et Durées des Pubs
+  const [concoursImage, setConcoursImage] = useState({
+    url: '/concours-prep.jpg',
+    displayDuration: 30
+  });
+  const [savingConcoursImage, setSavingConcoursImage] = useState(false);
+  const [concoursImageSuccess, setConcoursImageSuccess] = useState(false);
+  const [uploadingConcoursImage, setUploadingConcoursImage] = useState(false);
+
+  const [languagesImage, setLanguagesImage] = useState({
+    url: '/languages-courses.jpg',
+    displayDuration: 30
+  });
+  const [savingLanguagesImage, setSavingLanguagesImage] = useState(false);
+  const [languagesImageSuccess, setLanguagesImageSuccess] = useState(false);
+  const [uploadingLanguagesImage, setUploadingLanguagesImage] = useState(false);
 
   // Charger les messages depuis Firebase
   useEffect(() => {
@@ -36,6 +76,78 @@ const MessageManager = () => {
     };
 
     loadMessages();
+  }, []);
+
+  // Charger les paramètres des publicités depuis Firebase
+  useEffect(() => {
+    const loadAdParams = async () => {
+      try {
+        const docRef = doc(db, 'settings', 'advertisement_params');
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+          setAdParams(docSnap.data());
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des paramètres:', error);
+      }
+    };
+
+    loadAdParams();
+  }, []);
+
+  // Charger les slides des publicités depuis Firebase
+  useEffect(() => {
+    const loadAdSlides = async () => {
+      try {
+        const docRef = doc(db, 'settings', 'advertisement_slides');
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+          setAdSlides(docSnap.data().slides || adSlides);
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des slides:', error);
+      }
+    };
+
+    loadAdSlides();
+  }, []);
+
+  // Charger images Concours Prep
+  useEffect(() => {
+    const loadConcours = async () => {
+      try {
+        const docRef = doc(db, 'settings', 'concours_prep_image');
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+          setConcoursImage(docSnap.data());
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement Concours:', error);
+      }
+    };
+
+    loadConcours();
+  }, []);
+
+  // Charger images Langues Courses
+  useEffect(() => {
+    const loadLanguages = async () => {
+      try {
+        const docRef = doc(db, 'settings', 'languages_courses_image');
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+          setLanguagesImage(docSnap.data());
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement Langues:', error);
+      }
+    };
+
+    loadLanguages();
   }, []);
 
   // Sauvegarder les messages dans Firebase
@@ -160,6 +272,108 @@ const MessageManager = () => {
       console.error('Erreur lors du lancement de l\'annonce:', error);
       alert('❌ Erreur lors du lancement de l\'annonce');
     }
+  };
+
+  // Sauvegarder les paramètres des publicités
+  const saveAdParams = async () => {
+    setSavingAdParams(true);
+    try {
+      const docRef = doc(db, 'settings', 'advertisement_params');
+      await setDoc(docRef, adParams);
+      setAdParamsSuccess(true);
+      setTimeout(() => setAdParamsSuccess(false), 3000);
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde des paramètres:', error);
+      alert('❌ Erreur lors de la sauvegarde');
+    }
+    setSavingAdParams(false);
+  };
+
+  // Sauvegarder les slides des publicités
+  const saveAdSlides = async () => {
+    setSavingAdSlides(true);
+    try {
+      const docRef = doc(db, 'settings', 'advertisement_slides');
+      await setDoc(docRef, { slides: adSlides });
+      setAdSlidesSuccess(true);
+      setTimeout(() => setAdSlidesSuccess(false), 3000);
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde des slides:', error);
+      alert('❌ Erreur lors de la sauvegarde');
+    }
+    setSavingAdSlides(false);
+  };
+
+  // Upload image Concours Prep
+  const uploadConcoursImage = async (file) => {
+    if (!file) return;
+    setUploadingConcoursImage(true);
+    try {
+      const timestamp = Date.now();
+      const fileName = `concours-prep-${timestamp}`;
+      const storageRef = ref(storage, `advertisements/concours/${fileName}`);
+
+      await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(storageRef);
+
+      setConcoursImage({...concoursImage, url: downloadURL});
+      alert('✅ Image uploadée avec succès!');
+    } catch (error) {
+      console.error('Erreur upload Concours:', error);
+      alert('❌ Erreur lors de l\'upload');
+    }
+    setUploadingConcoursImage(false);
+  };
+
+  // Upload image Langues Courses
+  const uploadLanguagesImage = async (file) => {
+    if (!file) return;
+    setUploadingLanguagesImage(true);
+    try {
+      const timestamp = Date.now();
+      const fileName = `languages-courses-${timestamp}`;
+      const storageRef = ref(storage, `advertisements/languages/${fileName}`);
+
+      await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(storageRef);
+
+      setLanguagesImage({...languagesImage, url: downloadURL});
+      alert('✅ Image uploadée avec succès!');
+    } catch (error) {
+      console.error('Erreur upload Langues:', error);
+      alert('❌ Erreur lors de l\'upload');
+    }
+    setUploadingLanguagesImage(false);
+  };
+
+  // Sauvegarder image Concours Prep
+  const saveConcoursImage = async () => {
+    setSavingConcoursImage(true);
+    try {
+      const docRef = doc(db, 'settings', 'concours_prep_image');
+      await setDoc(docRef, concoursImage);
+      setConcoursImageSuccess(true);
+      setTimeout(() => setConcoursImageSuccess(false), 3000);
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde Concours:', error);
+      alert('❌ Erreur lors de la sauvegarde');
+    }
+    setSavingConcoursImage(false);
+  };
+
+  // Sauvegarder image Langues Courses
+  const saveLanguagesImage = async () => {
+    setSavingLanguagesImage(true);
+    try {
+      const docRef = doc(db, 'settings', 'languages_courses_image');
+      await setDoc(docRef, languagesImage);
+      setLanguagesImageSuccess(true);
+      setTimeout(() => setLanguagesImageSuccess(false), 3000);
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde Langues:', error);
+      alert('❌ Erreur lors de la sauvegarde');
+    }
+    setSavingLanguagesImage(false);
   };
 
   if (loading) {
@@ -396,6 +610,399 @@ const MessageManager = () => {
               <>
                 <Send className="w-5 h-5" />
                 🌍 Langues
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Paramètres des publicités */}
+        <div className="mt-8 border-t pt-6">
+          <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+            ⚙️ Paramètres des Publicités
+          </h3>
+
+          {adParamsSuccess && (
+            <div className="bg-green-100 border-l-4 border-green-600 p-4 mb-4 rounded">
+              <p className="text-green-700 font-medium">✅ Paramètres sauvegardés!</p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            {/* Activé/Désactivé */}
+            <div className="bg-gray-50 p-4 rounded-lg border-2 border-gray-200">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={adParams.enabled}
+                  onChange={(e) => setAdParams({...adParams, enabled: e.target.checked})}
+                  className="w-5 h-5 rounded"
+                />
+                <span className="font-medium text-gray-700">Publicités activées</span>
+              </label>
+            </div>
+
+            {/* Fréquence */}
+            <div className="bg-gray-50 p-4 rounded-lg border-2 border-gray-200">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                📊 Fréquence d'affichage (minutes)
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="60"
+                value={adParams.frequencyMinutes}
+                onChange={(e) => setAdParams({...adParams, frequencyMinutes: parseInt(e.target.value)})}
+                className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="text-xs text-gray-500 mt-1">Actuellement: {adParams.frequencyMinutes} min</p>
+            </div>
+
+            {/* Durée slides features */}
+            <div className="bg-gray-50 p-4 rounded-lg border-2 border-gray-200">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                ⏱️ Durée slides Features (secondes)
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="10"
+                value={adParams.featureSlideDuration}
+                onChange={(e) => setAdParams({...adParams, featureSlideDuration: parseInt(e.target.value)})}
+                className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="text-xs text-gray-500 mt-1">×5 slides = {adParams.featureSlideDuration * 5}s total</p>
+            </div>
+
+            {/* Durée slide QR */}
+            <div className="bg-gray-50 p-4 rounded-lg border-2 border-gray-200">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                📱 Durée slide QR Code (secondes)
+              </label>
+              <input
+                type="number"
+                min="5"
+                max="30"
+                value={adParams.qrSlideDuration}
+                onChange={(e) => setAdParams({...adParams, qrSlideDuration: parseInt(e.target.value)})}
+                className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="text-xs text-gray-500 mt-1">Actuellement: {adParams.qrSlideDuration}s</p>
+            </div>
+
+            {/* Durée slides résultats */}
+            <div className="bg-gray-50 p-4 rounded-lg border-2 border-gray-200">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                📈 Durée slides Résultats (secondes)
+              </label>
+              <input
+                type="number"
+                min="5"
+                max="30"
+                value={adParams.resultSlideDuration}
+                onChange={(e) => setAdParams({...adParams, resultSlideDuration: parseInt(e.target.value)})}
+                className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="text-xs text-gray-500 mt-1">×4 slides = {adParams.resultSlideDuration * 4}s total</p>
+            </div>
+
+            {/* Résumé */}
+            <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
+              <p className="font-medium text-blue-900 mb-2">📊 Durée totale d'une pub:</p>
+              <p className="text-lg font-bold text-blue-700">
+                {(adParams.featureSlideDuration * 5) + adParams.qrSlideDuration + (adParams.resultSlideDuration * 4)} secondes
+              </p>
+              <p className="text-xs text-blue-600 mt-1">({((adParams.featureSlideDuration * 5) + adParams.qrSlideDuration + (adParams.resultSlideDuration * 4)) / 60}.{Math.round(((adParams.featureSlideDuration * 5) + adParams.qrSlideDuration + (adParams.resultSlideDuration * 4)) % 60)}min)</p>
+            </div>
+          </div>
+
+          <button
+            onClick={saveAdParams}
+            disabled={savingAdParams}
+            className={`py-3 px-6 rounded-lg font-bold text-white flex items-center justify-center gap-2 transition ${
+              savingAdParams
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-green-600 hover:bg-green-700'
+            }`}
+          >
+            {savingAdParams ? (
+              <>
+                <span className="animate-spin">⏳</span>
+                Sauvegarde...
+              </>
+            ) : (
+              <>
+                <Save className="w-5 h-5" />
+                Sauvegarder les paramètres
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Slides des Publicités */}
+        <div className="mt-8 border-t pt-6">
+          <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+            📺 Slides des Publicités (Features)
+          </h3>
+
+          {adSlidesSuccess && (
+            <div className="bg-green-100 border-l-4 border-green-600 p-4 mb-4 rounded">
+              <p className="text-green-700 font-medium">✅ Slides sauvegardés!</p>
+            </div>
+          )}
+
+          <div className="space-y-4 mb-4">
+            {adSlides.map((slide, idx) => (
+              <div key={idx} className="bg-gray-50 p-4 rounded-lg border-2 border-gray-200">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Slide {idx + 1} - Titre
+                    </label>
+                    <input
+                      type="text"
+                      value={slide.title}
+                      onChange={(e) => {
+                        const updated = [...adSlides];
+                        updated[idx].title = e.target.value;
+                        setAdSlides(updated);
+                      }}
+                      className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Couleur (Icône)
+                    </label>
+                    <input
+                      type="text"
+                      value={slide.color}
+                      onChange={(e) => {
+                        const updated = [...adSlides];
+                        updated[idx].color = e.target.value;
+                        setAdSlides(updated);
+                      }}
+                      placeholder="blue, red, purple, amber, green..."
+                      className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Description
+                  </label>
+                  <textarea
+                    value={slide.description}
+                    onChange={(e) => {
+                      const updated = [...adSlides];
+                      updated[idx].description = e.target.value;
+                      setAdSlides(updated);
+                    }}
+                    rows="2"
+                    className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <button
+            onClick={saveAdSlides}
+            disabled={savingAdSlides}
+            className={`py-3 px-6 rounded-lg font-bold text-white flex items-center justify-center gap-2 transition ${
+              savingAdSlides
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700'
+            }`}
+          >
+            {savingAdSlides ? (
+              <>
+                <span className="animate-spin">⏳</span>
+                Sauvegarde...
+              </>
+            ) : (
+              <>
+                <Save className="w-5 h-5" />
+                Sauvegarder les Slides
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Image Concours Prep */}
+        <div className="mt-8 border-t pt-6">
+          <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+            🎓 Image Pub Préparation Concours
+          </h3>
+
+          {concoursImageSuccess && (
+            <div className="bg-green-100 border-l-4 border-green-600 p-4 mb-4 rounded">
+              <p className="text-green-700 font-medium">✅ Image Concours sauvegardée!</p>
+            </div>
+          )}
+
+          <div className="bg-gray-50 p-4 rounded-lg border-2 border-gray-200 mb-4 space-y-4">
+            {/* Preview image */}
+            {concoursImage.url && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">📸 Aperçu</label>
+                <img src={concoursImage.url} alt="Concours" className="w-full h-48 object-cover rounded-lg" />
+              </div>
+            )}
+
+            {/* Upload image */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                📤 Upload Image (JPG, PNG)
+              </label>
+              <input
+                type="file"
+                accept="image/jpeg,image/png"
+                onChange={(e) => {
+                  if (e.target.files?.[0]) {
+                    uploadConcoursImage(e.target.files[0]);
+                  }
+                }}
+                disabled={uploadingConcoursImage}
+                className="block w-full text-sm text-gray-500
+                  file:mr-4 file:py-2 file:px-4
+                  file:rounded-lg file:border-0
+                  file:text-sm file:font-semibold
+                  file:bg-yellow-600 file:text-white
+                  hover:file:bg-yellow-700
+                  cursor-pointer border-2 border-dashed border-yellow-300 rounded-lg p-3"
+              />
+              <p className="text-xs text-gray-500 mt-1">Format: JPG ou PNG (max 5MB)</p>
+              {uploadingConcoursImage && (
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="animate-spin">⏳</span>
+                  <span className="text-sm text-gray-600">Upload en cours...</span>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                ⏱️ Durée d'affichage (secondes)
+              </label>
+              <input
+                type="number"
+                min="10"
+                max="120"
+                value={concoursImage.displayDuration}
+                onChange={(e) => setConcoursImage({...concoursImage, displayDuration: parseInt(e.target.value)})}
+                className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+              />
+            </div>
+          </div>
+
+          <button
+            onClick={saveConcoursImage}
+            disabled={savingConcoursImage}
+            className={`py-3 px-6 rounded-lg font-bold text-white flex items-center justify-center gap-2 transition ${
+              savingConcoursImage
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-yellow-600 hover:bg-yellow-700'
+            }`}
+          >
+            {savingConcoursImage ? (
+              <>
+                <span className="animate-spin">⏳</span>
+                Sauvegarde...
+              </>
+            ) : (
+              <>
+                <Save className="w-5 h-5" />
+                Sauvegarder Image Concours
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Image Langues Courses */}
+        <div className="mt-8 border-t pt-6">
+          <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+            🌍 Image Pub Inscriptions Langues
+          </h3>
+
+          {languagesImageSuccess && (
+            <div className="bg-green-100 border-l-4 border-green-600 p-4 mb-4 rounded">
+              <p className="text-green-700 font-medium">✅ Image Langues sauvegardée!</p>
+            </div>
+          )}
+
+          <div className="bg-gray-50 p-4 rounded-lg border-2 border-gray-200 mb-4 space-y-4">
+            {/* Preview image */}
+            {languagesImage.url && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">📸 Aperçu</label>
+                <img src={languagesImage.url} alt="Langues" className="w-full h-48 object-cover rounded-lg" />
+              </div>
+            )}
+
+            {/* Upload image */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                📤 Upload Image (JPG, PNG)
+              </label>
+              <input
+                type="file"
+                accept="image/jpeg,image/png"
+                onChange={(e) => {
+                  if (e.target.files?.[0]) {
+                    uploadLanguagesImage(e.target.files[0]);
+                  }
+                }}
+                disabled={uploadingLanguagesImage}
+                className="block w-full text-sm text-gray-500
+                  file:mr-4 file:py-2 file:px-4
+                  file:rounded-lg file:border-0
+                  file:text-sm file:font-semibold
+                  file:bg-green-600 file:text-white
+                  hover:file:bg-green-700
+                  cursor-pointer border-2 border-dashed border-green-300 rounded-lg p-3"
+              />
+              <p className="text-xs text-gray-500 mt-1">Format: JPG ou PNG (max 5MB)</p>
+              {uploadingLanguagesImage && (
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="animate-spin">⏳</span>
+                  <span className="text-sm text-gray-600">Upload en cours...</span>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                ⏱️ Durée d'affichage (secondes)
+              </label>
+              <input
+                type="number"
+                min="10"
+                max="120"
+                value={languagesImage.displayDuration}
+                onChange={(e) => setLanguagesImage({...languagesImage, displayDuration: parseInt(e.target.value)})}
+                className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+            </div>
+          </div>
+
+          <button
+            onClick={saveLanguagesImage}
+            disabled={savingLanguagesImage}
+            className={`py-3 px-6 rounded-lg font-bold text-white flex items-center justify-center gap-2 transition ${
+              savingLanguagesImage
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-green-600 hover:bg-green-700'
+            }`}
+          >
+            {savingLanguagesImage ? (
+              <>
+                <span className="animate-spin">⏳</span>
+                Sauvegarde...
+              </>
+            ) : (
+              <>
+                <Save className="w-5 h-5" />
+                Sauvegarder Image Langues
               </>
             )}
           </button>

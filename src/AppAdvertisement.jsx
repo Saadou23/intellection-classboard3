@@ -1,12 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, Bell, BookOpen, Zap, Download } from 'lucide-react';
 import { db } from './firebase';
-import { onSnapshot, collection } from 'firebase/firestore';
+import { onSnapshot, collection, doc, getDoc } from 'firebase/firestore';
 
 const AppAdvertisement = ({ onAdVisibilityChange }) => {
   const [showAd, setShowAd] = useState(false);
   const [shouldRender, setShouldRender] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [adParams, setAdParams] = useState({
+    enabled: true,
+    frequencyMinutes: 4,
+    featureSlideDuration: 2,
+    qrSlideDuration: 15,
+    resultSlideDuration: 10
+  });
+  const [adSlides, setAdSlides] = useState([
+    { icon: 'Calendar', color: 'blue', title: 'Consultez vos emplois du temps', description: 'Accédez instantanément à votre emploi du temps complet' },
+    { icon: 'Bell', color: 'red', title: 'Recevez les notifications', description: 'Soyez alerté des absences ou retards des professeurs' },
+    { icon: 'BookOpen', color: 'purple', title: 'Demandez des cours individuels', description: 'Accédez aux supports de cours et exercices électroniques' },
+    { icon: 'Zap', color: 'amber', title: 'Restez connectés', description: 'Suivi en temps réel de votre scolarité' },
+    { icon: 'Bell', color: 'green', title: 'Suivi Parental en Temps Réel', description: 'Les parents suivent précisément: présences, emploi du temps, performances et communications directes' }
+  ]);
   const audioRef = React.useRef(null);
 
   const appleUrl = 'https://apps.apple.com/ma/app/intellection-classboard/id6758705463?l=ar';
@@ -16,18 +30,14 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
 
   const resultImages = ['/results-27950.jpg', '/results-3422.jpg', '/results-9168.jpg', '/results-4.jpg'];
 
+  const iconMap = {
+    Calendar, Bell, BookOpen, Zap
+  };
+
   const getAnimationClass = (index) => {
     const animations = ['zoom-in-rotate', 'slide-in-left', 'zoom-in', 'slide-in-right', 'slide-up', 'zoom-in-rotate', 'slide-in-left'];
     return animations[index % animations.length];
   };
-
-  const slides = [
-    { icon: Calendar, color: 'blue', title: 'Consultez vos emplois du temps', description: 'Accédez instantanément à votre emploi du temps complet' },
-    { icon: Bell, color: 'red', title: 'Recevez les notifications', description: 'Soyez alerté des absences ou retards des professeurs' },
-    { icon: BookOpen, color: 'purple', title: 'Demandez des cours individuels', description: 'Accédez aux supports de cours et exercices électroniques' },
-    { icon: Zap, color: 'amber', title: 'Restez connectés', description: 'Suivi en temps réel de votre scolarité' },
-    { icon: Bell, color: 'green', title: 'Suivi Parental en Temps Réel', description: 'Les parents suivent précisément: présences, emploi du temps, performances et communications directes' }
-  ];
 
   const playAdSoundtrack = () => {
     try {
@@ -48,6 +58,38 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
     } catch (e) {}
   };
 
+  // Charger les paramètres depuis Firebase
+  useEffect(() => {
+    const loadAdParams = async () => {
+      try {
+        const docRef = doc(db, 'settings', 'advertisement_params');
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setAdParams(docSnap.data());
+        }
+      } catch (error) {
+        console.error('Erreur chargement paramètres:', error);
+      }
+    };
+    loadAdParams();
+  }, []);
+
+  // Charger les slides depuis Firebase
+  useEffect(() => {
+    const loadSlides = async () => {
+      try {
+        const docRef = doc(db, 'settings', 'advertisement_slides');
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setAdSlides(docSnap.data().slides || adSlides);
+        }
+      } catch (error) {
+        console.error('Erreur chargement slides:', error);
+      }
+    };
+    loadSlides();
+  }, []);
+
   useEffect(() => {
     if (onAdVisibilityChange) onAdVisibilityChange(showAd);
     if (showAd) playAdSoundtrack();
@@ -55,8 +97,10 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
   }, [showAd, onAdVisibilityChange]);
 
 
-  // Main advertisement - USING EXACT OLD LOGIC with UPDATED TIMINGS
+  // Main advertisement - USING PARAMÈTRES CONFIGURABLES
   useEffect(() => {
+    if (!adParams.enabled) return;
+
     const showAdvertisement = () => {
       setShouldRender(true);
       setShowAd(true);
@@ -65,32 +109,32 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
       const intervals = [];
       let currentTime = 0;
 
-      // Features slides: 2s each
-      for (let i = 0; i < slides.length; i++) {
+      // Features slides: duration from params
+      for (let i = 0; i < adSlides.length; i++) {
         intervals.push(
           setTimeout(() => {
             setCurrentSlide(i);
           }, currentTime)
         );
-        currentTime += 2000;
+        currentTime += adParams.featureSlideDuration * 1000;
       }
 
-      // QR slide: 15s
+      // QR slide: duration from params
       intervals.push(
         setTimeout(() => {
-          setCurrentSlide(slides.length);
+          setCurrentSlide(adSlides.length);
         }, currentTime)
       );
-      currentTime += 15000;
+      currentTime += adParams.qrSlideDuration * 1000;
 
-      // Results slides: 10s each
+      // Results slides: duration from params
       for (let i = 0; i < resultImages.length; i++) {
         intervals.push(
           setTimeout(() => {
-            setCurrentSlide(slides.length + 1 + i);
+            setCurrentSlide(adSlides.length + 1 + i);
           }, currentTime)
         );
-        currentTime += 10000;
+        currentTime += adParams.resultSlideDuration * 1000;
       }
 
       // Close ad
@@ -106,13 +150,13 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
     };
 
     const cleanup = showAdvertisement();
-    const recurringInterval = setInterval(showAdvertisement, 240000);
+    const recurringInterval = setInterval(showAdvertisement, adParams.frequencyMinutes * 60 * 1000);
 
     return () => {
       cleanup();
       clearInterval(recurringInterval);
     };
-  }, [slides.length]);
+  }, [adSlides.length, adParams]);
 
   // Admin trigger
   useEffect(() => {
@@ -126,32 +170,32 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
           const intervals = [];
           let currentTime = 0;
 
-          // Features slides: 2s each
+          // Features slides: duration from params
           for (let i = 0; i < slides.length; i++) {
             intervals.push(
               setTimeout(() => {
                 setCurrentSlide(i);
               }, currentTime)
             );
-            currentTime += 2000;
+            currentTime += adParams.featureSlideDuration * 1000;
           }
 
-          // QR slide: 15s
+          // QR slide: duration from params
           intervals.push(
             setTimeout(() => {
               setCurrentSlide(slides.length);
             }, currentTime)
           );
-          currentTime += 15000;
+          currentTime += adParams.qrSlideDuration * 1000;
 
-          // Results slides: 10s each
+          // Results slides: duration from params
           for (let i = 0; i < resultImages.length; i++) {
             intervals.push(
               setTimeout(() => {
-                setCurrentSlide(slides.length + 1 + i);
+                setCurrentSlide(adSlides.length + 1 + i);
               }, currentTime)
             );
-            currentTime += 10000;
+            currentTime += adParams.resultSlideDuration * 1000;
           }
 
           // Close ad
@@ -164,7 +208,7 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
     });
 
     return () => unsubscribe();
-  }, [slides.length]);
+  }, [adSlides.length, adParams]);
 
   if (!shouldRender) return null;
 
@@ -206,22 +250,22 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
         </button>
 
         <div className="absolute top-0 left-0 right-0 h-1 bg-gray-800">
-          <div className="h-full bg-red-600 transition-all duration-500" style={{ width: `${((currentSlide + 1) / (slides.length + 2 + resultImages.length)) * 100}%` }}></div>
+          <div className="h-full bg-red-600 transition-all duration-500" style={{ width: `${((currentSlide + 1) / (adSlides.length + 2 + resultImages.length)) * 100}%` }}></div>
         </div>
 
         <div className="w-full h-full flex items-center justify-center">
-          {currentSlide >= 0 && currentSlide < slides.length && (
+          {currentSlide >= 0 && currentSlide < adSlides.length && (
             <div key={`slide-${currentSlide}`} className={`teaser-slide text-center text-white px-8 max-w-4xl ${getAnimationClass(currentSlide)}`}>
               <div className="flex flex-col items-center justify-center">
-                {React.createElement(slides[currentSlide].icon, { className: `w-40 h-40 mb-3 text-${slides[currentSlide].color}-500 icon-bounce` })}
-                <h2 className="text-5xl font-black tracking-tight leading-tight text-center text-white slide-in">{slides[currentSlide].title}</h2>
-                <p className="text-xl text-gray-300 leading-relaxed max-w-2xl mx-auto mb-4 mt-4">{slides[currentSlide].description}</p>
+                {React.createElement(iconMap[adSlides[currentSlide].icon], { className: `w-40 h-40 mb-3 text-${adSlides[currentSlide].color}-500 icon-bounce` })}
+                <h2 className="text-5xl font-black tracking-tight leading-tight text-center text-white slide-in">{adSlides[currentSlide].title}</h2>
+                <p className="text-xl text-gray-300 leading-relaxed max-w-2xl mx-auto mb-4 mt-4">{adSlides[currentSlide].description}</p>
                 <img src="/logo-intellection.png" alt="Intellection" className="w-56 h-56 object-contain logo-3d mb-3" />
               </div>
             </div>
           )}
 
-          {currentSlide === slides.length && (
+          {currentSlide === adSlides.length && (
             <div key="qr-slide" className="teaser-slide w-full py-4 zoom-in">
               <div className="max-w-6xl mx-auto px-8">
                 <div className="text-center mb-4">
@@ -264,10 +308,10 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
             </div>
           )}
 
-          {currentSlide > slides.length && currentSlide <= slides.length + resultImages.length && (
+          {currentSlide > adSlides.length && currentSlide <= adSlides.length + resultImages.length && (
             <div className="teaser-slide w-full py-4">
               <div className="max-w-6xl mx-auto px-8 h-full flex items-center justify-center">
-                <img src={resultImages[currentSlide - slides.length - 1]} alt={`Résultats`} className="w-full h-auto object-contain max-h-[90vh] rounded-lg shadow-2xl" />
+                <img src={resultImages[currentSlide - adSlides.length - 1]} alt={`Résultats`} className="w-full h-auto object-contain max-h-[90vh] rounded-lg shadow-2xl" />
               </div>
             </div>
           )}

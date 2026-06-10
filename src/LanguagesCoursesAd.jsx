@@ -1,14 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { db } from './firebase';
-import { onSnapshot, collection } from 'firebase/firestore';
+import { onSnapshot, collection, doc, getDoc } from 'firebase/firestore';
 
 const LanguagesCoursesAd = () => {
   const [showAd, setShowAd] = useState(false);
   const [shouldRender, setShouldRender] = useState(false);
   const [progress, setProgress] = useState(100);
+  const [imageUrl, setImageUrl] = useState('/languages-courses.jpg');
+  const [displayDuration, setDisplayDuration] = useState(30000);
 
-  const DISPLAY_DURATION = 20000;
+  // Charger l'image et durée depuis Firebase
+  useEffect(() => {
+    const loadImageConfig = async () => {
+      try {
+        const docRef = doc(db, 'settings', 'languages_courses_image');
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setImageUrl(docSnap.data().url || '/languages-courses.jpg');
+          setDisplayDuration((docSnap.data().displayDuration || 30) * 1000);
+        }
+      } catch (error) {
+        console.error('Erreur chargement image Langues:', error);
+      }
+    };
+    loadImageConfig();
+  }, []);
+
   const AUTO_TRIGGER_INTERVAL = 300000;
 
   // Auto-display every 3 minutes
@@ -21,10 +39,10 @@ const LanguagesCoursesAd = () => {
       const closeTimer = setTimeout(() => {
         setShowAd(false);
         setTimeout(() => setShouldRender(false), 500);
-      }, DISPLAY_DURATION);
+      }, displayDuration);
 
       const progressInterval = setInterval(() => {
-        setProgress(prev => Math.max(0, prev - (100 / (DISPLAY_DURATION / 100))));
+        setProgress(prev => Math.max(0, prev - (100 / (displayDuration / 100))));
       }, 100);
 
       return () => {
@@ -40,7 +58,7 @@ const LanguagesCoursesAd = () => {
       cleanup();
       clearInterval(recurringInterval);
     };
-  }, []);
+  }, [displayDuration]);
 
   // Admin trigger from Firebase
   useEffect(() => {
@@ -54,10 +72,10 @@ const LanguagesCoursesAd = () => {
           const closeTimer = setTimeout(() => {
             setShowAd(false);
             setTimeout(() => setShouldRender(false), 500);
-          }, DISPLAY_DURATION);
+          }, displayDuration);
 
           const progressInterval = setInterval(() => {
-            setProgress(prev => Math.max(0, prev - (100 / (DISPLAY_DURATION / 100))));
+            setProgress(prev => Math.max(0, prev - (100 / (displayDuration / 100))));
           }, 100);
 
           return () => {
@@ -69,7 +87,7 @@ const LanguagesCoursesAd = () => {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [displayDuration]);
 
   if (!shouldRender) return null;
 
@@ -185,29 +203,12 @@ const LanguagesCoursesAd = () => {
       <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0">
           <img
-            src="/languages-courses.jpg"
+            src={imageUrl}
             alt="Inscriptions Cours de Langues"
             className="ad-image w-full h-full object-cover"
           />
         </div>
 
-        {/* Vignette effect */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background: 'radial-gradient(ellipse at center, transparent 0%, rgba(15, 23, 42, 0.5) 100%)',
-          }}
-        ></div>
-
-        {/* Bottom text overlay */}
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-8 text-center">
-          <h2 className="text-5xl font-black text-blue-400 text-overlay">
-            INSCRIPTIONS OUVERTES
-          </h2>
-          <p className="text-white text-xl mt-2 font-semibold">
-            Cours de Langues - Français & Anglais - Summer 2026
-          </p>
-        </div>
       </div>
     </div>
   );

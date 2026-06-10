@@ -1008,13 +1008,14 @@ const branchNames = branchesArray.map(b => b.name) || [];
             </div>
 
             <div className="bg-blue-800 py-2 px-6">
-              <div className="grid grid-cols-12 gap-2 text-xs font-bold tracking-wider">
-                <div className="col-span-2">HORAIRE</div>
-                <div className="col-span-2">FILIÈRE</div>
-                <div className="col-span-2">MATIÈRE</div>
-                <div className="col-span-2">PROFESSEUR</div>
-                <div className="col-span-2">SALLE</div>
-                <div className="col-span-2">STATUT</div>
+              <div className="grid gap-2 text-xs font-bold tracking-wider" style={{gridTemplateColumns: '1fr 1.5fr 1.5fr 1fr 1.5fr 1fr 1fr'}}>
+                <div>HORAIRE</div>
+                <div>FILIÈRE</div>
+                <div>MATIÈRE</div>
+                <div>👥 GROUPES</div>
+                <div>PROFESSEUR</div>
+                <div>SALLE</div>
+                <div>STATUT</div>
               </div>
             </div>
 
@@ -1118,8 +1119,8 @@ const branchNames = branchesArray.map(b => b.name) || [];
                           animation: `slideDown 0.5s ease-out ${idx * 0.15}s forwards`,
                         }}
                       >
-                        <div className="grid grid-cols-13 gap-2 items-start">
-                          <div className="col-span-2 text-lg font-bold font-mono break-words">
+                        <div className="grid gap-2 items-start" style={{gridTemplateColumns: '1fr 1.5fr 1.5fr 1fr 1.5fr 1fr 1fr'}}>
+                          <div className="text-lg font-bold font-mono break-words">
                             <div>{formatTime(session.startTime)}</div>
                             <div className="text-xs text-gray-400 mt-0.5">→ {formatTime(session.endTime)}</div>
                             {isExceptional && (
@@ -1132,26 +1133,22 @@ const branchNames = branchesArray.map(b => b.name) || [];
                               </div>
                             )}
                           </div>
-                          <div className="col-span-2 text-sm font-semibold break-words leading-tight">
+                          <div className="text-sm font-semibold break-words leading-tight">
                             {session.level}
                           </div>
-                          <div className="col-span-2 text-sm break-words leading-tight">
+                          <div className="text-sm break-words leading-tight">
                             {session.subject}
                           </div>
-                          <div className="col-span-1.5 text-sm break-words leading-tight">
-                            {(session.groupes?.length > 0 || session.groupe) && (
-                              <div className="bg-blue-600 text-white font-bold px-2 py-1 rounded-lg text-center whitespace-nowrap">
-                                👥 {session.groupes?.length > 0 ? session.groupes.join(',') : session.groupe}
-                              </div>
-                            )}
+                          <div className="text-sm font-semibold text-blue-300 break-words leading-tight">
+                            {session.groupes?.length > 0 ? session.groupes.join(', ') : session.groupe || '-'}
                           </div>
-                          <div className="col-span-2 text-sm break-words leading-tight">
+                          <div className="text-sm break-words leading-tight">
                             {session.professor}
                           </div>
-                          <div className="col-span-1.5 text-lg font-bold text-yellow-400 break-words">
+                          <div className="text-lg font-bold text-yellow-400 break-words">
                             {session.room}
                           </div>
-                          <div className="col-span-2">
+                          <div>
                             <div className={`text-sm font-bold ${statusInfo?.color} break-words leading-tight`}>
                               {statusInfo?.label}
                             </div>
@@ -1484,7 +1481,7 @@ const branchNames = branchesArray.map(b => b.name) || [];
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto p-6">
+      <div className={`${view === 'display' ? 'w-full' : 'max-w-7xl mx-auto'} p-6`}>
         {!selectedBranch ? (
           <div className="bg-white rounded-xl shadow-lg p-8">
             <h2 className="text-2xl font-bold mb-6 text-gray-800">Sélectionnez une filiale</h2>
@@ -2077,18 +2074,18 @@ const branchNames = branchesArray.map(b => b.name) || [];
                   })}
                 </div>
                 
-                <table className="w-full">
-                  <thead className="bg-gray-100">
+                <table className="w-full text-xs">
+                  <thead className="bg-gray-100 sticky top-0">
                     <tr>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Jour</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Horaire</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Filière</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Matière</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">👥 Groupes</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Professeur</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Salle</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Statut</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Actions</th>
+                      <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700">Jour</th>
+                      <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700">Horaire</th>
+                      <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700">Filière</th>
+                      <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700">Matière</th>
+                      <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700">👥 Groupes</th>
+                      <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700">Professeur</th>
+                      <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700">Salle</th>
+                      <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700">Statut</th>
+                      <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
@@ -2130,20 +2127,20 @@ const branchNames = branchesArray.map(b => b.name) || [];
                         key={session.id} 
                         className={`hover:bg-gray-50 ${session.isExceptional ? 'bg-purple-50 border-l-4 border-purple-500' : ''}`}
                       >
-                        <td className="px-4 py-3 text-sm">
-                          <div className="flex items-center gap-2">
+                        <td className="px-2 py-2 text-xs">
+                          <div className="flex items-center gap-1">
                             {session.period && (
-                              <span className="text-xs font-bold bg-purple-500 text-white px-2 py-1 rounded">
+                              <span className="text-xs font-bold bg-purple-500 text-white px-1 py-0.5 rounded">
                                 {getPeriodIcon(availablePeriods.find(p => p.id === session.period)?.type || 'autre')} {getPeriodName(branchesData, session.period)}
                               </span>
                             )}
                             {session.isExceptional && session.specificDate && (
-                              <span className="text-purple-600 font-bold text-xs bg-purple-100 px-2 py-1 rounded">
+                              <span className="text-purple-600 font-bold text-xs bg-purple-100 px-1 py-0.5 rounded">
                                 📅 {new Date(session.specificDate + 'T00:00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
                               </span>
                             )}
                             {!session.isExceptional && (
-                              <span>{daysOfWeek.find(d => d.value === session.dayOfWeek)?.label}</span>
+                              <span className="text-xs">{daysOfWeek.find(d => d.value === session.dayOfWeek)?.label}</span>
                             )}
                           </div>
                         </td>
@@ -2152,12 +2149,8 @@ const branchNames = branchesArray.map(b => b.name) || [];
                         </td>
                         <td className="px-4 py-3 text-sm">{session.level}</td>
                         <td className="px-4 py-3 text-sm">{session.subject}</td>
-                        <td className="px-4 py-3 text-sm">
-                          {(session.groupes?.length > 0 || session.groupe) && (
-                            <span className="bg-blue-600 text-white font-bold px-2 py-1 rounded-lg text-xs whitespace-nowrap">
-                              👥 {session.groupes?.length > 0 ? session.groupes.join(',') : session.groupe}
-                            </span>
-                          )}
+                        <td className="px-2 py-2 text-xs font-semibold text-blue-600">
+                          {session.groupes?.length > 0 ? session.groupes.join(', ') : session.groupe || '-'}
                         </td>
                         <td className="px-4 py-3 text-sm">{session.professor}</td>
                         <td className="px-4 py-3 text-sm font-semibold">{session.room}</td>
