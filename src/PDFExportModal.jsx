@@ -9,10 +9,12 @@ const PDFExportModal = ({ sessions, branches, branchesData, onClose }) => {
   const [selectedBranch, setSelectedBranch] = useState('');
   const [selectedProfessor, setSelectedProfessor] = useState('');
   const [selectedLevel, setSelectedLevel] = useState('');
+  const [selectedGroupe, setSelectedGroupe] = useState('');
   const [selectedPeriod, setSelectedPeriod] = useState('normal');
   const [availablePeriods, setAvailablePeriods] = useState([]);
   const [professors, setProfessors] = useState([]);
   const [levels, setLevels] = useState([]);
+  const [groupesParNiveau, setGroupesParNiveau] = useState({});
   const [isGenerating, setIsGenerating] = useState(false);
 
   // Charger les périodes
@@ -62,6 +64,32 @@ const PDFExportModal = ({ sessions, branches, branchesData, onClose }) => {
     setLevels(Array.from(allLevels).sort());
   }, [sessions]);
 
+  // Charger les groupes par niveau
+  useEffect(() => {
+    const groupesMap = {};
+    Object.values(sessions).forEach(branchSessions => {
+      branchSessions.forEach(session => {
+        const sessionLevels = getSessionLevels(session);
+        sessionLevels.forEach(level => {
+          if (!groupesMap[level]) {
+            groupesMap[level] = new Set();
+          }
+          // Traiter les groupes multiples
+          if (session.groupes && session.groupes.length > 0) {
+            session.groupes.forEach(groupe => groupesMap[level].add(groupe));
+          } else if (session.groupe) {
+            groupesMap[level].add(session.groupe);
+          }
+        });
+      });
+    });
+    // Convertir les Sets en Arrays triés
+    Object.keys(groupesMap).forEach(level => {
+      groupesMap[level] = Array.from(groupesMap[level]).sort();
+    });
+    setGroupesParNiveau(groupesMap);
+  }, [sessions]);
+
   const generatePDF = async () => {
     if (exportType === 'branch' && !selectedBranch) {
       alert('Veuillez sélectionner un centre');
@@ -101,7 +129,16 @@ const PDFExportModal = ({ sessions, branches, branchesData, onClose }) => {
         const branchSessions = sessions[selectedBranch] || [];
         branchSessions.forEach(session => {
           if (sessionIncludesLevel(session, selectedLevel)) {
-            filteredSessions.push({ ...session, branch: selectedBranch });
+            // Filtrer optionnellement par groupe
+            if (selectedGroupe) {
+              const hasGroupe = (session.groupes && session.groupes.includes(selectedGroupe)) ||
+                              (session.groupe === selectedGroupe);
+              if (hasGroupe) {
+                filteredSessions.push({ ...session, branch: selectedBranch });
+              }
+            } else {
+              filteredSessions.push({ ...session, branch: selectedBranch });
+            }
           }
         });
       }
@@ -138,6 +175,9 @@ const PDFExportModal = ({ sessions, branches, branchesData, onClose }) => {
         title = `Emploi du Temps - ${selectedProfessor}`;
       } else if (exportType === 'level') {
         title = `Emploi du Temps - ${selectedBranch} - ${selectedLevel}`;
+        if (selectedGroupe) {
+          title += ` - ${selectedGroupe}`;
+        }
       }
 
       if (periodName !== 'Normal') {
@@ -178,11 +218,11 @@ const PDFExportModal = ({ sessions, branches, branchesData, onClose }) => {
             `${session.startTime} - ${session.endTime}`,
           ];
 
-          // Colonne niveau seulement si ce n'est pas le mode level
-          if (exportType !== 'level') {
+          // Colonne niveau seulement si ce n'est pas le mode level ou group
+          if (exportType !== 'level' && exportType !== 'group') {
             row.push(formatLevelDisplay(session.level));
           }
-          
+
           const groupesDisplay = session.groupes?.length > 0 ? session.groupes.join(', ') : (session.groupe || '');
           row.push((session.subject || '-') + (groupesDisplay ? ' · ' + groupesDisplay : ''));
 
@@ -194,6 +234,11 @@ const PDFExportModal = ({ sessions, branches, branchesData, onClose }) => {
             row.push(`Salle ${session.room}`);
           } else if (exportType === 'level') {
             // Mode level : pas de colonne niveau, ajouter prof et salle
+            row.push(session.professor || '-');
+            row.push(`Salle ${session.room}`);
+          } else if (exportType === 'group') {
+            // Mode group : ajouter centre et prof et salle
+            row.push(session.branch || '-');
             row.push(session.professor || '-');
             row.push(`Salle ${session.room}`);
           }
@@ -208,6 +253,8 @@ const PDFExportModal = ({ sessions, branches, branchesData, onClose }) => {
           headers = ['Horaire', 'Niveau', 'Matière', 'Centre', 'Salle'];
         } else if (exportType === 'level') {
           headers = ['Horaire', 'Matière', 'Professeur', 'Salle'];
+        } else if (exportType === 'group') {
+          headers = ['Horaire', 'Matière', 'Centre', 'Professeur', 'Salle'];
         }
 
         doc.autoTable({
@@ -240,8 +287,11 @@ const PDFExportModal = ({ sessions, branches, branchesData, onClose }) => {
         filterName = selectedProfessor.replace(/ /g, '_');
       } else if (exportType === 'level') {
         filterName = `${selectedBranch.replace(/ /g, '_')}_${selectedLevel.replace(/ /g, '_')}`;
+        if (selectedGroupe) {
+          filterName += `_${selectedGroupe.replace(/ /g, '_')}`;
+        }
       }
-      
+
       const filename = `Emploi_${filterName}_${periodName.replace(/ /g, '_')}.pdf`;
       
       doc.save(filename);
@@ -279,6 +329,7 @@ const PDFExportModal = ({ sessions, branches, branchesData, onClose }) => {
             <h3 className="font-bold text-blue-900 mb-2">📋 Instructions</h3>
             <ul className="text-sm text-blue-800 space-y-1">
               <li>• Choisissez le type d'export (centre, professeur ou niveau)</li>
+              <li>• Pour le mode Niveau, vous pouvez sélectionner un groupe spécifique (optionnel)</li>
               <li>• Sélectionnez la période (Normal ou Ramadan)</li>
               <li>• Le PDF sera généré automatiquement</li>
             </ul>
@@ -360,19 +411,41 @@ const PDFExportModal = ({ sessions, branches, branchesData, onClose }) => {
 
           {/* Sélection niveau */}
           {exportType === 'level' && (
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">🎓 Niveau</label>
-              <select
-                value={selectedLevel}
-                onChange={(e) => setSelectedLevel(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-              >
-                <option value="">-- Sélectionner un niveau --</option>
-                {levels.map(level => (
-                  <option key={level} value={level}>{level}</option>
-                ))}
-              </select>
-            </div>
+            <>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">🎓 Niveau</label>
+                <select
+                  value={selectedLevel}
+                  onChange={(e) => {
+                    setSelectedLevel(e.target.value);
+                    setSelectedGroupe('');
+                  }}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                >
+                  <option value="">-- Sélectionner un niveau --</option>
+                  {levels.map(level => (
+                    <option key={level} value={level}>{level}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Sélection groupe optionnel (filtré par niveau) */}
+              {selectedLevel && groupesParNiveau[selectedLevel] && groupesParNiveau[selectedLevel].length > 0 && (
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">👥 Groupe (optionnel)</label>
+                  <select
+                    value={selectedGroupe}
+                    onChange={(e) => setSelectedGroupe(e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                  >
+                    <option value="">-- Tous les groupes --</option>
+                    {groupesParNiveau[selectedLevel].map(groupe => (
+                      <option key={groupe} value={groupe}>{groupe}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </>
           )}
 
           {/* Sélection professeur */}
@@ -402,7 +475,7 @@ const PDFExportModal = ({ sessions, branches, branchesData, onClose }) => {
           </button>
           <button
             onClick={generatePDF}
-            disabled={isGenerating || (exportType === 'branch' ? !selectedBranch : !selectedProfessor)}
+            disabled={isGenerating || (exportType === 'branch' ? !selectedBranch : exportType === 'professor' ? !selectedProfessor : !selectedBranch || !selectedLevel)}
             className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
           >
             <FileDown className="w-4 h-4" />
