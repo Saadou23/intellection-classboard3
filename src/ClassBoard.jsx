@@ -60,6 +60,7 @@ const ClassBoard = () => {
   const [levels, setLevels] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [maxGroups, setMaxGroups] = useState(6);
+  const [customGroups, setCustomGroups] = useState([]); // Groupes personnalisés sauvegardés
   const [availableRooms, setAvailableRooms] = useState([]);
   const [showSoundTester, setShowSoundTester] = useState(false);
   const [showMessage, setShowMessage] = useState(false);
@@ -91,6 +92,7 @@ const [showWhatsAppAutomation, setShowWhatsAppAutomation] = useState(false);
   const [showOTPSystem, setShowOTPSystem] = useState(false);
   const [showOTPDashboard, setShowOTPDashboard] = useState(false);
   const [showSupervisionAdmin, setShowSupervisionAdmin] = useState(false);
+  const [customGroupInput, setCustomGroupInput] = useState(''); // Pour saisir un groupe personnalisé
 
   // ========== SÉCURITÉ - PROTECTION ANTI-BRUTE FORCE ==========
   const [loginAttempts, setLoginAttempts] = useState(0);
@@ -172,6 +174,7 @@ useSessionNotifications(sessions, selectedBranch, currentTime, soundEnabled);
         setLevels(data.levels || []);
         setSubjects(data.subjects || []);
         setMaxGroups(data.maxGroups || 6);
+        setCustomGroups(data.customGroups || []);
       }
     } catch (error) {
       console.log('Pas de paramètres globaux');
@@ -224,6 +227,65 @@ const branchNames = branchesArray.map(b => b.name) || [];
     } catch (error) {
       console.error('Erreur de sauvegarde:', error);
       alert('Erreur lors de la sauvegarde. Vérifiez votre connexion.');
+    }
+  };
+
+  const addCustomGroup = async (groupName) => {
+    try {
+      const updatedCustomGroups = [...customGroups, groupName];
+      setCustomGroups(updatedCustomGroups);
+
+      // Sauvegarder dans Firebase
+      const globalRef = doc(db, 'settings', 'global');
+      const globalSnap = await getDoc(globalRef);
+
+      if (globalSnap.exists()) {
+        await setDoc(globalRef, {
+          ...globalSnap.data(),
+          customGroups: updatedCustomGroups
+        }, { merge: true });
+      } else {
+        await setDoc(globalRef, {
+          customGroups: updatedCustomGroups
+        });
+      }
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde du groupe personnalisé:', error);
+    }
+  };
+
+  const updateLevelInAllSessions = async (oldLevel, newLevel) => {
+    try {
+      // Mettre à jour les niveaux dans toutes les branches
+      const allBranches = Object.keys(sessions);
+
+      for (const branch of allBranches) {
+        const branchSessions = sessions[branch];
+        const updatedSessions = branchSessions.map(session => {
+          let updatedSession = { ...session };
+
+          // Mettre à jour 'level' si c'est un string
+          if (updatedSession.level === oldLevel) {
+            updatedSession.level = newLevel;
+          }
+
+          // Mettre à jour 'levels' si c'est un array
+          if (Array.isArray(updatedSession.levels)) {
+            updatedSession.levels = updatedSession.levels.map(l => l === oldLevel ? newLevel : l);
+          }
+
+          return updatedSession;
+        });
+
+        // Sauvegarder les sessions mises à jour
+        await setDoc(doc(db, 'branches', branch), {
+          sessions: updatedSessions,
+          adminMessage: adminMessage,
+          lastUpdated: new Date().toISOString()
+        });
+      }
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour des niveaux:', error);
     }
   };
 
@@ -1706,39 +1768,138 @@ const branchNames = branchesArray.map(b => b.name) || [];
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Groupes <span className="text-red-500">*</span>
                       </label>
-                      <div className="grid grid-cols-3 gap-3 border border-gray-300 rounded-lg p-3 bg-white">
-                        {Array.from({ length: maxGroups }, (_, i) => {
-                          const groupId = `G${i + 1}`;
-                          const isSelected = formData.groupes.includes(groupId);
-                          return (
-                            <label key={i + 1} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setFormData({
-                                      ...formData,
-                                      groupes: [...formData.groupes, groupId]
-                                    });
-                                  } else {
-                                    setFormData({
-                                      ...formData,
-                                      groupes: formData.groupes.filter(g => g !== groupId)
-                                    });
-                                  }
-                                }}
-                                className="w-4 h-4 rounded border-gray-300 text-blue-600 cursor-pointer"
-                              />
-                              <span className="text-sm">Groupe {i + 1}</span>
-                            </label>
-                          );
-                        })}
+
+                      {/* Groupes prédéfinis G1, G2, etc. + Groupes personnalisés sauvegardés */}
+                      <div className="mb-3">
+                        <p className="text-xs text-gray-600 mb-2">Groupes disponibles:</p>
+                        <div className="grid grid-cols-3 gap-3 border border-gray-300 rounded-lg p-3 bg-white">
+                          {/* Groupes G1, G2, G3... */}
+                          {Array.from({ length: maxGroups }, (_, i) => {
+                            const groupId = `G${i + 1}`;
+                            const isSelected = formData.groupes.includes(groupId);
+                            return (
+                              <label key={i + 1} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setFormData({
+                                        ...formData,
+                                        groupes: [...formData.groupes, groupId]
+                                      });
+                                    } else {
+                                      setFormData({
+                                        ...formData,
+                                        groupes: formData.groupes.filter(g => g !== groupId)
+                                      });
+                                    }
+                                  }}
+                                  className="w-4 h-4 rounded border-gray-300 text-blue-600 cursor-pointer"
+                                />
+                                <span className="text-sm">{groupId}</span>
+                              </label>
+                            );
+                          })}
+                          {/* Groupes personnalisés sauvegardés */}
+                          {customGroups.map((customGroup, idx) => {
+                            const isSelected = formData.groupes.includes(customGroup);
+                            return (
+                              <label key={`custom-${idx}`} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setFormData({
+                                        ...formData,
+                                        groupes: [...formData.groupes, customGroup]
+                                      });
+                                    } else {
+                                      setFormData({
+                                        ...formData,
+                                        groupes: formData.groupes.filter(g => g !== customGroup)
+                                      });
+                                    }
+                                  }}
+                                  className="w-4 h-4 rounded border-gray-300 text-green-600 cursor-pointer"
+                                />
+                                <span className="text-sm text-green-700 font-medium">{customGroup}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
                       </div>
+
+                      {/* Ajouter un nouveau groupe personnalisé */}
+                      <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-xs text-gray-600 mb-2">Ajouter un groupe personnalisé (sera sauvegardé):</p>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={customGroupInput}
+                            onChange={(e) => setCustomGroupInput(e.target.value)}
+                            placeholder="Ex: Groupe A, TS1, Classe avancée..."
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter' && customGroupInput.trim()) {
+                                if (!formData.groupes.includes(customGroupInput.trim()) && !customGroups.includes(customGroupInput.trim())) {
+                                  addCustomGroup(customGroupInput.trim());
+                                  setFormData({
+                                    ...formData,
+                                    groupes: [...formData.groupes, customGroupInput.trim()]
+                                  });
+                                  setCustomGroupInput('');
+                                }
+                              }
+                            }}
+                            className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (customGroupInput.trim() && !formData.groupes.includes(customGroupInput.trim()) && !customGroups.includes(customGroupInput.trim())) {
+                                addCustomGroup(customGroupInput.trim());
+                                setFormData({
+                                  ...formData,
+                                  groupes: [...formData.groupes, customGroupInput.trim()]
+                                });
+                                setCustomGroupInput('');
+                              }
+                            }}
+                            className="bg-green-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-green-700 transition"
+                          >
+                            Ajouter & Sauvegarder
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Affichage des groupes sélectionnés avec option de suppression */}
                       {formData.groupes.length > 0 && (
-                        <p className="text-xs text-gray-500 mt-2">
-                          Sélectionnés: {formData.groupes.join(', ')}
-                        </p>
+                        <div className="p-3 bg-gray-50 border border-gray-300 rounded-lg">
+                          <p className="text-xs text-gray-600 mb-2">Groupes sélectionnés ({formData.groupes.length}):</p>
+                          <div className="flex flex-wrap gap-2">
+                            {formData.groupes.map((groupe, idx) => (
+                              <div
+                                key={idx}
+                                className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2 hover:bg-blue-700 transition"
+                              >
+                                <span>{groupe}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setFormData({
+                                      ...formData,
+                                      groupes: formData.groupes.filter((_, i) => i !== idx)
+                                    });
+                                  }}
+                                  className="text-xs hover:text-red-200 font-bold"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       )}
                     </div>
                     <div>
@@ -2215,6 +2376,7 @@ const branchNames = branchesArray.map(b => b.name) || [];
             setShowSettingsManager(false);
             loadGlobalSettings(); // Recharger après modification
           }}
+          onUpdateLevel={updateLevelInAllSessions}
         />
       )}
 

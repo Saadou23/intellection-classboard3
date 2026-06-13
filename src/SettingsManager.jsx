@@ -3,7 +3,7 @@ import { Plus, Edit2, Trash2, Save, X, Users, BookOpen, AlertCircle, Grid3X3 } f
 import { db } from './firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 
-const SettingsManager = ({ onClose }) => {
+const SettingsManager = ({ onClose, onUpdateLevel }) => {
   // Professors
   const [professors, setProfessors] = useState([]);
   const [newProfessor, setNewProfessor] = useState('');
@@ -112,7 +112,7 @@ const SettingsManager = ({ onClose }) => {
     }
   };
 
-  const updateLevel = (oldLevel, newLevel) => {
+  const updateLevel = async (oldLevel, newLevel) => {
     if (newLevel.trim() && newLevel !== oldLevel) {
       if (levels.includes(newLevel.trim())) {
         alert('Ce niveau existe déjà');
@@ -120,6 +120,11 @@ const SettingsManager = ({ onClose }) => {
       }
       setLevels(levels.map(l => l === oldLevel ? newLevel.trim() : l));
       setEditingLevel(null);
+
+      // Appeler la fonction de mise à jour globale pour toutes les sessions
+      if (onUpdateLevel) {
+        await onUpdateLevel(oldLevel, newLevel.trim());
+      }
     }
   };
 
