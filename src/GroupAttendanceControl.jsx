@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { CheckCircle, AlertCircle, XCircle, Save, X, Users, Calendar, MapPin, Printer, Trash2 } from 'lucide-react';
+import { CheckCircle, AlertCircle, XCircle, Save, X, Users, Calendar, MapPin, Printer, Trash2, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { db } from './firebase';
 import { doc, setDoc, getDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
 
@@ -189,6 +190,113 @@ const GroupAttendanceControl = ({ onClose }) => {
         setMessage('❌ Erreur lors de la suppression');
       }
     }
+  };
+
+  const handleExportXls = () => {
+    if (!analysis) return;
+
+    const firstGroupAnalysis = Object.values(analysis)[0];
+    const matriculeAnalysisMap = firstGroupAnalysis.matriculeAnalysis || {};
+    const allMatricules = Object.entries(matriculeAnalysisMap)
+      .sort(([matA], [matB]) => matA.localeCompare(matB))
+      .map(([mat]) => mat);
+
+    // Préparer les données pour l'export
+    const data = [];
+
+    // En-tête
+    data.push({
+      'Matricule': '',
+      'Groupe': '',
+      'Statut': ''
+    });
+
+    data.push({
+      'Matricule': 'RAPPORT DE CONTRÔLE DE PRÉSENCE',
+      'Groupe': '',
+      'Statut': ''
+    });
+
+    data.push({
+      'Matricule': `Date: ${selectedDate}`,
+      'Groupe': `Groupes: ${selectedGroups.join(', ')}`,
+      'Statut': `Salle: ${selectedRoom || 'Non spécifiée'}`
+    });
+
+    data.push({
+      'Matricule': '',
+      'Groupe': '',
+      'Statut': ''
+    });
+
+    // Statistiques
+    const totalConforme = Object.values(analysis).reduce((sum, g) => sum + g.conforme.length, 0);
+    const totalAbsents = Object.values(analysis).reduce((sum, g) => sum + g.nombreAbsents, 0);
+    const totalNonInscrits = Object.values(matriculeAnalysisMap).filter(m => !m.isInscrit).length;
+
+    data.push({
+      'Matricule': 'STATISTIQUES',
+      'Groupe': '',
+      'Statut': ''
+    });
+
+    data.push({
+      'Matricule': `Total scannés: ${allMatricules.length}`,
+      'Groupe': `Inscrits: ${totalConforme}`,
+      'Statut': `Absents: ${totalAbsents}`
+    });
+
+    data.push({
+      'Matricule': `Non inscrits: ${totalNonInscrits}`,
+      'Groupe': '',
+      'Statut': ''
+    });
+
+    data.push({
+      'Matricule': '',
+      'Groupe': '',
+      'Statut': ''
+    });
+
+    // Liste des matricules
+    data.push({
+      'Matricule': 'MATRICULE',
+      'Groupe': 'GROUPE(S)',
+      'Statut': 'STATUT'
+    });
+
+    allMatricules.forEach(mat => {
+      const matInfo = matriculeAnalysisMap[mat];
+      const isAbsent = Object.values(analysis).some(g => g.absents.includes(mat));
+      const status = matInfo.isInscrit ? (isAbsent ? 'ABSENT' : 'PRÉSENT') : 'NON INSCRIT';
+
+      data.push({
+        'Matricule': mat,
+        'Groupe': matInfo.displayGroups,
+        'Statut': status
+      });
+    });
+
+    // Créer le workbook
+    const ws = XLSX.utils.json_to_sheet(data);
+
+    // Formater les colonnes
+    ws['!cols'] = [
+      { wch: 15 }, // Matricule
+      { wch: 25 }, // Groupe(s)
+      { wch: 15 }  // Statut
+    ];
+
+    // Créer le classeur
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Contrôle');
+
+    // Télécharger
+    const fileName = `controle_${selectedDate}_${selectedGroups.join('-')}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+
+    setMessage('✅ Fichier Excel exporté');
+    setTimeout(() => setMessage(''), 3000);
   };
 
   const handlePrintTicket = () => {
@@ -409,6 +517,13 @@ const GroupAttendanceControl = ({ onClose }) => {
                 >
                   <Printer size={20} />
                   🖨️ Imprimer Ticket Thermique
+                </button>
+                <button
+                  onClick={handleExportXls}
+                  className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition font-semibold flex items-center gap-2"
+                >
+                  <Download size={20} />
+                  📊 Exporter en XLS
                 </button>
               </div>
 
