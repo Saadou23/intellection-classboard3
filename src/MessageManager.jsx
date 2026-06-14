@@ -58,6 +58,12 @@ const MessageManager = () => {
   const [languagesImageSuccess, setLanguagesImageSuccess] = useState(false);
   const [uploadingLanguagesImage, setUploadingLanguagesImage] = useState(false);
 
+  // Autres pubs personnalisées
+  const [customAds, setCustomAds] = useState([]);
+  const [savingCustomAds, setSavingCustomAds] = useState(false);
+  const [customAdsSuccess, setCustomAdsSuccess] = useState(false);
+  const [uploadingCustomAdIndex, setUploadingCustomAdIndex] = useState(null);
+
   // Charger les messages depuis Firebase
   useEffect(() => {
     const loadMessages = async () => {
@@ -148,6 +154,24 @@ const MessageManager = () => {
     };
 
     loadLanguages();
+  }, []);
+
+  // Charger les pubs personnalisées
+  useEffect(() => {
+    const loadCustomAds = async () => {
+      try {
+        const docRef = doc(db, 'settings', 'custom_ads');
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+          setCustomAds(docSnap.data().ads || []);
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des pubs:', error);
+      }
+    };
+
+    loadCustomAds();
   }, []);
 
   // Sauvegarder les messages dans Firebase
@@ -304,6 +328,21 @@ const MessageManager = () => {
     setSavingAdSlides(false);
   };
 
+  // Sauvegarder les pubs personnalisées
+  const saveCustomAds = async () => {
+    setSavingCustomAds(true);
+    try {
+      const docRef = doc(db, 'settings', 'custom_ads');
+      await setDoc(docRef, { ads: customAds });
+      setCustomAdsSuccess(true);
+      setTimeout(() => setCustomAdsSuccess(false), 3000);
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde des pubs:', error);
+      alert('❌ Erreur lors de la sauvegarde');
+    }
+    setSavingCustomAds(false);
+  };
+
   // Upload image Concours Prep
   const uploadConcoursImage = async (file) => {
     if (!file) return;
@@ -374,6 +413,29 @@ const MessageManager = () => {
       alert('❌ Erreur lors de la sauvegarde');
     }
     setSavingLanguagesImage(false);
+  };
+
+  // Upload image pour pub personnalisée
+  const uploadCustomAdImage = async (file, index) => {
+    if (!file) return;
+    setUploadingCustomAdIndex(index);
+    try {
+      const timestamp = Date.now();
+      const fileName = `custom-ad-${timestamp}`;
+      const storageRef = ref(storage, `advertisements/custom/${fileName}`);
+
+      await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(storageRef);
+
+      const updated = [...customAds];
+      updated[index].url = downloadURL;
+      setCustomAds(updated);
+      alert('✅ Image uploadée avec succès!');
+    } catch (error) {
+      console.error('Erreur upload pub personnalisée:', error);
+      alert('❌ Erreur lors de l\'upload');
+    }
+    setUploadingCustomAdIndex(null);
   };
 
   if (loading) {
@@ -752,8 +814,20 @@ const MessageManager = () => {
 
           <div className="space-y-4 mb-4">
             {adSlides.map((slide, idx) => (
-              <div key={idx} className="bg-gray-50 p-4 rounded-lg border-2 border-gray-200">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div key={idx} className="bg-gray-50 p-4 rounded-lg border-2 border-gray-200 relative">
+                {/* Bouton Supprimer */}
+                <button
+                  onClick={() => {
+                    const updated = adSlides.filter((_, i) => i !== idx);
+                    setAdSlides(updated);
+                  }}
+                  className="absolute top-3 right-3 p-2 text-red-600 hover:bg-red-100 rounded-lg transition"
+                  title="Supprimer ce slide"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pr-10">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Slide {idx + 1} - Titre
@@ -803,6 +877,21 @@ const MessageManager = () => {
                 </div>
               </div>
             ))}
+          </div>
+
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => {
+                setAdSlides([
+                  ...adSlides,
+                  { icon: 'Star', color: 'gray', title: 'Nouveau Slide', description: 'Cliquez pour éditer' }
+                ]);
+              }}
+              className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition"
+            >
+              <Plus className="w-4 h-4" />
+              Ajouter un Slide
+            </button>
           </div>
 
           <button
@@ -1003,6 +1092,155 @@ const MessageManager = () => {
               <>
                 <Save className="w-5 h-5" />
                 Sauvegarder Image Langues
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Autres Pubs Personnalisées */}
+        <div className="mt-8 border-t pt-6">
+          <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+            🎪 Autres Pubs Personnalisées
+          </h3>
+
+          {customAdsSuccess && (
+            <div className="bg-green-100 border-l-4 border-green-600 p-4 mb-4 rounded">
+              <p className="text-green-700 font-medium">✅ Pubs personnalisées sauvegardées!</p>
+            </div>
+          )}
+
+          <div className="space-y-4 mb-4">
+            {customAds.map((ad, idx) => (
+              <div key={idx} className="bg-gray-50 p-4 rounded-lg border-2 border-gray-200 relative">
+                {/* Bouton Supprimer */}
+                <button
+                  onClick={() => {
+                    const updated = customAds.filter((_, i) => i !== idx);
+                    setCustomAds(updated);
+                  }}
+                  className="absolute top-3 right-3 p-2 text-red-600 hover:bg-red-100 rounded-lg transition"
+                  title="Supprimer cette pub"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
+
+                <div className="space-y-3 pr-10">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Pub {idx + 1} - Titre
+                    </label>
+                    <input
+                      type="text"
+                      value={ad.title || ''}
+                      onChange={(e) => {
+                        const updated = [...customAds];
+                        updated[idx].title = e.target.value;
+                        setCustomAds(updated);
+                      }}
+                      className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+
+                  {/* Aperçu image */}
+                  {ad.url && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">📸 Aperçu</label>
+                      <img src={ad.url} alt={ad.title} className="w-full h-40 object-cover rounded-lg" />
+                    </div>
+                  )}
+
+                  {/* Upload image */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      📤 Upload Image (JPG, PNG)
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png"
+                      onChange={(e) => {
+                        if (e.target.files?.[0]) {
+                          uploadCustomAdImage(e.target.files[0], idx);
+                        }
+                      }}
+                      disabled={uploadingCustomAdIndex === idx}
+                      className="block w-full text-sm text-gray-500
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-lg file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-purple-600 file:text-white
+                        hover:file:bg-purple-700
+                        cursor-pointer border-2 border-dashed border-purple-300 rounded-lg p-3"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Format: JPG ou PNG (max 5MB)</p>
+                    {uploadingCustomAdIndex === idx && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="animate-spin">⏳</span>
+                        <span className="text-sm text-gray-600">Upload en cours...</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      ⏱️ Durée d'affichage (secondes)
+                    </label>
+                    <input
+                      type="number"
+                      min="5"
+                      max="180"
+                      value={ad.displayDuration || 15}
+                      onChange={(e) => {
+                        const updated = [...customAds];
+                        updated[idx].displayDuration = parseInt(e.target.value);
+                        setCustomAds(updated);
+                      }}
+                      className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {customAds.length === 0 && (
+            <div className="bg-gray-50 p-6 text-center rounded-lg border-2 border-dashed border-gray-300 mb-4">
+              <p className="text-gray-500">Aucune pub personnalisée. Ajoutez-en une ci-dessous!</p>
+            </div>
+          )}
+
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => {
+                setCustomAds([
+                  ...customAds,
+                  { title: 'Nouvelle Pub', url: '', displayDuration: 15 }
+                ]);
+              }}
+              className="flex-1 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition"
+            >
+              <Plus className="w-4 h-4" />
+              Ajouter une Pub
+            </button>
+          </div>
+
+          <button
+            onClick={saveCustomAds}
+            disabled={savingCustomAds}
+            className={`py-3 px-6 rounded-lg font-bold text-white flex items-center justify-center gap-2 transition ${
+              savingCustomAds
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-purple-600 hover:bg-purple-700'
+            }`}
+          >
+            {savingCustomAds ? (
+              <>
+                <span className="animate-spin">⏳</span>
+                Sauvegarde...
+              </>
+            ) : (
+              <>
+                <Save className="w-5 h-5" />
+                Sauvegarder les Pubs Personnalisées
               </>
             )}
           </button>
