@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Save, X, Monitor, Settings, AlertCircle, Maximize, Clock, BarChart3, Sliders, Building2, Calendar, Printer, Moon, FileDown, MapPin, BookOpen, Users, Bell, MessageSquare, MessageCircle, Shield } from 'lucide-react';
+import { Plus, Edit2, Trash2, Save, X, Monitor, Settings, AlertCircle, Maximize, Clock, BarChart3, Sliders, Building2, Calendar, Printer, Moon, FileDown, MapPin, BookOpen, Users, Bell, MessageSquare, MessageCircle, Shield, CheckCircle } from 'lucide-react';
 import { db } from './firebase';
 import SecurityService from './SecurityService';
 import { doc, setDoc, getDoc, onSnapshot, collection, deleteDoc } from 'firebase/firestore';
@@ -36,6 +36,8 @@ import SecurityDashboard from './SecurityDashboard';
 import OTPSystemAdmin from './OTPSystemAdmin';
 import OTPDashboard from './OTPDashboard';
 import SupervisionScheduleAdmin from './SupervisionScheduleAdmin';
+import GroupConstitution from './GroupConstitution';
+import GroupAttendanceControl from './GroupAttendanceControl';
 
 const ClassBoard = () => {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -93,6 +95,8 @@ const [showWhatsAppAutomation, setShowWhatsAppAutomation] = useState(false);
   const [showOTPDashboard, setShowOTPDashboard] = useState(false);
   const [showSupervisionAdmin, setShowSupervisionAdmin] = useState(false);
   const [customGroupInput, setCustomGroupInput] = useState(''); // Pour saisir un groupe personnalisé
+  const [showGroupConstitution, setShowGroupConstitution] = useState(false);
+  const [showGroupAttendanceControl, setShowGroupAttendanceControl] = useState(false);
 
   // ========== SÉCURITÉ - PROTECTION ANTI-BRUTE FORCE ==========
   const [loginAttempts, setLoginAttempts] = useState(0);
@@ -1329,6 +1333,16 @@ const branchNames = branchesArray.map(b => b.name) || [];
     return <SupervisionScheduleAdmin onClose={() => setShowSupervisionAdmin(false)} />;
   }
 
+  // Si on est sur la constitution des groupes
+  if (showGroupConstitution) {
+    return <GroupConstitution onClose={() => setShowGroupConstitution(false)} />;
+  }
+
+  // Si on est sur le contrôle de séance
+  if (showGroupAttendanceControl) {
+    return <GroupAttendanceControl onClose={() => setShowGroupAttendanceControl(false)} />;
+  }
+
   // Si on est sur la gestion des messages
   if (showMessageManager) {
     return (
@@ -1445,6 +1459,25 @@ const branchNames = branchesArray.map(b => b.name) || [];
               >
                 <FileDown className="w-4 h-4" />
                 📄 Export PDF
+              </button>
+            </div>
+
+            {/* Groupes & Contrôle */}
+            <div className="flex gap-3 items-center flex-wrap">
+              <div className="text-xs font-semibold text-gray-600 uppercase px-2 py-2 bg-gray-200 rounded">👥 Groupes & Présences</div>
+              <button
+                onClick={() => setShowGroupConstitution(true)}
+                className="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
+              >
+                <Users className="w-4 h-4" />
+                Constitution Groupes
+              </button>
+              <button
+                onClick={() => setShowGroupAttendanceControl(true)}
+                className="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
+              >
+                <CheckCircle className="w-4 h-4" />
+                Contrôle Séance
               </button>
             </div>
 
