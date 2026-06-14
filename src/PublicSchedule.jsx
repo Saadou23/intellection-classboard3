@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getAllPeriods, getPeriodIcon } from './periodUtils';
 import { sessionIncludesLevel, getSessionLevels } from './levelUtils';
-import { Clock, MapPin, BookOpen, User, Home, ChevronRight, ChevronLeft, Phone } from 'lucide-react';
+import { Clock, MapPin, BookOpen, User, Home, ChevronRight, ChevronLeft, Phone, Users, FileDown } from 'lucide-react';
 import { db } from './firebase';
 import { doc, getDoc } from 'firebase/firestore';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const daysOfWeek = [
   { value: 0, label: 'Dimanche', ar: 'الأحد' },
@@ -101,6 +103,8 @@ const PublicSchedule = () => {
   const [wizardStep, setWizardStep]   = useState(1);
   const [tempBranch, setTempBranch]   = useState(null);
   const [tempLevel, setTempLevel]     = useState(null);
+  const [tempGroup, setTempGroup]     = useState(null);
+  const [tempGroupsForWizard, setTempGroupsForWizard] = useState([]);
   const [allLevels, setAllLevels]     = useState([]);
 
   /* schedule filters */
@@ -163,6 +167,34 @@ const PublicSchedule = () => {
     src.forEach(s => getSessionLevels(s).forEach(l => set.add(l)));
     setAllLevels([...set].sort());
   }, [tempBranch, allSessions]);
+
+  /* groups for the selected branch and level in wizard */
+  useEffect(() => {
+    if (!tempBranch || !tempLevel) {
+      setTempGroupsForWizard([]);
+      return;
+    }
+
+    let filtered = allSessions.filter(s => s.branch === tempBranch && s.status !== 'cancelled');
+    filtered = filtered.filter(s => sessionIncludesLevel(s, tempLevel));
+
+    const groupsSet = new Set();
+    filtered.forEach(s => {
+      if (s.groupes?.length > 0) {
+        s.groupes.forEach(g => groupsSet.add(g));
+      } else if (s.groupe) {
+        groupsSet.add(s.groupe);
+      }
+    });
+
+    const groups = [...groupsSet].sort((a, b) => {
+      const numA = parseInt(a.replace(/\D/g, '')) || 0;
+      const numB = parseInt(b.replace(/\D/g, '')) || 0;
+      return numA - numB;
+    });
+
+    setTempGroupsForWizard(groups);
+  }, [tempBranch, tempLevel, allSessions]);
 
   // Charger les niveaux disponibles selon la branche sélectionnée
   useEffect(() => {
@@ -249,6 +281,7 @@ const PublicSchedule = () => {
   const handleWizardComplete = (period) => {
     setFilterBranch(tempBranch);
     setFilterLevel(tempLevel);
+    setFilterGroup(tempGroup);
     setFilterPeriod(period);
     setShowWizard(false);
   };
@@ -258,10 +291,136 @@ const PublicSchedule = () => {
     setWizardStep(1);
     setTempBranch(null);
     setTempLevel(null);
+    setTempGroup(null);
     setFilterBranch('');
     setFilterLevel('');
+    setFilterGroup('');
     setFilterPeriod('normal');
     setFilterLastGroupOnly(false);
+  };
+
+  const exportScheduleToPDF = () => {
+    try {
+      if (filteredSessions.length === 0) {
+        alert('Aucune séance à exporter');
+        return;
+      }
+
+      const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      // Titre
+      let title = 'Emploi du Temps';
+      if (filterBranch) title += ` - ${filterBranch}`;
+      if (filterLevel) title += ` - ${filterLevel}`;
+      if (filterGroup) title += ` - ${filterGroup}`;
+
+      doc.setFontSize(18);
+      doc.setFont(undefined, 'bold');
+      doc.text(title, 148, 15, { align: 'center' });
+
+      doc.setFontSize(11);
+      doc.setFont(undefined, 'normal');
+      doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`, 148, 22, { align: 'center' });
+
+      // Grouper par jour
+      const daysOfWeekLabels = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+      const sessionsByDay = {};
+
+      daysOfWeekLabels.forEach(day => {
+        sessionsByDay[day] = [];
+      });
+
+      filteredSessions.forEach(session => {
+        const dayName = daysOfWeekLabels[session.dayOfWeek];
+        if (dayName) {
+          sessionsByDay[dayName].push(session);
+        }
+      });
+
+      // Générer les tableaux pour chaque jour
+      let yPosition = 30;
+
+      Object.entries(sessionsByDay).forEach(([day, daySessions]) => {
+        if (daySessions.length === 0) return;
+
+        // Trier par heure
+        daySessions.sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+        // Vérifier si nouvelle page
+        if (yPosition > 180) {
+          doc.addPage();
+          yPosition = 20;
+        }
+
+        // Titre du jour
+        doc.setFontSize(13);
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(200, 0, 0);
+        doc.text(`${day}`, 15, yPosition);
+        yPosition += 7;
+        doc.setTextColor(0, 0, 0);
+
+        // Préparer les données du tableau
+        const tableData = daySessions.map(session => [
+          session.startTime + '\n' + session.endTime,
+          session.subject || '-',
+          session.groupes?.length > 0 ? session.groupes.join(', ') : session.groupe || '-',
+          session.professor || '-',
+          session.room || '-'
+        ]);
+
+        // Générer le tableau
+        doc.autoTable({
+          startY: yPosition,
+          head: [['Horaire', 'Matière', 'Groupe(s)', 'Professeur', 'Salle']],
+          body: tableData,
+          theme: 'grid',
+          headStyles: {
+            fillColor: [220, 38, 38],
+            textColor: 255,
+            fontStyle: 'bold',
+            fontSize: 10,
+            cellPadding: 3
+          },
+          bodyStyles: {
+            fontSize: 9,
+            cellPadding: 3
+          },
+          columnStyles: {
+            0: { cellWidth: 25 },
+            1: { cellWidth: 40 },
+            2: { cellWidth: 30 },
+            3: { cellWidth: 40 },
+            4: { cellWidth: 25 }
+          },
+          margin: { left: 15, right: 15 },
+          didDrawPage: (data) => {
+            doc.setFontSize(7);
+            doc.setTextColor(150);
+            doc.text(
+              'INTELLECTION - Emploi du Temps Public',
+              148,
+              200,
+              { align: 'center' }
+            );
+          }
+        });
+
+        yPosition = doc.lastAutoTable.finalY + 12;
+      });
+
+      // Sauvegarder
+      const fileName = `emploi_${filterBranch || 'public'}_${new Date().toISOString().split('T')[0]}.pdf`;
+      doc.save(fileName);
+
+    } catch (error) {
+      console.error('Erreur génération PDF:', error);
+      alert(`Erreur lors de la génération du PDF: ${error.message}`);
+    }
   };
 
   /* ── LOADING ─────────────────────────────────────────────── */
@@ -298,7 +457,7 @@ const PublicSchedule = () => {
               className="text-center text-white font-bold text-lg leading-snug"
             />
             <div className="flex justify-center mt-3 gap-1.5">
-              {[1, 2, 3].map(s => (
+              {[1, 2, 3, 4].map(s => (
                 <div key={s} className={`h-1 rounded-full transition-all duration-300 ${s <= wizardStep ? 'bg-white w-10' : 'bg-red-400 w-4'}`} />
               ))}
             </div>
@@ -314,7 +473,7 @@ const PublicSchedule = () => {
                   ar="اختر المركز الأقرب إليك"
                   className="text-center text-gray-800 font-bold text-lg mb-1"
                 />
-                <p className="text-center text-xs text-gray-400 mb-5">Étape 1 / 3 · الخطوة 1 من 3</p>
+                <p className="text-center text-xs text-gray-400 mb-5">Étape 1 / 4 · الخطوة 1 من 4</p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {branches.map(branch => (
@@ -361,7 +520,7 @@ const PublicSchedule = () => {
                   ar="اختر مستواك الدراسي"
                   className="text-center text-gray-900 font-black text-2xl mb-3"
                 />
-                <p className="text-center text-sm text-gray-500 mb-5 font-semibold">Étape 2 / 3 · الخطوة 2 من 3</p>
+                <p className="text-center text-sm text-gray-500 mb-5 font-semibold">Étape 2 / 4 · الخطوة 2 من 4</p>
                 <div className="flex justify-center mb-6">
                   <span className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-red-50 to-red-100 text-red-700 text-sm rounded-full font-bold border-2 border-red-200">
                     <MapPin className="w-4 h-4" /> {tempBranch}
@@ -396,18 +555,63 @@ const PublicSchedule = () => {
               </div>
             )}
 
-            {/* ── Step 3 : Période ── */}
+            {/* ── Step 3 : Groupe ── */}
             {wizardStep === 3 && (
+              <div>
+                <Bi
+                  fr="Choisissez votre groupe"
+                  ar="اختر مجموعتك"
+                  className="text-center text-gray-900 font-black text-2xl mb-3"
+                />
+                <p className="text-center text-sm text-gray-500 mb-5 font-semibold">Étape 3 / 4 · الخطوة 3 من 4</p>
+                <div className="flex justify-center flex-wrap gap-2 mb-4">
+                  <span className="px-3 py-1 bg-red-50 text-red-700 text-xs rounded-full font-semibold">{tempBranch}</span>
+                  <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-semibold">{tempLevel}</span>
+                </div>
+
+                {tempGroupsForWizard.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-400 text-sm">Aucun groupe disponible pour ce niveau</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3 mb-6">
+                    {tempGroupsForWizard.map(group => (
+                      <button
+                        key={group}
+                        onClick={() => { setTempGroup(group); setWizardStep(4); }}
+                        className="p-4 border-3 border-purple-200 rounded-xl hover:border-red-500 hover:bg-gradient-to-br hover:from-red-50 hover:to-red-100 transition-all group text-center shadow-md hover:shadow-lg"
+                      >
+                        <div className="w-12 h-12 bg-purple-100 group-hover:bg-red-200 rounded-xl mx-auto mb-2 flex items-center justify-center transition-colors shadow-sm">
+                          <Users className="w-6 h-6 text-purple-600 group-hover:text-red-700 transition-colors" />
+                        </div>
+                        <div className="font-bold text-gray-900 text-lg group-hover:text-red-700 transition-colors">{group}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <button
+                  onClick={() => { setWizardStep(2); setTempLevel(null); }}
+                  className="w-full py-2.5 flex items-center justify-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4" /> Retour · رجوع
+                </button>
+              </div>
+            )}
+
+            {/* ── Step 4 : Période ── */}
+            {wizardStep === 4 && (
               <div>
                 <Bi
                   fr="Choisissez la période"
                   ar="اختر الفترة الزمنية"
                   className="text-center text-gray-800 font-bold text-lg mb-1"
                 />
-                <p className="text-center text-xs text-gray-400 mb-2">Étape 3 / 3 · الخطوة 3 من 3</p>
+                <p className="text-center text-xs text-gray-400 mb-2">Étape 4 / 4 · الخطوة 4 من 4</p>
                 <div className="flex justify-center flex-wrap gap-2 mb-4">
                   <span className="px-3 py-1 bg-red-50 text-red-700 text-xs rounded-full font-semibold">{tempBranch}</span>
-                  <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs rounded-full font-semibold">{tempLevel}</span>
+                  <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-semibold">{tempLevel}</span>
+                  <span className="px-3 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-semibold">{tempGroup}</span>
                 </div>
 
                 <div className="space-y-3 mb-4">
@@ -450,7 +654,7 @@ const PublicSchedule = () => {
                 </div>
 
                 <button
-                  onClick={() => { setWizardStep(2); setTempLevel(null); }}
+                  onClick={() => { setWizardStep(3); setTempGroup(null); }}
                   className="w-full py-2.5 flex items-center justify-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 transition-colors"
                 >
                   <ChevronLeft className="w-4 h-4" /> Retour · رجوع
@@ -549,6 +753,23 @@ const PublicSchedule = () => {
               Dernier groupe · <span dir="rtl" style={{ fontFamily: "'Cairo','Segoe UI',sans-serif" }}>المجموعة الأخيرة</span>
             </span>
           </label>
+
+          {/* Export PDF Button */}
+          <button
+            onClick={exportScheduleToPDF}
+            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors font-semibold text-sm shadow-sm"
+          >
+            <FileDown className="w-4 h-4" />
+            Télécharger PDF
+          </button>
+
+          {/* Reset Button */}
+          <button
+            onClick={handleReset}
+            className="flex items-center gap-2 bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded-lg transition-colors font-semibold text-sm"
+          >
+            ↻ Réinitialiser
+          </button>
         </div>
       </div>
 
