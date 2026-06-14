@@ -278,6 +278,23 @@ const PublicSchedule = () => {
     return list;
   }, [allSessions, filterBranch, filterLevel, filterPeriod, filterLastGroupOnly, filterGroup]);
 
+  /* Détecteur de doublons de matière */
+  const hasDuplicateSubjects = useMemo(() => {
+    const subjectProfessors = {};
+    filteredSessions.forEach(session => {
+      if (session.subject) {
+        if (!subjectProfessors[session.subject]) {
+          subjectProfessors[session.subject] = new Set();
+        }
+        if (session.professor) {
+          subjectProfessors[session.subject].add(session.professor);
+        }
+      }
+    });
+    // Vérifier s'il y a une matière avec 2+ professeurs
+    return Object.values(subjectProfessors).some(professors => professors.size > 1);
+  }, [filteredSessions]);
+
   const handleWizardComplete = (period) => {
     setFilterBranch(tempBranch);
     setFilterLevel(tempLevel);
@@ -326,6 +343,30 @@ const PublicSchedule = () => {
       doc.setFont(undefined, 'normal');
       doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`, 148, 22, { align: 'center' });
 
+      // Avertissement si doublons de matière
+      let yPosition = 28;
+      if (hasDuplicateSubjects) {
+        doc.setDrawColor(220, 38, 38);
+        doc.setFillColor(255, 240, 240);
+        doc.setLineWidth(1);
+        doc.rect(15, yPosition - 3, 266, 12, 'FD');
+
+        // Titre
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(220, 38, 38);
+        doc.text('ATTENTION:', 20, yPosition + 2);
+
+        // Message
+        doc.setFont(undefined, 'normal');
+        doc.setFontSize(9);
+        doc.setTextColor(0, 0, 0);
+        const warningMsg = 'Si deux professeurs s\'affichent de la meme matiere, assistez chez le professeur que vous avez choisi lors de votre inscription.';
+        doc.text(warningMsg, 55, yPosition + 2, { maxWidth: 215 });
+
+        yPosition = 42;
+      }
+
       // Grouper par jour
       const daysOfWeekLabels = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
       const sessionsByDay = {};
@@ -342,7 +383,7 @@ const PublicSchedule = () => {
       });
 
       // Générer les tableaux pour chaque jour
-      let yPosition = 30;
+      // yPosition est déjà définie plus haut (28 ou 38 selon si avertissement)
 
       Object.entries(sessionsByDay).forEach(([day, daySessions]) => {
         if (daySessions.length === 0) return;
@@ -706,6 +747,18 @@ const PublicSchedule = () => {
           </a>
         </div>
       </header>
+
+      {/* Avertissement: Deux professeurs pour la même matière */}
+      {hasDuplicateSubjects && (
+        <div className="bg-red-100 border-l-4 border-red-600 p-4 max-w-4xl mx-auto">
+          <p className="text-red-800 font-semibold text-sm flex items-start gap-3">
+            <span className="text-xl">⚠️</span>
+            <span>
+              <strong>Attention:</strong> Si deux professeurs s'affichent de la même matière, assistez chez le professeur que vous avez choisi lors de votre inscription.
+            </span>
+          </p>
+        </div>
+      )}
 
       {/* Sub-bar: filters (level + group) */}
       <div className="bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-200 sticky top-0 z-10 shadow-sm">
