@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Save, X, CheckCircle, Users, Edit2 } from 'lucide-react';
+import { Plus, Trash2, Save, X, CheckCircle, Users, Edit2, FileDown, PenTool } from 'lucide-react';
 import { db } from './firebase';
 import { doc, setDoc, getDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
+import * as XLSX from 'xlsx';
 
 const GroupConstitution = ({ onClose }) => {
   const [groups, setGroups] = useState([]);
@@ -14,6 +15,8 @@ const GroupConstitution = ({ onClose }) => {
   const [groupsWithStudents, setGroupsWithStudents] = useState({});
   const [editingGroup, setEditingGroup] = useState(null);
   const [editingMatricules, setEditingMatricules] = useState([]);
+  const [renamingGroup, setRenamingGroup] = useState(null);
+  const [newName, setNewName] = useState('');
 
   // ===== FONCTIONS UTILITAIRES =====
   const parseMatricules = (text) => {
@@ -220,6 +223,105 @@ const GroupConstitution = ({ onClose }) => {
     }
   };
 
+  const handleExportMatricules = (group) => {
+    const matricules = groupsWithStudents[group] || [];
+    if (matricules.length === 0) {
+      setMessage('⚠️ Aucun matricule à exporter pour ce groupe');
+      setTimeout(() => setMessage(''), 3000);
+      return;
+    }
+
+    const data = matricules.map(mat => ({ 'Matricule': mat }));
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, group);
+
+    ws['!cols'] = [{ wch: 18 }];
+
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    for (let i = range.s.r; i <= range.e.r; i++) {
+      const cellRef = XLSX.utils.encode_cell({ r: i, c: 0 });
+      if (ws[cellRef]) {
+        if (i === 0) {
+          ws[cellRef].font = { bold: true, size: 12 };
+          ws[cellRef].fill = { patternType: 'solid', fgColor: { rgb: 'FF4472C4' } };
+          ws[cellRef].font.color = { rgb: 'FFFFFFFF' };
+        }
+        ws[cellRef].alignment = { horizontal: 'center', vertical: 'center' };
+        ws[cellRef].border = {
+          top: { style: 'thin', color: { rgb: 'FF000000' } },
+          bottom: { style: 'thin', color: { rgb: 'FF000000' } },
+          left: { style: 'thin', color: { rgb: 'FF000000' } },
+          right: { style: 'thin', color: { rgb: 'FF000000' } }
+        };
+      }
+    }
+
+    XLSX.writeFile(wb, `${group}_matricules_${new Date().toISOString().split('T')[0]}.xlsx`);
+    setMessage(`✅ Fichier Excel créé pour ${group} (${matricules.length} matricules)`);
+    setTimeout(() => setMessage(''), 3000);
+  };
+
+  const openRenameGroup = (group) => {
+    setRenamingGroup(group);
+    setNewName(group);
+  };
+
+  const saveGroupRename = async () => {
+    if (!newName.trim()) {
+      setMessage('Entrez un nouveau nom pour le groupe');
+      return;
+    }
+
+    if (newName === renamingGroup) {
+      setMessage('Le nouveau nom est identique à l\'ancien');
+      setRenamingGroup(null);
+      setNewName('');
+      return;
+    }
+
+    if (groups.includes(newName)) {
+      setMessage('Ce nom de groupe existe déjà');
+      return;
+    }
+
+    try {
+      const oldName = renamingGroup;
+      const updatedGroups = groups.map(g => g === oldName ? newName : g);
+
+      await setDoc(doc(db, 'settings', 'groups'), { list: updatedGroups });
+
+      const snapshot = await getDocs(collection(db, 'group_students'));
+      for (const doc_item of snapshot.docs) {
+        if (doc_item.data().group === oldName) {
+          const docId = `${newName}_${doc_item.data().matricule}`;
+          await setDoc(doc(db, 'group_students', docId), {
+            group: newName,
+            matricule: doc_item.data().matricule,
+            addedAt: doc_item.data().addedAt
+          });
+          await deleteDoc(doc_item.ref);
+        }
+      }
+
+      setGroupsWithStudents({
+        ...groupsWithStudents,
+        [newName]: groupsWithStudents[oldName],
+        [oldName]: undefined
+      });
+
+      setGroups(updatedGroups);
+      setRenamingGroup(null);
+      setNewName('');
+      setMessage(`✅ Groupe renommé de "${oldName}" à "${newName}"`);
+      setTimeout(() => setMessage(''), 3000);
+    } catch (error) {
+      console.error('Erreur:', error);
+      setMessage('❌ Erreur lors du renommage du groupe');
+    }
+  };
+
   // ===== EFFECTS =====
   useEffect(() => {
     loadGroups();
@@ -369,6 +471,18 @@ const GroupConstitution = ({ onClose }) => {
                           <Edit2 size={16} /> Gérer
                         </button>
                         <button
+                          onClick={() => handleExportMatricules(group)}
+                          className="px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-1 text-sm"
+                        >
+                          <FileDown size={16} /> Exporter
+                        </button>
+                        <button
+                          onClick={() => openRenameGroup(group)}
+                          className="px-3 py-1 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition flex items-center gap-1 text-sm"
+                        >
+                          <PenTool size={16} /> Renommer
+                        </button>
+                        <button
                           onClick={() => handleDeleteGroup(group)}
                           className="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 transition flex items-center gap-1 text-sm"
                         >
@@ -454,6 +568,68 @@ const GroupConstitution = ({ onClose }) => {
                 </button>
                 <button
                   onClick={() => setEditingGroup(null)}
+                  className="flex-1 px-4 py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition font-semibold"
+                >
+                  Annuler
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de renommage du groupe */}
+      {renamingGroup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="bg-gradient-to-r from-amber-500 to-amber-600 text-white p-6 flex justify-between items-center">
+              <h2 className="text-xl font-bold">Renommer le groupe</h2>
+              <button
+                onClick={() => {
+                  setRenamingGroup(null);
+                  setNewName('');
+                }}
+                className="hover:bg-amber-700 p-2 rounded-lg transition"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Ancien nom: <span className="text-amber-600 font-bold">{renamingGroup}</span>
+                </label>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Nouveau nom
+                </label>
+                <input
+                  type="text"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value.toUpperCase())}
+                  placeholder="Entrez le nouveau nom du groupe"
+                  className="w-full px-4 py-2 border border-amber-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  onKeyPress={(e) => e.key === 'Enter' && saveGroupRename()}
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={saveGroupRename}
+                  className="flex-1 px-4 py-3 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition font-semibold flex items-center justify-center gap-2"
+                >
+                  <Save size={20} />
+                  Renommer
+                </button>
+                <button
+                  onClick={() => {
+                    setRenamingGroup(null);
+                    setNewName('');
+                  }}
                   className="flex-1 px-4 py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition font-semibold"
                 >
                   Annuler
