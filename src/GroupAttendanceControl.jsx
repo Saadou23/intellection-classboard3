@@ -299,104 +299,205 @@ const GroupAttendanceControl = ({ onClose }) => {
     setTimeout(() => setMessage(''), 3000);
   };
 
-  const handlePrintTicket = () => {
-    const printWindow = window.open('', '', 'width=600,height=1000');
+  const handlePrintHistoryRecord = (record) => {
+    const printWindow = window.open('', '', 'height=800,width=600');
     printWindow.document.write(`
       <html>
-      <head>
-        <title>Ticket Contrôle</title>
-        <style>
-          body { font-family: 'Courier New', monospace; margin: 0; padding: 5px; background: white; }
-          .ticket { width: 100%; max-width: 480px; margin: 0 auto; }
-          .header { text-align: center; margin-bottom: 15px; border-bottom: 3px solid #000; padding-bottom: 8px; }
-          .header h1 { margin: 3px 0; font-size: 16px; font-weight: bold; }
-          .header p { margin: 2px 0; font-size: 10px; }
-          .divider { border-bottom: 1px dashed #000; margin: 8px 0; }
-          .group-section { margin-bottom: 15px; page-break-inside: avoid; }
-          .group-title { font-weight: bold; font-size: 11px; margin-bottom: 5px; background: #000; color: #fff; padding: 3px; text-align: center; }
-          .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; margin-bottom: 8px; font-size: 9px; }
-          .stat { border: 1px solid #000; padding: 4px; text-align: center; }
-          .stat-label { font-size: 8px; font-weight: bold; }
-          .stat-value { font-size: 14px; font-weight: bold; }
-          .list-section { margin-bottom: 8px; }
-          .matricule-list { font-size: 9px; line-height: 1.5; font-family: 'Courier New', monospace; }
-          .matricule { margin: 2px 0; }
-          .conforme { }
-          .absent { }
-          .non-inscrit { }
-          .footer { text-align: center; margin-top: 10px; font-size: 8px; border-top: 2px solid #000; padding-top: 5px; }
-          @media print {
-            body { margin: 0; padding: 2px; }
-            .group-section { page-break-inside: avoid; }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="ticket">
-          <div class="header">
-            <h1>╔═ CONTRÔLE PRÉSENCE ═╗</h1>
-            <p>📅 ${selectedDate}</p>
-            <p>🏛️  ${selectedRoom || 'Salle non spécifiée'}</p>
+        <head>
+          <meta charset="UTF-8">
+          <style>
+            * { margin: 0; padding: 0; }
+            body {
+              font-family: 'Bebas Neue', 'Arial Black', sans-serif;
+              padding: 20px;
+              background: white;
+              color: #333;
+            }
+            .container {
+              max-width: 80mm;
+              margin: 0 auto;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 15px;
+              border-bottom: 2px solid #000;
+              padding-bottom: 10px;
+            }
+            .title {
+              font-size: 24px;
+              font-weight: bold;
+              color: #C4161C;
+              margin-bottom: 5px;
+              letter-spacing: 2px;
+            }
+            .divider {
+              border-top: 1px dashed #333;
+              margin: 10px 0;
+            }
+            .group-section {
+              margin: 10px 0;
+            }
+            .group-title {
+              font-size: 16px;
+              font-weight: bold;
+              color: #C4161C;
+              margin-bottom: 8px;
+              border-bottom: 1px solid #C4161C;
+              padding-bottom: 3px;
+            }
+            .stats {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 8px;
+              margin-bottom: 10px;
+            }
+            .stat {
+              background: #f0f0f0;
+              padding: 8px;
+              border-radius: 3px;
+              text-align: center;
+            }
+            .stat-label {
+              font-size: 10px;
+              color: #666;
+              margin-bottom: 3px;
+            }
+            .stat-value {
+              font-size: 20px;
+              font-weight: bold;
+              color: #000;
+            }
+            .list-section {
+              margin: 10px 0;
+            }
+            .matricule-list {
+              font-size: 11px;
+              line-height: 1.6;
+              font-family: 'Courier New', monospace;
+            }
+            .matricule {
+              padding: 4px 0;
+              border-bottom: 1px dotted #ccc;
+            }
+            .footer {
+              text-align: center;
+              font-size: 9px;
+              color: #666;
+              margin-top: 15px;
+              padding-top: 10px;
+              border-top: 2px solid #000;
+            }
+            .footer p {
+              margin: 2px 0;
+            }
+            @media print {
+              body { padding: 5px; }
+              .container { max-width: 100%; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <div class="title">INTELLECTION</div>
+              <div style="font-size: 12px; font-weight: bold;">Contrôle de Séance</div>
+            </div>
+            <div class="divider"></div>
+            <div style="font-size: 10px; text-align: center; margin-bottom: 10px;">
+              <p><strong>Date:</strong> ${record.date}</p>
+              <p><strong>Salle:</strong> ${record.room || 'N/A'}</p>
+            </div>
+            <div class="divider"></div>
+            <div class="group-section">
+              <div class="group-title">GROUPE: ${record.group}</div>
+              <div class="stats">
+                <div class="stat">
+                  <div class="stat-label">PRÉSENTS</div>
+                  <div class="stat-value">${record.analysis.conforme.length}</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-label">ABSENTS</div>
+                  <div class="stat-value">${record.analysis.absents.length}</div>
+                </div>
+              </div>
+            </div>
+            <div class="divider"></div>
+            <div class="footer">
+              <p>🖨️ ${new Date().toLocaleString('fr-FR')}</p>
+              <p>INTELLECTION CLASSBOARD</p>
+            </div>
           </div>
+        </body>
+      </html>
     `);
+    printWindow.document.close();
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 250);
+  };
 
-    // Afficher une seule fois pour tous les groupes combinés (même logique que l'écran)
+  const handlePrintTicket = () => {
+    if (!analysis) {
+      alert('Aucune analyse disponible');
+      return;
+    }
+
+    const scannedMatricules = parseMatricules(matriculesInput).sort();
     const firstGroupAnalysis = Object.values(analysis)[0];
-    const matriculeAnalysisMap = firstGroupAnalysis.matriculeAnalysis || {};
-    const allMatricules = Object.entries(matriculeAnalysisMap)
-      .sort(([matA], [matB]) => matA.localeCompare(matB))
-      .map(([mat]) => mat);
+    const matriculeAnalysisMap = firstGroupAnalysis?.matriculeAnalysis || {};
 
     const totalConforme = Object.values(analysis).reduce((sum, g) => sum + g.conforme.length, 0);
     const totalAbsents = Object.values(analysis).reduce((sum, g) => sum + g.nombreAbsents, 0);
-    const totalNonInscrits = Object.values(matriculeAnalysisMap).filter(m => !m.isInscrit).length;
+    const totalNonInscrits = scannedMatricules.filter(m => matriculeAnalysisMap[m] && !matriculeAnalysisMap[m].isInscrit).length;
 
-    printWindow.document.write(`
-      <div class="divider"></div>
-      <div class="group-section">
-        <div class="group-title">GROUPES: ${selectedGroups.join(', ')}</div>
-        <div class="stats">
-          <div class="stat">
-            <div class="stat-label">SCANNÉS</div>
-            <div class="stat-value">${allMatricules.length}</div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">INSCRITS</div>
-            <div class="stat-value">${totalConforme}</div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">ABSENTS</div>
-            <div class="stat-value">${totalAbsents}</div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">NON-INSC.</div>
-            <div class="stat-value">${totalNonInscrits}</div>
-          </div>
-        </div>
-    `);
+    const printWindow = window.open('', '', 'width=800,height=1200');
 
-    // Afficher la liste unique (comme l'écran)
-    printWindow.document.write(`
-      <div class="list-section">
-        <div class="matricule-list">
-    `);
-    allMatricules.forEach(mat => {
+    // Construire les lignes du tableau
+    let tableRows = '';
+    for (let i = 0; i < scannedMatricules.length; i++) {
+      const mat = scannedMatricules[i];
       const matInfo = matriculeAnalysisMap[mat];
-      const groups = matInfo.displayGroups;
-      printWindow.document.write(`<div class="matricule">${mat.padEnd(12)} ${groups}</div>`);
-    });
-    printWindow.document.write('</div></div></div>');
+      const groups = matInfo ? (matInfo.displayGroups || 'N/A') : 'N/A';
+      const bgColor = i % 2 === 0 ? 'white' : '#f5f5f5';
+      tableRows = tableRows + '<tr style="background-color:' + bgColor + ';"><td style="border:1px solid #999; padding:4px;">' + mat + '</td><td style="border:1px solid #999; padding:4px; text-align:right;">' + groups + '</td></tr>';
+    }
 
-    printWindow.document.write(`
-        <div class="divider"></div>
-        <div class="footer">
-          <p>🖨️ ${new Date().toLocaleString('fr-FR')}</p>
-          <p>INTELLECTION CLASSBOARD</p>
-        </div>
-        </div>
-      </body>
-      </html>
-    `);
+    const html = '<html><head><meta charset="UTF-8"><title>Ticket</title><style>'
+      + 'body { font-family: Arial, sans-serif; margin: 10px; padding: 0; background: white; }'
+      + '.header { text-align: center; margin-bottom: 15px; border-bottom: 2px solid black; padding-bottom: 10px; }'
+      + '.header h1 { margin: 0; font-size: 22px; color: #C4161C; font-weight: bold; }'
+      + '.header p { margin: 2px 0; font-size: 11px; }'
+      + '.divider { border-top: 1px dashed black; margin: 10px 0; }'
+      + '.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin: 10px 0; }'
+      + '.stat { border: 1px solid black; padding: 8px; text-align: center; }'
+      + '.stat-label { font-size: 10px; font-weight: bold; }'
+      + '.stat-value { font-size: 18px; font-weight: bold; color: #C4161C; }'
+      + '.section-title { font-size: 12px; font-weight: bold; background: black; color: white; padding: 5px; margin: 10px 0 5px 0; }'
+      + 'table { width: 100%; border-collapse: collapse; margin: 10px 0; }'
+      + 'th { background: black; color: white; padding: 5px; text-align: left; border: 1px solid black; font-size: 11px; font-weight: bold; }'
+      + 'td { border: 1px solid #999; padding: 4px; font-size: 11px; }'
+      + '.footer { text-align: center; margin-top: 15px; border-top: 2px solid black; padding-top: 10px; font-size: 9px; }'
+      + '</style></head><body>'
+      + '<div class="header"><h1>INTELLECTION</h1><p>Contrôle de Présence</p><p>Date: ' + selectedDate + ' | Salle: ' + (selectedRoom || 'N/A') + '</p></div>'
+      + '<div class="divider"></div>'
+      + '<div class="section-title">GROUPES: ' + selectedGroups.join(', ') + '</div>'
+      + '<div class="stats">'
+      + '<div class="stat"><div class="stat-label">SCANNÉS</div><div class="stat-value">' + scannedMatricules.length + '</div></div>'
+      + '<div class="stat"><div class="stat-label">INSCRITS</div><div class="stat-value">' + totalConforme + '</div></div>'
+      + '<div class="stat"><div class="stat-label">ABSENTS</div><div class="stat-value">' + totalAbsents + '</div></div>'
+      + '<div class="stat"><div class="stat-label">NON-INSC.</div><div class="stat-value">' + totalNonInscrits + '</div></div>'
+      + '</div>'
+      + '<div class="divider"></div>'
+      + '<div class="section-title">LISTE MATRICULES & GROUPES</div>'
+      + '<table><thead><tr><th>MATRICULE</th><th>GROUPE(S)</th></tr></thead><tbody>'
+      + tableRows
+      + '</tbody></table>'
+      + '<div class="divider"></div>'
+      + '<div class="footer"><p>Impression: ' + new Date().toLocaleString('fr-FR') + '</p><p>INTELLECTION CLASSBOARD</p></div>'
+      + '</body></html>';
+
+    printWindow.document.write(html);
     printWindow.document.close();
     setTimeout(() => printWindow.print(), 250);
   };
@@ -603,7 +704,13 @@ const GroupAttendanceControl = ({ onClose }) => {
                         <td className="px-4 py-2 text-green-600 font-semibold">{record.analysis.conforme.length}</td>
                         <td className="px-4 py-2 text-red-600 font-semibold">{record.analysis.absents.length}</td>
                         <td className="px-4 py-2 text-orange-600 font-semibold">{record.analysis.matriculesNonInscritPartout ? record.analysis.matriculesNonInscritPartout.length : (record.analysis.pasInscritGroupe ? record.analysis.pasInscritGroupe.length : 0)}</td>
-                        <td className="px-4 py-2">
+                        <td className="px-4 py-2 flex gap-2">
+                          <button
+                            onClick={() => handlePrintHistoryRecord(record)}
+                            className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition flex items-center gap-1 text-xs"
+                          >
+                            <Printer size={14} /> Imprimer
+                          </button>
                           <button
                             onClick={() => deleteHistoryRecord(record.id)}
                             className="px-2 py-1 bg-red-400 text-white rounded hover:bg-red-500 transition flex items-center gap-1 text-xs"

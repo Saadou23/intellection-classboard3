@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, FileDown, Building2, User, GraduationCap } from 'lucide-react';
+import { X, FileDown, Building2, User, GraduationCap, Printer } from 'lucide-react';
 import { formatLevelDisplay, sessionIncludesLevel, getSessionLevels } from './levelUtils';
 
 const PDFExportModal = ({ sessions, branches, branchesData, onClose }) => {
@@ -89,6 +89,223 @@ const PDFExportModal = ({ sessions, branches, branchesData, onClose }) => {
     });
     setGroupesParNiveau(groupesMap);
   }, [sessions]);
+
+  const handlePrint = async () => {
+    try {
+      if (exportType === 'branch' && !selectedBranch) {
+        alert('Veuillez sélectionner un centre');
+        return;
+      }
+      if (exportType === 'professor' && !selectedProfessor) {
+        alert('Veuillez sélectionner un professeur');
+        return;
+      }
+      if (exportType === 'level' && (!selectedBranch || !selectedLevel)) {
+        alert('Veuillez sélectionner un centre et un niveau');
+        return;
+      }
+
+      // Filtrer les sessions
+      let filteredSessions = [];
+      if (exportType === 'branch') {
+        filteredSessions = sessions[selectedBranch] || [];
+      } else if (exportType === 'professor') {
+        Object.values(sessions).forEach(branchSessions => {
+          filteredSessions = filteredSessions.concat(
+            branchSessions.filter(s => s.professor === selectedProfessor)
+          );
+        });
+      } else if (exportType === 'level') {
+        filteredSessions = (sessions[selectedBranch] || []).filter(s => {
+          const sessionLevels = getSessionLevels(s);
+          if (!sessionLevels.includes(selectedLevel)) return false;
+          if (selectedGroupe) {
+            const groupes = s.groupes?.length > 0 ? s.groupes : [s.groupe];
+            return groupes.includes(selectedGroupe);
+          }
+          return true;
+        });
+      }
+
+      // Filtrer par période
+      if (selectedPeriod === 'normal') {
+        filteredSessions = filteredSessions.filter(s => !s.period);
+      } else {
+        filteredSessions = filteredSessions.filter(s => s.period === selectedPeriod);
+      }
+
+      if (filteredSessions.length === 0) {
+        alert('Aucune session trouvée avec ces critères');
+        return;
+      }
+
+      // Créer le contenu HTML pour l'impression
+      const periodName = selectedPeriod === 'normal'
+        ? 'Normal'
+        : availablePeriods.find(p => p.id === selectedPeriod)?.name || 'Période';
+
+      let title;
+      if (exportType === 'branch') {
+        title = `Emploi du Temps - ${selectedBranch}`;
+      } else if (exportType === 'professor') {
+        title = `Emploi du Temps - ${selectedProfessor}`;
+      } else if (exportType === 'level') {
+        title = `Emploi du Temps - ${selectedBranch} - ${selectedLevel}`;
+        if (selectedGroupe) {
+          title += ` - ${selectedGroupe}`;
+        }
+      }
+
+      if (periodName !== 'Normal') {
+        title += ` - ${periodName}`;
+      }
+
+      let htmlContent = `
+        <html>
+          <head>
+            <meta charset="UTF-8">
+            <style>
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                padding: 20px;
+                background: white;
+              }
+              h1 {
+                text-align: center;
+                color: #333;
+                margin-bottom: 5px;
+                font-size: 24px;
+              }
+              .date {
+                text-align: center;
+                color: #666;
+                margin-bottom: 20px;
+                font-size: 12px;
+              }
+              .day-section {
+                margin-bottom: 30px;
+                page-break-inside: avoid;
+              }
+              .day-header {
+                background-color: #C4161C;
+                color: white;
+                padding: 10px;
+                font-weight: bold;
+                font-size: 16px;
+                margin-bottom: 10px;
+                border-radius: 4px;
+              }
+              table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 15px;
+              }
+              th, td {
+                border: 1px solid #ddd;
+                padding: 8px;
+                text-align: left;
+              }
+              th {
+                background-color: #f0f0f0;
+                font-weight: bold;
+                color: #333;
+              }
+              tr:nth-child(even) {
+                background-color: #f9f9f9;
+              }
+              tr:hover {
+                background-color: #f0f0f0;
+              }
+              @media print {
+                body { padding: 10px; }
+                .day-section { page-break-inside: avoid; }
+              }
+            </style>
+          </head>
+          <body>
+            <h1>${title}</h1>
+            <div class="date">Généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}</div>
+      `;
+
+      const daysOfWeek = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+
+      daysOfWeek.forEach((dayName, dayIndex) => {
+        const daySessions = filteredSessions
+          .filter(s => s.dayOfWeek === dayIndex)
+          .sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+        if (daySessions.length === 0) return;
+
+        let headers = ['Horaire', 'Matière', 'Salle'];
+        if (exportType !== 'level' && exportType !== 'group') {
+          headers.splice(1, 0, 'Niveau');
+        }
+        if (exportType === 'branch') {
+          headers.push('Professeur');
+        } else if (exportType === 'professor') {
+          headers.splice(1, 0, 'Centre');
+        }
+
+        htmlContent += `
+          <div class="day-section">
+            <div class="day-header">${dayName}</div>
+            <table>
+              <thead>
+                <tr>
+                  ${headers.map(h => `<th>${h}</th>`).join('')}
+                </tr>
+              </thead>
+              <tbody>
+                ${daySessions.map(session => {
+                  let rowHTML = `<td>${session.startTime} - ${session.endTime}</td>`;
+
+                  if (exportType !== 'level' && exportType !== 'group') {
+                    rowHTML += `<td>${formatLevelDisplay(session.level)}</td>`;
+                  }
+
+                  const groupesDisplay = session.groupes?.length > 0 ? session.groupes.join(', ') : (session.groupe || '');
+                  rowHTML += `<td>${(session.subject || '-')} ${groupesDisplay ? '· ' + groupesDisplay : ''}</td>`;
+
+                  if (exportType === 'branch') {
+                    rowHTML += `<td>${session.professor || '-'}</td>`;
+                  } else if (exportType === 'professor') {
+                    rowHTML = `<td>${session.startTime} - ${session.endTime}</td>`;
+                    rowHTML += `<td>${session.branch || '-'}</td>`;
+                    rowHTML += `<td>${(session.subject || '-')} ${groupesDisplay ? '· ' + groupesDisplay : ''}</td>`;
+                  }
+
+                  rowHTML += `<td>Salle ${session.room}</td>`;
+
+                  return `<tr>${rowHTML}</tr>`;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      });
+
+      htmlContent += `
+          </body>
+        </html>
+      `;
+
+      // Créer une nouvelle fenêtre pour l'impression
+      const printWindow = window.open('', '', 'height=800,width=1000');
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+
+      // Attendre que le document soit chargé puis lancer l'impression
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, 250);
+
+    } catch (error) {
+      console.error('Erreur impression:', error);
+      alert('Erreur lors de l\'impression');
+    }
+  };
 
   const generatePDF = async () => {
     if (exportType === 'branch' && !selectedBranch) {
@@ -472,6 +689,14 @@ const PDFExportModal = ({ sessions, branches, branchesData, onClose }) => {
             className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-100"
           >
             Annuler
+          </button>
+          <button
+            onClick={handlePrint}
+            disabled={exportType === 'branch' ? !selectedBranch : exportType === 'professor' ? !selectedProfessor : !selectedBranch || !selectedLevel}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            <Printer className="w-4 h-4" />
+            Imprimer
           </button>
           <button
             onClick={generatePDF}
