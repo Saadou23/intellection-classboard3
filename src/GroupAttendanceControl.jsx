@@ -75,6 +75,24 @@ const GroupAttendanceControl = ({ onClose }) => {
 
     setLoading(true);
     try {
+      // Charger les données d'étudiants (matricule + nom)
+      const studentsSnapshot = await getDocs(collection(db, 'students'));
+      const studentNames = {};
+      console.log('📚 Total d\'étudiants trouvés dans Firebase:', studentsSnapshot.docs.length);
+
+      studentsSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        const matricule = String(data.matricule || '').trim();
+        studentNames[matricule] = {
+          fullName: data.fullName || `${data.prenom} ${data.nom}`,
+          prenom: data.prenom,
+          nom: data.nom
+        };
+        console.log(`👤 Étudiant chargé: ${matricule} = ${data.fullName}`);
+      });
+
+      console.log('🎯 Total matricules chargés:', Object.keys(studentNames).length);
+
       // Charger tous les étudiants de tous les groupes sélectionnés
       const groupStudentsSnapshot = await getDocs(collection(db, 'group_students'));
       const groupMap = {};
@@ -94,17 +112,24 @@ const GroupAttendanceControl = ({ onClose }) => {
         matriculesByGroup[matricule].push(group);
       }
 
-      // Créer un mapping détaillé par matricule scané
+      // Créer un mapping détaillé par matricule scané (avec noms)
       const matriculeAnalysis = {};
 
       for (const mat of scannedMatricules) {
-        const groupsOfThisMatricule = matriculesByGroup[mat] || [];
+        const matTrimmed = String(mat).trim();
+        const groupsOfThisMatricule = matriculesByGroup[matTrimmed] || [];
         const selectedGroupsOfThisMatricule = selectedGroups.filter(g => groupsOfThisMatricule.includes(g));
+        const studentInfo = studentNames[matTrimmed] || {};
+
+        console.log(`🔍 Matricule scanné: "${mat}" (trimé: "${matTrimmed}") => Trouvé: ${studentInfo.fullName ? '✅' : '❌'}`);
 
         matriculeAnalysis[mat] = {
           groupsOfThisMatricule: selectedGroupsOfThisMatricule,
           isInscrit: selectedGroupsOfThisMatricule.length > 0,
-          displayGroups: selectedGroupsOfThisMatricule.length > 0 ? selectedGroupsOfThisMatricule.join(', ') : 'Non inscrit'
+          displayGroups: selectedGroupsOfThisMatricule.length > 0 ? selectedGroupsOfThisMatricule.join(', ') : 'Non inscrit',
+          fullName: studentInfo.fullName || 'Nom inconnu',
+          prenom: studentInfo.prenom || '',
+          nom: studentInfo.nom || ''
         };
       }
 
@@ -130,8 +155,19 @@ const GroupAttendanceControl = ({ onClose }) => {
           nombreAbsents: absents.length
         };
 
-        // Sauvegarder le contrôle pour ce groupe
+        // Sauvegarder le contrôle pour ce groupe (données optimisées)
         const recordId = `${selectedGroup}_${selectedDate}_${Date.now()}`;
+
+        // Créer une version simplifiée de matriculeAnalysis pour la sauvegarde
+        const simplifiedAnalysis = {};
+        Object.entries(matriculeAnalysis).forEach(([mat, info]) => {
+          simplifiedAnalysis[mat] = {
+            fullName: info.fullName,
+            displayGroups: info.displayGroups,
+            isInscrit: info.isInscrit
+          };
+        });
+
         await setDoc(doc(db, 'attendance_records', recordId), {
           date: selectedDate,
           group: selectedGroup,
@@ -139,7 +175,7 @@ const GroupAttendanceControl = ({ onClose }) => {
           createdAt: new Date().toISOString(),
           analysis: analysisByGroup[selectedGroup],
           scannedMatricules,
-          matriculeAnalysis,
+          matriculeAnalysis: simplifiedAnalysis,
           groupStudents
         });
       }
@@ -261,6 +297,7 @@ const GroupAttendanceControl = ({ onClose }) => {
     // Liste des matricules
     data.push({
       'Matricule': 'MATRICULE',
+      'Nom Complet': 'NOM COMPLET',
       'Groupe': 'GROUPE(S)',
       'Statut': 'STATUT'
     });
@@ -272,6 +309,7 @@ const GroupAttendanceControl = ({ onClose }) => {
 
       data.push({
         'Matricule': mat,
+        'Nom Complet': matInfo.fullName || 'Nom inconnu',
         'Groupe': matInfo.displayGroups,
         'Statut': status
       });
@@ -300,136 +338,66 @@ const GroupAttendanceControl = ({ onClose }) => {
   };
 
   const handlePrintHistoryRecord = (record) => {
-    const printWindow = window.open('', '', 'height=800,width=600');
-    printWindow.document.write(`
-      <html>
-        <head>
-          <meta charset="UTF-8">
-          <style>
-            * { margin: 0; padding: 0; }
-            body {
-              font-family: 'Bebas Neue', 'Arial Black', sans-serif;
-              padding: 20px;
-              background: white;
-              color: #333;
-            }
-            .container {
-              max-width: 80mm;
-              margin: 0 auto;
-            }
-            .header {
-              text-align: center;
-              margin-bottom: 15px;
-              border-bottom: 2px solid #000;
-              padding-bottom: 10px;
-            }
-            .title {
-              font-size: 24px;
-              font-weight: bold;
-              color: #C4161C;
-              margin-bottom: 5px;
-              letter-spacing: 2px;
-            }
-            .divider {
-              border-top: 1px dashed #333;
-              margin: 10px 0;
-            }
-            .group-section {
-              margin: 10px 0;
-            }
-            .group-title {
-              font-size: 16px;
-              font-weight: bold;
-              color: #C4161C;
-              margin-bottom: 8px;
-              border-bottom: 1px solid #C4161C;
-              padding-bottom: 3px;
-            }
-            .stats {
-              display: grid;
-              grid-template-columns: 1fr 1fr;
-              gap: 8px;
-              margin-bottom: 10px;
-            }
-            .stat {
-              background: #f0f0f0;
-              padding: 8px;
-              border-radius: 3px;
-              text-align: center;
-            }
-            .stat-label {
-              font-size: 10px;
-              color: #666;
-              margin-bottom: 3px;
-            }
-            .stat-value {
-              font-size: 20px;
-              font-weight: bold;
-              color: #000;
-            }
-            .list-section {
-              margin: 10px 0;
-            }
-            .matricule-list {
-              font-size: 11px;
-              line-height: 1.6;
-              font-family: 'Courier New', monospace;
-            }
-            .matricule {
-              padding: 4px 0;
-              border-bottom: 1px dotted #ccc;
-            }
-            .footer {
-              text-align: center;
-              font-size: 9px;
-              color: #666;
-              margin-top: 15px;
-              padding-top: 10px;
-              border-top: 2px solid #000;
-            }
-            .footer p {
-              margin: 2px 0;
-            }
-            @media print {
-              body { padding: 5px; }
-              .container { max-width: 100%; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <div class="title">INTELLECTION</div>
-              <div style="font-size: 12px; font-weight: bold;">Contrôle de Séance</div>
-            </div>
-            <div class="divider"></div>
-            <div style="font-size: 10px; text-align: center; margin-bottom: 10px;">
-              <p><strong>Date:</strong> ${record.date}</p>
-              <p><strong>Salle:</strong> ${record.room || 'N/A'}</p>
-            </div>
-            <div class="divider"></div>
-            <div class="group-section">
-              <div class="group-title">GROUPE: ${record.group}</div>
-              <div class="stats">
-                <div class="stat">
-                  <div class="stat-label">PRÉSENTS</div>
-                  <div class="stat-value">${record.analysis.conforme.length}</div>
-                </div>
-                <div class="stat">
-                  <div class="stat-label">ABSENTS</div>
-                  <div class="stat-value">${record.analysis.absents.length}</div>
-                </div>
-              </div>
-            </div>
-            <div class="divider"></div>
-            <div class="footer">
-              <p>🖨️ ${new Date().toLocaleString('fr-FR')}</p>
-              <p>INTELLECTION CLASSBOARD</p>
-            </div>
-          </div>
-        </body>
-      </html>
-    `);
+    // Récupérer les matricules scannés et groupes depuis l'historique
+    const scannedMatricules = record.scannedMatricules || [];
+    const matriculeAnalysis = record.matriculeAnalysis || {};
+
+    let html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Historique Contrôle</title><style>'
+      + 'body { font-family: Arial, sans-serif; margin: 15px; padding: 0; background: white; }'
+      + '.header { text-align: center; margin-bottom: 20px; border-bottom: 3px solid #000; padding-bottom: 15px; }'
+      + '.header h1 { margin: 0 0 5px 0; font-size: 28px; color: #C4161C; font-weight: bold; }'
+      + '.header p { margin: 3px 0; font-size: 12px; }'
+      + '.divider { border-top: 2px dashed #000; margin: 15px 0; }'
+      + '.section { margin: 15px 0; }'
+      + '.section-title { font-size: 13px; font-weight: bold; background: #000; color: #fff; padding: 7px; margin-bottom: 8px; }'
+      + '.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin: 10px 0; }'
+      + '.stat { border: 2px solid #000; padding: 10px; text-align: center; }'
+      + '.stat-label { font-size: 10px; font-weight: bold; margin-bottom: 5px; }'
+      + '.stat-value { font-size: 20px; font-weight: bold; color: #C4161C; }'
+      + 'table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 12px; }'
+      + 'th { background: #000; color: #fff; padding: 8px; text-align: left; border: 2px solid #000; font-weight: bold; }'
+      + 'td { border: 1px solid #999; padding: 6px; }'
+      + 'tr:nth-child(even) { background: #f9f9f9; }'
+      + '.footer { text-align: center; margin-top: 20px; border-top: 3px solid #000; padding-top: 10px; font-size: 10px; }'
+      + '</style></head><body>'
+      + '<div class="header>'
+      + '<h1>INTELLECTION</h1>'
+      + '<p><strong>Contrôle de Présence - Historique</strong></p>'
+      + '<p>📅 ' + record.date + ' | 🏛️ ' + (record.room || 'Salle N/A') + '</p>'
+      + '</div>'
+      + '<div class="divider"></div>'
+      + '<div class="section">'
+      + '<div class="section-title">GROUPE: ' + record.group + '</div>'
+      + '<div class="stats">'
+      + '<div class="stat"><div class="stat-label">PRÉSENTS</div><div class="stat-value">' + (record.analysis.conforme ? record.analysis.conforme.length : 0) + '</div></div>'
+      + '<div class="stat"><div class="stat-label">ABSENTS</div><div class="stat-value">' + (record.analysis.absents ? record.analysis.absents.length : 0) + '</div></div>'
+      + '</div>'
+      + '</div>'
+      + '<div class="divider"></div>'
+      + '<div class="section-title">LISTE MATRICULES & GROUPES</div>'
+      + '<table>'
+      + '<thead><tr><th style="width:25%;">MATRICULE</th><th style="width:35%;">NOM COMPLET</th><th style="width:40%;">GROUPE(S)</th></tr></thead>'
+      + '<tbody>';
+
+    // Ajouter chaque matricule
+    for (let i = 0; i < scannedMatricules.length; i++) {
+      const mat = scannedMatricules[i];
+      const matInfo = matriculeAnalysis[mat];
+      const groups = matInfo ? (matInfo.displayGroups || 'N/A') : 'N/A';
+      const fullName = matInfo ? (matInfo.fullName || 'Nom inconnu') : 'Nom inconnu';
+      html += '<tr><td><strong>' + mat + '</strong></td><td>' + fullName + '</td><td>' + groups + '</td></tr>';
+    }
+
+    html += '</tbody></table>'
+      + '<div class="divider"></div>'
+      + '<div class="footer">'
+      + '<p>🖨️ Impression: ' + new Date().toLocaleString('fr-FR') + '</p>'
+      + '<p>INTELLECTION CLASSBOARD</p>'
+      + '</div>'
+      + '</body></html>';
+
+    const printWindow = window.open('', '', 'width=900,height=1200');
+    printWindow.document.write(html);
     printWindow.document.close();
     setTimeout(() => {
       printWindow.print();
@@ -444,43 +412,43 @@ const GroupAttendanceControl = ({ onClose }) => {
     }
 
     const scannedMatricules = parseMatricules(matriculesInput).sort();
+    console.log('📊 handlePrintTicket - scannedMatricules:', scannedMatricules);
+    console.log('📊 handlePrintTicket - analysis:', analysis);
+
     const firstGroupAnalysis = Object.values(analysis)[0];
     const matriculeAnalysisMap = firstGroupAnalysis?.matriculeAnalysis || {};
+    console.log('📊 handlePrintTicket - matriculeAnalysisMap:', matriculeAnalysisMap);
 
     const totalConforme = Object.values(analysis).reduce((sum, g) => sum + g.conforme.length, 0);
     const totalAbsents = Object.values(analysis).reduce((sum, g) => sum + g.nombreAbsents, 0);
     const totalNonInscrits = scannedMatricules.filter(m => matriculeAnalysisMap[m] && !matriculeAnalysisMap[m].isInscrit).length;
 
-    const printWindow = window.open('', '', 'width=800,height=1200');
-
-    // Construire les lignes du tableau
-    let tableRows = '';
-    for (let i = 0; i < scannedMatricules.length; i++) {
-      const mat = scannedMatricules[i];
-      const matInfo = matriculeAnalysisMap[mat];
-      const groups = matInfo ? (matInfo.displayGroups || 'N/A') : 'N/A';
-      const bgColor = i % 2 === 0 ? 'white' : '#f5f5f5';
-      tableRows = tableRows + '<tr style="background-color:' + bgColor + ';"><td style="border:1px solid #999; padding:4px;">' + mat + '</td><td style="border:1px solid #999; padding:4px; text-align:right;">' + groups + '</td></tr>';
-    }
-
-    const html = '<html><head><meta charset="UTF-8"><title>Ticket</title><style>'
-      + 'body { font-family: Arial, sans-serif; margin: 10px; padding: 0; background: white; }'
-      + '.header { text-align: center; margin-bottom: 15px; border-bottom: 2px solid black; padding-bottom: 10px; }'
-      + '.header h1 { margin: 0; font-size: 22px; color: #C4161C; font-weight: bold; }'
-      + '.header p { margin: 2px 0; font-size: 11px; }'
-      + '.divider { border-top: 1px dashed black; margin: 10px 0; }'
-      + '.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin: 10px 0; }'
-      + '.stat { border: 1px solid black; padding: 8px; text-align: center; }'
-      + '.stat-label { font-size: 10px; font-weight: bold; }'
-      + '.stat-value { font-size: 18px; font-weight: bold; color: #C4161C; }'
-      + '.section-title { font-size: 12px; font-weight: bold; background: black; color: white; padding: 5px; margin: 10px 0 5px 0; }'
-      + 'table { width: 100%; border-collapse: collapse; margin: 10px 0; }'
-      + 'th { background: black; color: white; padding: 5px; text-align: left; border: 1px solid black; font-size: 11px; font-weight: bold; }'
-      + 'td { border: 1px solid #999; padding: 4px; font-size: 11px; }'
-      + '.footer { text-align: center; margin-top: 15px; border-top: 2px solid black; padding-top: 10px; font-size: 9px; }'
+    // Construire HTML complet en une seule chaîne
+    let html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Ticket Contrôle</title><style>'
+      + 'body { font-family: Arial, sans-serif; margin: 15px; padding: 0; background: white; }'
+      + '.header { text-align: center; margin-bottom: 20px; border-bottom: 3px solid #000; padding-bottom: 15px; }'
+      + '.header h1 { margin: 0 0 5px 0; font-size: 28px; color: #C4161C; font-weight: bold; }'
+      + '.header p { margin: 3px 0; font-size: 12px; }'
+      + '.divider { border-top: 2px dashed #000; margin: 15px 0; }'
+      + '.section { margin: 15px 0; }'
+      + '.section-title { font-size: 13px; font-weight: bold; background: #000; color: #fff; padding: 7px; margin-bottom: 8px; }'
+      + '.stats { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 5px; margin: 10px 0; }'
+      + '.stat { border: 2px solid #000; padding: 10px; text-align: center; }'
+      + '.stat-label { font-size: 10px; font-weight: bold; margin-bottom: 5px; }'
+      + '.stat-value { font-size: 20px; font-weight: bold; color: #C4161C; }'
+      + 'table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 12px; }'
+      + 'th { background: #000; color: #fff; padding: 8px; text-align: left; border: 2px solid #000; font-weight: bold; }'
+      + 'td { border: 1px solid #999; padding: 6px; }'
+      + 'tr:nth-child(even) { background: #f9f9f9; }'
+      + '.footer { text-align: center; margin-top: 20px; border-top: 3px solid #000; padding-top: 10px; font-size: 10px; }'
       + '</style></head><body>'
-      + '<div class="header"><h1>INTELLECTION</h1><p>Contrôle de Présence</p><p>Date: ' + selectedDate + ' | Salle: ' + (selectedRoom || 'N/A') + '</p></div>'
+      + '<div class="header">'
+      + '<h1>INTELLECTION</h1>'
+      + '<p><strong>Contrôle de Présence</strong></p>'
+      + '<p>📅 ' + selectedDate + ' | 🏛️ ' + (selectedRoom || 'Salle N/A') + '</p>'
+      + '</div>'
       + '<div class="divider"></div>'
+      + '<div class="section">'
       + '<div class="section-title">GROUPES: ' + selectedGroups.join(', ') + '</div>'
       + '<div class="stats">'
       + '<div class="stat"><div class="stat-label">SCANNÉS</div><div class="stat-value">' + scannedMatricules.length + '</div></div>'
@@ -488,15 +456,34 @@ const GroupAttendanceControl = ({ onClose }) => {
       + '<div class="stat"><div class="stat-label">ABSENTS</div><div class="stat-value">' + totalAbsents + '</div></div>'
       + '<div class="stat"><div class="stat-label">NON-INSC.</div><div class="stat-value">' + totalNonInscrits + '</div></div>'
       + '</div>'
+      + '</div>'
       + '<div class="divider"></div>'
-      + '<div class="section-title">LISTE MATRICULES & GROUPES</div>'
-      + '<table><thead><tr><th>MATRICULE</th><th>GROUPE(S)</th></tr></thead><tbody>'
-      + tableRows
-      + '</tbody></table>'
+      + '<div class="section-title">LISTE MATRICULES & NOMS</div>'
+      + '<table>'
+      + '<thead><tr><th style="width:30%;">MATRICULE</th><th style="width:40%;">NOM COMPLET</th><th style="width:30%;">GROUPE(S)</th></tr></thead>'
+      + '<tbody>';
+
+    // Ajouter chaque matricule
+    for (let i = 0; i < scannedMatricules.length; i++) {
+      const mat = scannedMatricules[i];
+      const matInfo = matriculeAnalysisMap[mat];
+      const groups = matInfo ? (matInfo.displayGroups || 'N/A') : 'N/A';
+      const fullName = matInfo ? (matInfo.fullName || 'Nom inconnu') : 'Nom inconnu';
+      html += '<tr><td><strong>' + mat + '</strong></td><td>' + fullName + '</td><td>' + groups + '</td></tr>';
+    }
+
+    html += '</tbody></table>'
       + '<div class="divider"></div>'
-      + '<div class="footer"><p>Impression: ' + new Date().toLocaleString('fr-FR') + '</p><p>INTELLECTION CLASSBOARD</p></div>'
+      + '<div class="footer">'
+      + '<p>🖨️ Impression: ' + new Date().toLocaleString('fr-FR') + '</p>'
+      + '<p>INTELLECTION CLASSBOARD</p>'
+      + '</div>'
       + '</body></html>';
 
+    console.log('📊 Nombre de matricules à imprimer:', scannedMatricules.length);
+    console.log('📊 HTML généré, longueur:', html.length);
+
+    const printWindow = window.open('', '', 'width=900,height=1200');
     printWindow.document.write(html);
     printWindow.document.close();
     setTimeout(() => printWindow.print(), 250);

@@ -21,6 +21,7 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
     { icon: 'Zap', color: 'amber', title: 'Restez connectés', description: 'Suivi en temps réel de votre scolarité' },
     { icon: 'Bell', color: 'green', title: 'Suivi Parental en Temps Réel', description: 'Les parents suivent précisément: présences, emploi du temps, performances et communications directes' }
   ]);
+  const [notePhotos, setNotePhotos] = useState([]);
   const audioRef = React.useRef(null);
 
   const appleUrl = 'https://apps.apple.com/ma/app/intellection-classboard/id6758705463?l=ar';
@@ -28,7 +29,9 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
   const appleQRCode = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(appleUrl)}`;
   const androidQRCode = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(androidUrl)}`;
 
-  const resultImages = ['/results-27950.jpg', '/results-3422.jpg', '/results-9168.jpg', '/results-4.jpg'];
+  // Fallback photos si Firebase est vide
+  const fallbackNotePhotos = ['/results-27950.jpg', '/results-3422.jpg', '/results-9168.jpg', '/results-4.jpg'];
+  const resultImages = notePhotos.length > 0 ? notePhotos : fallbackNotePhotos.map(url => ({ url, displayDuration: adParams.resultSlideDuration }));
 
   const iconMap = {
     Calendar, Bell, BookOpen, Zap
@@ -90,6 +93,22 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
     loadSlides();
   }, []);
 
+  // Charger les photos de notes depuis Firebase
+  useEffect(() => {
+    const loadNotePhotos = async () => {
+      try {
+        const docRef = doc(db, 'settings', 'note_photos');
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setNotePhotos(docSnap.data().photos || []);
+        }
+      } catch (error) {
+        console.error('Erreur chargement photos de notes:', error);
+      }
+    };
+    loadNotePhotos();
+  }, []);
+
   useEffect(() => {
     if (onAdVisibilityChange) onAdVisibilityChange(showAd);
     if (showAd) playAdSoundtrack();
@@ -127,14 +146,15 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
       );
       currentTime += adParams.qrSlideDuration * 1000;
 
-      // Results slides: duration from params
+      // Results slides: use individual displayDuration for each photo
       for (let i = 0; i < resultImages.length; i++) {
         intervals.push(
           setTimeout(() => {
             setCurrentSlide(adSlides.length + 1 + i);
           }, currentTime)
         );
-        currentTime += adParams.resultSlideDuration * 1000;
+        const duration = resultImages[i].displayDuration || adParams.resultSlideDuration;
+        currentTime += duration * 1000;
       }
 
       // Close ad
@@ -188,14 +208,15 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
           );
           currentTime += adParams.qrSlideDuration * 1000;
 
-          // Results slides: duration from params
+          // Results slides: use individual displayDuration for each photo
           for (let i = 0; i < resultImages.length; i++) {
             intervals.push(
               setTimeout(() => {
                 setCurrentSlide(adSlides.length + 1 + i);
               }, currentTime)
             );
-            currentTime += adParams.resultSlideDuration * 1000;
+            const duration = resultImages[i].displayDuration || adParams.resultSlideDuration;
+            currentTime += duration * 1000;
           }
 
           // Close ad
@@ -311,7 +332,16 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
           {currentSlide > adSlides.length && currentSlide <= adSlides.length + resultImages.length && (
             <div className="teaser-slide w-full py-4">
               <div className="max-w-6xl mx-auto px-8 h-full flex items-center justify-center">
-                <img src={resultImages[currentSlide - adSlides.length - 1]} alt={`Résultats`} className="w-full h-auto object-contain max-h-[90vh] rounded-lg shadow-2xl" />
+                {typeof resultImages[currentSlide - adSlides.length - 1] === 'string' ? (
+                  <img src={resultImages[currentSlide - adSlides.length - 1]} alt={`Résultats`} className="w-full h-auto object-contain max-h-[90vh] rounded-lg shadow-2xl" />
+                ) : (
+                  <div className="flex flex-col items-center gap-4">
+                    <img src={resultImages[currentSlide - adSlides.length - 1].url} alt={resultImages[currentSlide - adSlides.length - 1].title || 'Photo de notes'} className="w-full h-auto object-contain max-h-[90vh] rounded-lg shadow-2xl" />
+                    {resultImages[currentSlide - adSlides.length - 1].title && (
+                      <p className="text-white text-xl font-semibold text-center">{resultImages[currentSlide - adSlides.length - 1].title}</p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}

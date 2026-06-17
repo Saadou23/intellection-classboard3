@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Save, X, Monitor, Settings, AlertCircle, Maximize, Clock, BarChart3, Sliders, Building2, Calendar, Printer, Moon, FileDown, MapPin, BookOpen, Users, Bell, MessageSquare, MessageCircle, Shield, CheckCircle } from 'lucide-react';
+import { Plus, Edit2, Trash2, Save, X, Monitor, Settings, AlertCircle, Maximize, Clock, BarChart3, Sliders, Building2, Calendar, Printer, Moon, FileDown, MapPin, BookOpen, Users, Bell, MessageSquare, MessageCircle, Shield, CheckCircle, Upload } from 'lucide-react';
 import { db } from './firebase';
 import SecurityService from './SecurityService';
 import { doc, setDoc, getDoc, onSnapshot, collection, deleteDoc } from 'firebase/firestore';
@@ -38,6 +38,7 @@ import OTPDashboard from './OTPDashboard';
 import SupervisionScheduleAdmin from './SupervisionScheduleAdmin';
 import GroupConstitution from './GroupConstitution';
 import GroupAttendanceControl from './GroupAttendanceControl';
+import StudentDataImporter from './StudentDataImporter';
 
 const ClassBoard = () => {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -97,6 +98,7 @@ const [showWhatsAppAutomation, setShowWhatsAppAutomation] = useState(false);
   const [customGroupInput, setCustomGroupInput] = useState(''); // Pour saisir un groupe personnalisé
   const [showGroupConstitution, setShowGroupConstitution] = useState(false);
   const [showGroupAttendanceControl, setShowGroupAttendanceControl] = useState(false);
+  const [showStudentDataImporter, setShowStudentDataImporter] = useState(false);
 
   // ========== SÉCURITÉ - PROTECTION ANTI-BRUTE FORCE ==========
   const [loginAttempts, setLoginAttempts] = useState(0);
@@ -1343,6 +1345,11 @@ const branchNames = branchesArray.map(b => b.name) || [];
     return <GroupAttendanceControl onClose={() => setShowGroupAttendanceControl(false)} />;
   }
 
+  // Si on est sur l'import de données étudiants
+  if (showStudentDataImporter) {
+    return <StudentDataImporter onClose={() => setShowStudentDataImporter(false)} />;
+  }
+
   // Si on est sur la gestion des messages
   if (showMessageManager) {
     return (
@@ -1478,6 +1485,13 @@ const branchNames = branchesArray.map(b => b.name) || [];
               >
                 <CheckCircle className="w-4 h-4" />
                 Contrôle Séance
+              </button>
+              <button
+                onClick={() => setShowStudentDataImporter(true)}
+                className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
+              >
+                <Upload className="w-4 h-4" />
+                Importer Étudiants
               </button>
             </div>
 

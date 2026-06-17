@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { MessageSquare, Save, X, Plus, Trash2, Send, Upload } from 'lucide-react';
+import { MessageSquare, Save, X, Plus, Trash2, Send, Upload, Zap } from 'lucide-react';
 import { db, storage } from './firebase';
 import { doc, setDoc, getDoc, addDoc, collection } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { initializeNotePhotos } from './initializeNotePhotos';
 
 const MessageManager = () => {
   const [messages, setMessages] = useState([]);
@@ -63,6 +64,13 @@ const MessageManager = () => {
   const [savingCustomAds, setSavingCustomAds] = useState(false);
   const [customAdsSuccess, setCustomAdsSuccess] = useState(false);
   const [uploadingCustomAdIndex, setUploadingCustomAdIndex] = useState(null);
+
+  // Photos de notes (gestion)
+  const [notePhotos, setNotePhotos] = useState([]);
+  const [savingNotePhotos, setSavingNotePhotos] = useState(false);
+  const [notePhotosSuccess, setNotePhotosSuccess] = useState(false);
+  const [uploadingNotePhotoIndex, setUploadingNotePhotoIndex] = useState(null);
+  const [initializingPhotos, setInitializingPhotos] = useState(false);
 
   // Charger les messages depuis Firebase
   useEffect(() => {
@@ -172,6 +180,24 @@ const MessageManager = () => {
     };
 
     loadCustomAds();
+  }, []);
+
+  // Charger les photos de notes
+  useEffect(() => {
+    const loadNotePhotos = async () => {
+      try {
+        const docRef = doc(db, 'settings', 'note_photos');
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+          setNotePhotos(docSnap.data().photos || []);
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des photos:', error);
+      }
+    };
+
+    loadNotePhotos();
   }, []);
 
   // Sauvegarder les messages dans Firebase
@@ -436,6 +462,65 @@ const MessageManager = () => {
       alert('❌ Erreur lors de l\'upload');
     }
     setUploadingCustomAdIndex(null);
+  };
+
+  // Upload image pour photo de notes
+  const uploadNotePhoto = async (file, index) => {
+    if (!file) return;
+    setUploadingNotePhotoIndex(index);
+    try {
+      const timestamp = Date.now();
+      const fileName = `note-photo-${timestamp}`;
+      const storageRef = ref(storage, `note_photos/${fileName}`);
+
+      await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(storageRef);
+
+      const updated = [...notePhotos];
+      updated[index].url = downloadURL;
+      setNotePhotos(updated);
+      alert('✅ Photo uploadée avec succès!');
+    } catch (error) {
+      console.error('Erreur upload photo notes:', error);
+      alert('❌ Erreur lors de l\'upload');
+    }
+    setUploadingNotePhotoIndex(null);
+  };
+
+  // Sauvegarder les photos de notes
+  const saveNotePhotos = async () => {
+    setSavingNotePhotos(true);
+    try {
+      const docRef = doc(db, 'settings', 'note_photos');
+      await setDoc(docRef, { photos: notePhotos });
+      setNotePhotosSuccess(true);
+      setTimeout(() => setNotePhotosSuccess(false), 3000);
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde des photos:', error);
+      alert('❌ Erreur lors de la sauvegarde');
+    }
+    setSavingNotePhotos(false);
+  };
+
+  // Initialiser les photos existantes
+  const handleInitializePhotos = async () => {
+    setInitializingPhotos(true);
+    try {
+      const success = await initializeNotePhotos();
+      if (success) {
+        await new Promise(r => setTimeout(r, 500));
+        const docRef = doc(db, 'settings', 'note_photos');
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setNotePhotos(docSnap.data().photos || []);
+        }
+        alert('✅ Photos existantes importées avec succès!');
+      }
+    } catch (error) {
+      console.error('Erreur:', error);
+      alert('❌ Erreur lors de l\'initialisation');
+    }
+    setInitializingPhotos(false);
   };
 
   if (loading) {
@@ -1241,6 +1326,183 @@ const MessageManager = () => {
               <>
                 <Save className="w-5 h-5" />
                 Sauvegarder les Pubs Personnalisées
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Photos de Notes */}
+        <div className="mt-8 border-t pt-6">
+          <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+            📷 Gestion des Photos de Notes
+          </h3>
+
+          {notePhotosSuccess && (
+            <div className="bg-green-100 border-l-4 border-green-600 p-4 mb-4 rounded">
+              <p className="text-green-700 font-medium">✅ Photos sauvegardées!</p>
+            </div>
+          )}
+
+          {notePhotos.length === 0 && (
+            <div className="mb-4">
+              <button
+                onClick={handleInitializePhotos}
+                disabled={initializingPhotos}
+                className={`py-2 px-4 rounded-lg font-medium flex items-center justify-center gap-2 transition ${
+                  initializingPhotos
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-blue-500 hover:bg-blue-600 text-white'
+                }`}
+              >
+                {initializingPhotos ? (
+                  <>
+                    <span className="animate-spin">⏳</span>
+                    Chargement...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="w-4 h-4" />
+                    ⚡ Charger les Photos Existantes
+                  </>
+                )}
+              </button>
+              <p className="text-xs text-gray-500 mt-2">Importe les 4 photos de notes déjà présentes dans le projet</p>
+            </div>
+          )}
+
+          <div className="space-y-4 mb-4">
+            {notePhotos.map((photo, idx) => (
+              <div key={idx} className="bg-gray-50 p-4 rounded-lg border-2 border-gray-200 relative">
+                {/* Bouton Supprimer */}
+                <button
+                  onClick={() => {
+                    const updated = notePhotos.filter((_, i) => i !== idx);
+                    setNotePhotos(updated);
+                  }}
+                  className="absolute top-3 right-3 p-2 text-red-600 hover:bg-red-100 rounded-lg transition"
+                  title="Supprimer cette photo"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
+
+                <div className="space-y-3 pr-10">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Photo {idx + 1} - Titre (optionnel)
+                    </label>
+                    <input
+                      type="text"
+                      value={photo.title || ''}
+                      onChange={(e) => {
+                        const updated = [...notePhotos];
+                        updated[idx].title = e.target.value;
+                        setNotePhotos(updated);
+                      }}
+                      placeholder="Ex: Leçon de Mathématiques..."
+                      className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  {/* Aperçu image */}
+                  {photo.url && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">📸 Aperçu</label>
+                      <img src={photo.url} alt={photo.title || 'Photo'} className="w-full h-48 object-cover rounded-lg" />
+                    </div>
+                  )}
+
+                  {/* Upload image */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      📤 Upload Photo de Notes (JPG, PNG)
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png"
+                      onChange={(e) => {
+                        if (e.target.files?.[0]) {
+                          uploadNotePhoto(e.target.files[0], idx);
+                        }
+                      }}
+                      disabled={uploadingNotePhotoIndex === idx}
+                      className="block w-full text-sm text-gray-500
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-lg file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-blue-600 file:text-white
+                        hover:file:bg-blue-700
+                        cursor-pointer border-2 border-dashed border-blue-300 rounded-lg p-3"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Format: JPG ou PNG (max 5MB)</p>
+                    {uploadingNotePhotoIndex === idx && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="animate-spin">⏳</span>
+                        <span className="text-sm text-gray-600">Upload en cours...</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      ⏱️ Durée d'affichage (secondes)
+                    </label>
+                    <input
+                      type="number"
+                      min="5"
+                      max="180"
+                      value={photo.displayDuration || 15}
+                      onChange={(e) => {
+                        const updated = [...notePhotos];
+                        updated[idx].displayDuration = parseInt(e.target.value);
+                        setNotePhotos(updated);
+                      }}
+                      className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {notePhotos.length === 0 && (
+            <div className="bg-gray-50 p-6 text-center rounded-lg border-2 border-dashed border-gray-300 mb-4">
+              <p className="text-gray-500">Aucune photo de notes. Ajoutez-en une ci-dessous!</p>
+            </div>
+          )}
+
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => {
+                setNotePhotos([
+                  ...notePhotos,
+                  { title: 'Nouvelle Photo', url: '', displayDuration: 15 }
+                ]);
+              }}
+              className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition"
+            >
+              <Plus className="w-4 h-4" />
+              Ajouter une Photo
+            </button>
+          </div>
+
+          <button
+            onClick={saveNotePhotos}
+            disabled={savingNotePhotos}
+            className={`py-3 px-6 rounded-lg font-bold text-white flex items-center justify-center gap-2 transition ${
+              savingNotePhotos
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700'
+            }`}
+          >
+            {savingNotePhotos ? (
+              <>
+                <span className="animate-spin">⏳</span>
+                Sauvegarde...
+              </>
+            ) : (
+              <>
+                <Save className="w-5 h-5" />
+                Sauvegarder les Photos de Notes
               </>
             )}
           </button>
