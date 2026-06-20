@@ -39,6 +39,8 @@ import SupervisionScheduleAdmin from './SupervisionScheduleAdmin';
 import GroupConstitution from './GroupConstitution';
 import GroupAttendanceControl from './GroupAttendanceControl';
 import StudentDataImporter from './StudentDataImporter';
+import BlancExamAdmin from './BlancExamAdmin';
+import BlancExamStudent from './BlancExamStudent';
 
 const ClassBoard = () => {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -99,6 +101,8 @@ const [showWhatsAppAutomation, setShowWhatsAppAutomation] = useState(false);
   const [showGroupConstitution, setShowGroupConstitution] = useState(false);
   const [showGroupAttendanceControl, setShowGroupAttendanceControl] = useState(false);
   const [showStudentDataImporter, setShowStudentDataImporter] = useState(false);
+  const [showBlancExamAdmin, setShowBlancExamAdmin] = useState(false);
+  const [showBlancExamStudent, setShowBlancExamStudent] = useState(false);
 
   // ========== SÉCURITÉ - PROTECTION ANTI-BRUTE FORCE ==========
   const [loginAttempts, setLoginAttempts] = useState(0);
@@ -1350,6 +1354,16 @@ const branchNames = branchesArray.map(b => b.name) || [];
     return <StudentDataImporter onClose={() => setShowStudentDataImporter(false)} />;
   }
 
+  // Si on est sur les examens blancs (admin)
+  if (showBlancExamAdmin) {
+    return <BlancExamAdmin onClose={() => setShowBlancExamAdmin(false)} />;
+  }
+
+  // Si on est sur les examens blancs (étudiant)
+  if (showBlancExamStudent) {
+    return <BlancExamStudent studentMatricule={selectedBranch} onClose={() => setShowBlancExamStudent(false)} />;
+  }
+
   // Si on est sur la gestion des messages
   if (showMessageManager) {
     return (
@@ -1492,6 +1506,13 @@ const branchNames = branchesArray.map(b => b.name) || [];
               >
                 <Upload className="w-4 h-4" />
                 Importer Étudiants
+              </button>
+              <button
+                onClick={() => setShowBlancExamAdmin(true)}
+                className="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
+              >
+                <BookOpen className="w-4 h-4" />
+                Concours Blancs
               </button>
             </div>
 
