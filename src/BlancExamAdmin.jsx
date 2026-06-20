@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Save, X, Eye, Clock, BookOpen, BarChart3, FileDown, CheckCircle, AlertCircle, Loader } from 'lucide-react';
+import { Plus, Edit2, Trash2, Save, X, Eye, Clock, BookOpen, BarChart3, FileDown, CheckCircle, AlertCircle, Loader, Calendar } from 'lucide-react';
 import { db } from './firebase';
 import { doc, setDoc, getDoc, getDocs, deleteDoc, collection, query, where, updateDoc } from 'firebase/firestore';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
+import BlancExamResults from './BlancExamResults';
 
 const BlancExamAdmin = ({ onClose }) => {
   const [view, setView] = useState('list'); // list, create, edit, results
@@ -539,10 +540,5 @@ const BlancExamAdmin = ({ onClose }) => {
     </div>
   );
 };
-
-// Import Calendar si pas déjà importé
-function Calendar() {
-  return <Clock className="w-4 h-4" />;
-}
 
 export default BlancExamAdmin;
