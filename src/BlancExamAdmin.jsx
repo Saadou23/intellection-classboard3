@@ -411,12 +411,30 @@ const BlancExamAdmin = ({ onClose }) => {
                   {/* Ajouter questions */}
                   <div className="bg-white p-3 rounded-lg mb-3 border border-gray-200">
                     <h5 className="font-semibold text-gray-800 mb-3 text-sm">Ajouter des questions</h5>
+
+                    {/* Labels explicatifs */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-2">
+                      <div className="text-xs font-bold text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                        📌 N° Question
+                      </div>
+                      <div className="text-xs font-bold text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                        ✅ Bonne Réponse
+                      </div>
+                      <div className="text-xs font-bold text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                        🎯 Points
+                      </div>
+                      <div className="text-xs font-bold text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                        Ajouter
+                      </div>
+                    </div>
+
+                    {/* Champs de saisie */}
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
                       <input
                         type="number"
                         value={currentQuestion.numero}
                         onChange={(e) => setCurrentQuestion({ ...currentQuestion, numero: e.target.value })}
-                        placeholder="N° question"
+                        placeholder="Ex: 1, 2, 3..."
                         min="1"
                         max="999"
                         className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
@@ -424,18 +442,18 @@ const BlancExamAdmin = ({ onClose }) => {
                       <select
                         value={currentQuestion.bonneReponse}
                         onChange={(e) => setCurrentQuestion({ ...currentQuestion, bonneReponse: e.target.value })}
-                        className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-bold"
                       >
-                        <option value="A">A</option>
-                        <option value="B">B</option>
-                        <option value="C">C</option>
-                        <option value="D">D</option>
+                        <option value="A">🅰️ A</option>
+                        <option value="B">🅱️ B</option>
+                        <option value="C">🅲️ C</option>
+                        <option value="D">🅳️ D</option>
                       </select>
                       <input
                         type="number"
                         value={currentQuestion.points}
                         onChange={(e) => setCurrentQuestion({ ...currentQuestion, points: parseFloat(e.target.value) })}
-                        placeholder="Points"
+                        placeholder="Ex: 1, 2.5..."
                         step="0.5"
                         min="0.5"
                         max="10"
@@ -447,6 +465,11 @@ const BlancExamAdmin = ({ onClose }) => {
                       >
                         ➕ Ajouter
                       </button>
+                    </div>
+
+                    {/* Exemple d'utilisation */}
+                    <div className="bg-blue-50 p-2 rounded text-xs text-blue-800 border border-blue-200 mb-3">
+                      <strong>Exemple:</strong> Question 1 → Bonne réponse B → 2 points
                     </div>
 
                     {/* Liste questions */}
