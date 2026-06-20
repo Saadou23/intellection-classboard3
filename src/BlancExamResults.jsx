@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart3, Download, Eye, TrendingUp, Medal, CheckCircle, XCircle, HelpCircle } from 'lucide-react';
+import { BarChart3, Download, Eye, TrendingUp, Medal, CheckCircle, XCircle, HelpCircle, Trash2 } from 'lucide-react';
 import { db } from './firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 
@@ -74,6 +74,22 @@ const BlancExamResults = ({ exam, onBack }) => {
       sorted.sort((a, b) => a.studentName.localeCompare(b.studentName));
     }
     return sorted;
+  };
+
+  const handleDeleteResult = async (resultId, studentName) => {
+    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer le résultat de ${studentName}?\nCette action est irréversible.`)) {
+      return;
+    }
+
+    try {
+      await deleteDoc(doc(db, 'blanc_answers', resultId));
+      setResults(results.filter(r => r.id !== resultId));
+      alert('✅ Résultat supprimé avec succès');
+      console.log('🗑️ Résultat supprimé:', resultId);
+    } catch (error) {
+      console.error('Erreur suppression:', error);
+      alert('❌ Erreur lors de la suppression');
+    }
   };
 
   const exportToExcel = () => {
@@ -154,13 +170,15 @@ const BlancExamResults = ({ exam, onBack }) => {
     doc.text('CLASSEMENT', 20, yPos);
     yPos += 8;
 
-    // Table
-    const tableData = getSortedResults().slice(0, 50).map((result, idx) => {
+    // Table - Classé par MATRICULE (croissant) pour que chaque étudiant retrouve facilement le sien
+    // SANS noms pour la privacy
+    const sortedByMatricule = getSortedResults().sort((a, b) =>
+      a.studentMatricule.localeCompare(b.studentMatricule)
+    );
+    const tableData = sortedByMatricule.map((result, idx) => {
       const percentage = ((result.totalScore || 0) / stats.totalMax * 100).toFixed(1);
       return [
-        (idx + 1).toString(),
         result.studentMatricule,
-        result.studentName.substring(0, 20),
         `${result.totalScore || 0}/${stats.totalMax}`,
         `${percentage}%`
       ];
@@ -168,11 +186,11 @@ const BlancExamResults = ({ exam, onBack }) => {
 
     doc.autoTable({
       startY: yPos,
-      head: [['Rang', 'Matricule', 'Nom', 'Score', '%']],
+      head: [['Matricule', 'Score', '%']],
       body: tableData,
       theme: 'grid',
       headStyles: { fillColor: [66, 139, 202], textColor: 255 },
-      columnStyles: { 0: { cellWidth: 15 }, 1: { cellWidth: 25 }, 2: { cellWidth: 50 } }
+      columnStyles: { 0: { cellWidth: 50 }, 1: { cellWidth: 40 }, 2: { cellWidth: 35 } }
     });
 
     doc.save(`resultats_${exam.titre}_${new Date().toISOString().split('T')[0]}.pdf`);
@@ -274,7 +292,7 @@ const BlancExamResults = ({ exam, onBack }) => {
                 {exam.epreuves && exam.epreuves.map(ep => (
                   <th key={ep.id} className="px-4 py-3 text-center font-bold text-xs">{ep.titre.substring(0, 10)}</th>
                 ))}
-                <th className="px-4 py-3 text-center font-bold">Détails</th>
+                <th className="px-4 py-3 text-center font-bold">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -305,13 +323,23 @@ const BlancExamResults = ({ exam, onBack }) => {
                       );
                     })}
                     <td className="px-4 py-3 text-center">
-                      <button
-                        onClick={() => setSelectedStudent(result)}
-                        className="text-blue-600 hover:text-blue-800 font-semibold flex items-center justify-center gap-1 mx-auto"
-                      >
-                        <Eye className="w-4 h-4" />
-                        Voir
-                      </button>
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => setSelectedStudent(result)}
+                          className="text-blue-600 hover:text-blue-800 font-semibold flex items-center justify-center gap-1 px-2 py-1 hover:bg-blue-50 rounded"
+                        >
+                          <Eye className="w-4 h-4" />
+                          Voir
+                        </button>
+                        <button
+                          onClick={() => handleDeleteResult(result.id, result.studentName)}
+                          className="text-red-600 hover:text-red-800 font-semibold flex items-center justify-center gap-1 px-2 py-1 hover:bg-red-50 rounded"
+                          title="Supprimer ce résultat"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Supprimer
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -348,8 +376,10 @@ const BlancExamResults = ({ exam, onBack }) => {
                     <h4 className="font-bold text-gray-900 mb-3">{epreuve.titre}</h4>
                     <div className="space-y-2 text-sm">
                       {epreuve.questions && epreuve.questions.map(question => {
-                        const studentAnswer = epreuveData.reponses?.[question.id];
-                        const isCorrect = studentAnswer === question.bonneReponse;
+                        const studentAnswerData = epreuveData.reponses?.[question.id];
+                        const studentAnswer = studentAnswerData?.reponse || '—';
+                        const isCorrect = studentAnswerData?.estCorrect || false;
+                        const points = studentAnswerData?.points || 0;
 
                         return (
                           <div key={question.id} className="flex items-center gap-3 p-2 bg-white rounded border">
@@ -361,12 +391,12 @@ const BlancExamResults = ({ exam, onBack }) => {
                             <div className="flex-1">
                               <span className="font-semibold">Q{question.numero}</span>
                               <span className="text-gray-600 ml-2">
-                                Réponse: <strong>{studentAnswer || '—'}</strong>
+                                Réponse: <strong>{studentAnswer}</strong>
                                 {!isCorrect && <span className="text-red-600 ml-2">(Correct: {question.bonneReponse})</span>}
                               </span>
                             </div>
                             <span className={`font-bold ${isCorrect ? 'text-green-600' : 'text-red-600'}`}>
-                              {isCorrect ? '+' : '-'}{question.points || 1}
+                              {isCorrect ? '+' : '-'}{points}
                             </span>
                           </div>
                         );

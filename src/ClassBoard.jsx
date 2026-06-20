@@ -103,6 +103,8 @@ const [showWhatsAppAutomation, setShowWhatsAppAutomation] = useState(false);
   const [showStudentDataImporter, setShowStudentDataImporter] = useState(false);
   const [showBlancExamAdmin, setShowBlancExamAdmin] = useState(false);
   const [showBlancExamStudent, setShowBlancExamStudent] = useState(false);
+  const [studentMatricule, setStudentMatricule] = useState('');
+  const [showStudentMatriculeModal, setShowStudentMatriculeModal] = useState(false);
 
   // ========== SÉCURITÉ - PROTECTION ANTI-BRUTE FORCE ==========
   const [loginAttempts, setLoginAttempts] = useState(0);
@@ -931,6 +933,14 @@ const branchNames = branchesArray.map(b => b.name) || [];
     return text.length > maxLength ? text.substring(0, maxLength - 2) + '..' : text;
   };
 
+  // ========== ÉCRAN CONCOURS BLANC ÉTUDIANT ==========
+  if (showBlancExamStudent) {
+    return <BlancExamStudent studentMatricule={studentMatricule} onClose={() => {
+      setShowBlancExamStudent(false);
+      setStudentMatricule('');
+    }} />;
+  }
+
   // ========== ÉCRAN DE LOGIN ==========
   if (view === 'login') {
     return (
@@ -955,6 +965,13 @@ const branchNames = branchesArray.map(b => b.name) || [];
             </button>
 
             <button
+              onClick={() => setShowStudentMatriculeModal(true)}
+              className="w-full bg-purple-600/80 hover:bg-purple-500 text-white py-4 rounded-lg font-semibold transition-all border border-purple-400/30 flex items-center justify-center gap-2"
+            >
+              <BookOpen className="w-5 h-5" />
+              Passer un Concours Blanc
+            </button>
+            <button
               onClick={() => setView('adminLogin')}
               className="w-full bg-white/20 hover:bg-white/30 text-white py-4 rounded-lg font-semibold transition-all border border-white/30 flex items-center justify-center gap-2"
             >
@@ -963,6 +980,60 @@ const branchNames = branchesArray.map(b => b.name) || [];
             </button>
           </div>
         </div>
+
+        {/* Modal Concours Blanc - Saisir Matricule */}
+        {showStudentMatriculeModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Passer un Concours Blanc</h2>
+              <p className="text-gray-600 mb-6">Entrez votre matricule étudiant:</p>
+
+              <input
+                type="text"
+                value={studentMatricule}
+                onChange={(e) => setStudentMatricule(e.target.value.toUpperCase())}
+                placeholder="Ex: 99173449"
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4 font-mono text-lg"
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && studentMatricule.trim()) {
+                    setShowBlancExamStudent(true);
+                    setShowStudentMatriculeModal(false);
+                  }
+                }}
+                autoFocus
+              />
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowStudentMatriculeModal(false);
+                    setStudentMatricule('');
+                  }}
+                  className="flex-1 px-4 py-3 bg-gray-400 hover:bg-gray-500 text-white rounded-lg transition font-semibold"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={() => {
+                    if (studentMatricule.trim()) {
+                      console.log('📝 Matricule saisi:', studentMatricule);
+                      setShowBlancExamStudent(true);
+                      setShowStudentMatriculeModal(false);
+                    }
+                  }}
+                  disabled={!studentMatricule.trim()}
+                  className={`flex-1 px-4 py-3 rounded-lg transition font-semibold text-white ${
+                    studentMatricule.trim()
+                      ? 'bg-blue-600 hover:bg-blue-700'
+                      : 'bg-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  Continuer
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -1359,11 +1430,6 @@ const branchNames = branchesArray.map(b => b.name) || [];
     return <BlancExamAdmin onClose={() => setShowBlancExamAdmin(false)} />;
   }
 
-  // Si on est sur les examens blancs (étudiant)
-  if (showBlancExamStudent) {
-    return <BlancExamStudent studentMatricule={selectedBranch} onClose={() => setShowBlancExamStudent(false)} />;
-  }
-
   // Si on est sur la gestion des messages
   if (showMessageManager) {
     return (
@@ -1512,7 +1578,19 @@ const branchNames = branchesArray.map(b => b.name) || [];
                 className="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
               >
                 <BookOpen className="w-4 h-4" />
-                Concours Blancs
+                Concours Blancs (Admin)
+              </button>
+            </div>
+
+            {/* Étudiant - Passer un concours blanc */}
+            <div className="flex gap-3 items-center flex-wrap">
+              <div className="text-xs font-semibold text-gray-600 uppercase px-2 py-2 bg-gray-200 rounded">👨‍🎓 Étudiant</div>
+              <button
+                onClick={() => setShowStudentMatriculeModal(true)}
+                className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm text-white"
+              >
+                <BookOpen className="w-4 h-4" />
+                Passer un Concours Blanc
               </button>
             </div>
 

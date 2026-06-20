@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Save, X, Eye, Clock, BookOpen, BarChart3, FileDown, CheckCircle, AlertCircle, Loader, Calendar } from 'lucide-react';
+import { Plus, Edit2, Trash2, Save, X, Eye, Clock, BookOpen, BarChart3, FileDown, CheckCircle, AlertCircle, Loader, Calendar, TrendingDown } from 'lucide-react';
 import { db } from './firebase';
 import { doc, setDoc, getDoc, getDocs, deleteDoc, collection, query, where, updateDoc } from 'firebase/firestore';
-import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
+import * as XLSX from 'xlsx';
 import BlancExamResults from './BlancExamResults';
 
 const BlancExamAdmin = ({ onClose }) => {
@@ -20,6 +20,10 @@ const BlancExamAdmin = ({ onClose }) => {
     titre: '',
     description: '',
     dateExamen: new Date().toISOString().split('T')[0],
+    dureeTotal: 120,
+    dateDebut: new Date().toISOString().split('T')[0],
+    heureDebut: '14:00',
+    heureFin: '16:00',
     epreuves: []
   });
 
@@ -62,6 +66,10 @@ const BlancExamAdmin = ({ onClose }) => {
       titre: '',
       description: '',
       dateExamen: new Date().toISOString().split('T')[0],
+      dureeTotal: 120,
+      dateDebut: new Date().toISOString().split('T')[0],
+      heureDebut: '14:00',
+      heureFin: '16:00',
       epreuves: []
     });
     setView('create');
@@ -198,6 +206,163 @@ const BlancExamAdmin = ({ onClose }) => {
     setView('results');
   };
 
+  const handleGenerateReport = async (exam) => {
+    try {
+      setMessage('⏳ Génération du rapport en cours...');
+
+      // Charger tous les résultats pour cet examen
+      const q = query(collection(db, 'blanc_answers'), where('examId', '==', exam.id));
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) {
+        alert('❌ Aucun résultat pour cet examen');
+        setMessage('');
+        return;
+      }
+
+      // Analyser les questions par épreuve
+      const analysisByEpreuve = {};
+
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        Object.entries(data.epreuves || {}).forEach(([epreuveId, epreuveData]) => {
+          if (!analysisByEpreuve[epreuveId]) {
+            analysisByEpreuve[epreuveId] = {
+              questions: {},
+              totalCorrect: 0,
+              totalIncorrect: 0
+            };
+          }
+
+          Object.entries(epreuveData.reponses || {}).forEach(([questionId, answerData]) => {
+            if (!analysisByEpreuve[epreuveId].questions[questionId]) {
+              analysisByEpreuve[epreuveId].questions[questionId] = {
+                questionId,
+                correct: 0,
+                incorrect: 0
+              };
+            }
+
+            if (answerData.estCorrect) {
+              analysisByEpreuve[epreuveId].questions[questionId].correct++;
+              analysisByEpreuve[epreuveId].totalCorrect++;
+            } else {
+              analysisByEpreuve[epreuveId].questions[questionId].incorrect++;
+              analysisByEpreuve[epreuveId].totalIncorrect++;
+            }
+          });
+        });
+      });
+
+      // Générer PDF professionnel
+      const pdfDoc = new jsPDF();
+      let yPos = 15;
+
+      // En-tête professionnel
+      pdfDoc.setFillColor(31, 78, 121); // Bleu foncé professionnel
+      pdfDoc.rect(0, 0, 210, 30, 'F');
+
+      pdfDoc.setTextColor(255, 255, 255);
+      pdfDoc.setFontSize(18);
+      pdfDoc.setFont(undefined, 'bold');
+      pdfDoc.text('INTELLECTION', 15, 12);
+      pdfDoc.setFontSize(10);
+      pdfDoc.text('RAPPORT D\'ANALYSE DES RÉSULTATS D\'EXAMEN', 15, 20);
+
+      pdfDoc.setTextColor(0, 0, 0);
+      pdfDoc.setFontSize(10);
+      pdfDoc.text(`${exam.titre}`, 15, 35);
+      pdfDoc.text(`Date: ${new Date().toLocaleDateString('fr-FR')} | Nombre de participants: ${snapshot.size}`, 15, 41);
+      pdfDoc.line(15, 43, 195, 43);
+
+      yPos = 50;
+
+      // Pour chaque épreuve
+      const epreuvesList = exam.epreuves || [];
+      epreuvesList.forEach((epreuve, epIdx) => {
+        if (yPos > 240) {
+          pdfDoc.addPage();
+          yPos = 20;
+        }
+
+        // Titre de l'épreuve
+        pdfDoc.setFillColor(66, 139, 202);
+        pdfDoc.rect(15, yPos - 4, 180, 8, 'F');
+        pdfDoc.setTextColor(255, 255, 255);
+        pdfDoc.setFontSize(11);
+        pdfDoc.setFont(undefined, 'bold');
+        pdfDoc.text(epreuve.titre, 20, yPos + 2);
+        yPos += 12;
+
+        pdfDoc.setTextColor(0, 0, 0);
+
+        // Statistiques globales de l'épreuve
+        const epreuveAnalysis = analysisByEpreuve[epreuve.id];
+        if (epreuveAnalysis) {
+          const totalRep = epreuveAnalysis.totalCorrect + epreuveAnalysis.totalIncorrect;
+          const epreuveSuccessRate = totalRep > 0 ? ((epreuveAnalysis.totalCorrect / totalRep) * 100).toFixed(1) : 0;
+
+          pdfDoc.setFontSize(9);
+          pdfDoc.setFont(undefined, 'normal');
+          pdfDoc.text(`Taux de réussite global: ${epreuveSuccessRate}% | Réponses correctes: ${epreuveAnalysis.totalCorrect}/${totalRep}`, 20, yPos);
+          yPos += 6;
+        }
+
+        yPos += 2;
+
+        // Tableau des questions
+        const tableData = epreuve.questions.map(question => {
+          const qAnalysis = epreuveAnalysis?.questions[question.id] || { correct: 0, incorrect: 0 };
+          const total = qAnalysis.correct + qAnalysis.incorrect;
+          const correctPercent = total > 0 ? ((qAnalysis.correct / total) * 100).toFixed(1) : 0;
+          const incorrectPercent = total > 0 ? ((qAnalysis.incorrect / total) * 100).toFixed(1) : 0;
+
+          return [
+            `Q${question.numero}`,
+            `${correctPercent}%`,
+            `${incorrectPercent}%`,
+            `${qAnalysis.correct}/${total}`
+          ];
+        });
+
+        pdfDoc.autoTable({
+          startY: yPos,
+          head: [['Question', '✅ Correct', '❌ Faux', 'Total']],
+          body: tableData,
+          theme: 'striped',
+          headStyles: {
+            fillColor: [31, 78, 121],
+            textColor: 255,
+            fontSize: 9,
+            font: 'bold'
+          },
+          bodyStyles: { fontSize: 8 },
+          alternateRowStyles: { fillColor: [240, 245, 250] },
+          columnStyles: {
+            0: { cellWidth: 20 },
+            1: { cellWidth: 35 },
+            2: { cellWidth: 35 },
+            3: { cellWidth: 30 }
+          }
+        });
+
+        yPos = pdfDoc.lastAutoTable.finalY + 12;
+      });
+
+      // Pied de page
+      pdfDoc.setFontSize(8);
+      pdfDoc.setTextColor(128, 128, 128);
+      pdfDoc.text('Rapport généré automatiquement par INTELLECTION', 105, pdfDoc.internal.pageSize.getHeight() - 10, { align: 'center' });
+
+      pdfDoc.save(`rapport_${exam.titre}_${new Date().toISOString().split('T')[0]}.pdf`);
+      setMessage('✅ Rapport généré avec succès!');
+      setTimeout(() => setMessage(''), 2000);
+    } catch (error) {
+      console.error('Erreur génération rapport:', error);
+      setMessage('❌ Erreur lors de la génération du rapport');
+    }
+  };
+
   const filteredExams = exams.filter(exam =>
     exam.titre.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -291,6 +456,14 @@ const BlancExamAdmin = ({ onClose }) => {
                             Résultats
                           </button>
                           <button
+                            onClick={() => handleGenerateReport(exam)}
+                            className="flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg transition text-sm"
+                            title="Exporte un rapport sur les questions difficiles"
+                          >
+                            <TrendingDown className="w-4 h-4" />
+                            Rapport
+                          </button>
+                          <button
                             onClick={() => handleEditExam(exam)}
                             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition text-sm"
                           >
@@ -346,6 +519,57 @@ const BlancExamAdmin = ({ onClose }) => {
                   rows="2"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">⏱️ Durée totale du concours (minutes)</label>
+                <input
+                  type="number"
+                  value={formData.dureeTotal}
+                  onChange={(e) => setFormData({ ...formData, dureeTotal: parseInt(e.target.value) })}
+                  placeholder="120"
+                  min="5"
+                  max="480"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">Cette durée s'applique à TOUT le concours, indépendamment du nombre d'épreuves</p>
+              </div>
+
+              {/* Disponibilité */}
+              <div className="bg-purple-50 border-2 border-purple-200 p-4 rounded-lg">
+                <h4 className="font-bold text-gray-900 mb-4">📅 Disponibilité de l'examen</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Date</label>
+                    <input
+                      type="date"
+                      value={formData.dateDebut}
+                      onChange={(e) => setFormData({ ...formData, dateDebut: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Heure de début</label>
+                    <input
+                      type="time"
+                      value={formData.heureDebut}
+                      onChange={(e) => setFormData({ ...formData, heureDebut: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Heure de fin</label>
+                    <input
+                      type="time"
+                      value={formData.heureFin}
+                      onChange={(e) => setFormData({ ...formData, heureFin: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-gray-600 mt-2">
+                  Ex: Samedi 20/06 de 14:00 à 16:00 - Les étudiants verront un message s'ils tentent d'accéder en dehors de cette période
+                </p>
               </div>
 
               {/* Épreuves */}
