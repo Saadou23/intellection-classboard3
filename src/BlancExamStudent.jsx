@@ -20,6 +20,7 @@ const BlancExamStudent = ({ studentMatricule, onClose }) => {
   const [showProgress, setShowProgress] = useState(false);
   const [previousResults, setPreviousResults] = useState([]);
   const [allTimeResults, setAllTimeResults] = useState([]);
+  const [currentEpreuveId, setCurrentEpreuveId] = useState(null);
 
   useEffect(() => {
     console.log('🎓 BlancExamStudent monté avec matricule:', studentMatricule);
@@ -158,6 +159,12 @@ const BlancExamStudent = ({ studentMatricule, onClose }) => {
       expanded[ep.id] = idx === 0; // Expand first one
     });
     setExpandedEpreuves(expanded);
+
+    // Set current epreuve to the first one with PDF or just the first one
+    if (exam.epreuves && exam.epreuves.length > 0) {
+      const firstEpreuveWithPdf = exam.epreuves.find(ep => ep.pdfUrl);
+      setCurrentEpreuveId(firstEpreuveWithPdf?.id || exam.epreuves[0].id);
+    }
   };
 
   const handleResponseChange = (questionId, response) => {
@@ -801,7 +808,7 @@ const BlancExamStudent = ({ studentMatricule, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-2xl max-w-5xl w-full max-h-[95vh] overflow-hidden flex flex-col">
+      <div className="bg-white rounded-lg shadow-2xl w-full max-w-7xl max-h-[95vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-6 flex justify-between items-center">
           <div>
@@ -837,84 +844,119 @@ const BlancExamStudent = ({ studentMatricule, onClose }) => {
           </div>
         </div>
 
-        {/* Contenu */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          {selectedExam.epreuves && selectedExam.epreuves.map((epreuve) => (
-            <div key={epreuve.id} className="border-2 border-gray-200 rounded-lg overflow-hidden">
-              {/* En-tête épreuve */}
-              <button
-                onClick={() => toggleEpreuve(epreuve.id)}
-                className="w-full bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 px-6 py-4 flex items-center justify-between transition"
-              >
-                <div className="text-left">
-                  <h3 className="font-bold text-gray-900">{epreuve.titre}</h3>
-                  <p className="text-sm text-gray-600">
-                    📋 {epreuve.questions?.length || 0} questions |
-                    ✅ {epreuve.questions?.filter(q => responses[q.id])?.length || 0} répondues
+        {/* Contenu - Layout 2 colonnes */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Colonne gauche - PDF */}
+          <div className="w-3/5 border-r border-gray-200 overflow-hidden flex flex-col">
+            {currentEpreuveId && selectedExam.epreuves?.find(e => e.id === currentEpreuveId)?.pdfUrl ? (
+              <div className="flex flex-col h-full">
+                <div className="bg-gray-100 px-4 py-2 border-b border-gray-200">
+                  <p className="text-xs font-semibold text-gray-600">
+                    📄 {selectedExam.epreuves?.find(e => e.id === currentEpreuveId)?.titre}
                   </p>
                 </div>
-                {expandedEpreuves[epreuve.id] ? (
-                  <ChevronUp className="w-6 h-6 text-gray-700" />
-                ) : (
-                  <ChevronDown className="w-6 h-6 text-gray-700" />
-                )}
-              </button>
+                <iframe
+                  src={selectedExam.epreuves?.find(e => e.id === currentEpreuveId)?.pdfUrl}
+                  className="flex-1 w-full border-0"
+                  title="PDF Épreuve"
+                />
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-full bg-gray-50">
+                <p className="text-center text-gray-500 text-sm">
+                  {currentEpreuveId ? '📄 Pas de PDF pour cette épreuve' : '← Sélectionnez une épreuve'}
+                </p>
+              </div>
+            )}
+          </div>
 
-              {/* Questions */}
-              {expandedEpreuves[epreuve.id] && (
-                <div className="bg-white p-6 space-y-6 border-t border-gray-200">
-                  {epreuve.questions && epreuve.questions.map((question) => (
-                    <div key={question.id} className="pb-6 border-b border-gray-200 last:border-b-0">
-                      <div className="flex items-start gap-4 mb-4">
-                        <div className="flex-shrink-0">
-                          <div className="flex items-center justify-center h-10 w-10 rounded-full bg-blue-600 text-white font-bold">
-                            {question.numero}
-                          </div>
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-gray-900">Question {question.numero}</h4>
-                          <p className="text-sm text-gray-600 mt-1">
-                            Points: <strong>{question.points || 1}</strong>
-                          </p>
-                        </div>
-                        {responses[question.id] && (
+          {/* Colonne droite - Questions */}
+          <div className="w-2/5 overflow-y-auto p-4 space-y-3">
+            {selectedExam.epreuves && selectedExam.epreuves.map((epreuve) => (
+              <div key={epreuve.id} className="border-2 border-gray-200 rounded-lg overflow-hidden">
+                {/* En-tête épreuve */}
+                <button
+                  onClick={() => {
+                    toggleEpreuve(epreuve.id);
+                    setCurrentEpreuveId(epreuve.id);
+                  }}
+                  className={`w-full px-6 py-4 flex items-center justify-between transition ${
+                    currentEpreuveId === epreuve.id
+                      ? 'bg-gradient-to-r from-blue-50 to-blue-100 border-l-4 border-l-blue-600'
+                      : 'bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200'
+                  }`}
+                >
+                  <div className="text-left">
+                    <h3 className="font-bold text-gray-900">{epreuve.titre}</h3>
+                    <p className="text-sm text-gray-600">
+                      📋 {epreuve.questions?.length || 0} questions |
+                      ✅ {epreuve.questions?.filter(q => responses[q.id])?.length || 0} répondues
+                      {epreuve.pdfUrl && ' | 📄 PDF'}
+                    </p>
+                  </div>
+                  {expandedEpreuves[epreuve.id] ? (
+                    <ChevronUp className="w-6 h-6 text-gray-700" />
+                  ) : (
+                    <ChevronDown className="w-6 h-6 text-gray-700" />
+                  )}
+                </button>
+
+                {/* Questions */}
+                {expandedEpreuves[epreuve.id] && (
+                  <div className="bg-white p-6 space-y-6 border-t border-gray-200">
+                    {epreuve.questions && epreuve.questions.map((question) => (
+                      <div key={question.id} className="pb-6 border-b border-gray-200 last:border-b-0">
+                        <div className="flex items-start gap-4 mb-4">
                           <div className="flex-shrink-0">
-                            <CheckCircle className="w-6 h-6 text-green-600" />
+                            <div className="flex items-center justify-center h-10 w-10 rounded-full bg-blue-600 text-white font-bold">
+                              {question.numero}
+                            </div>
                           </div>
-                        )}
-                      </div>
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-gray-900">Question {question.numero}</h4>
+                            <p className="text-sm text-gray-600 mt-1">
+                              Points: <strong>{question.points || 1}</strong>
+                            </p>
+                          </div>
+                          {responses[question.id] && (
+                            <div className="flex-shrink-0">
+                              <CheckCircle className="w-6 h-6 text-green-600" />
+                            </div>
+                          )}
+                        </div>
 
-                      {/* Options */}
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 ml-14">
-                        {['A', 'B', 'C', 'D'].map(option => (
-                          <button
-                            key={option}
-                            onClick={() => handleResponseChange(question.id, option)}
-                            className={`p-4 rounded-lg border-2 transition font-bold text-lg ${
-                              responses[question.id] === option
-                                ? 'border-blue-600 bg-blue-50 text-blue-700'
-                                : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
-                            }`}
-                          >
-                            {option}
-                          </button>
-                        ))}
-                      </div>
+                        {/* Options */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 ml-14">
+                          {['A', 'B', 'C', 'D'].map(option => (
+                            <button
+                              key={option}
+                              onClick={() => handleResponseChange(question.id, option)}
+                              className={`p-4 rounded-lg border-2 transition font-bold text-lg ${
+                                responses[question.id] === option
+                                  ? 'border-blue-600 bg-blue-50 text-blue-700'
+                                  : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                              }`}
+                            >
+                              {option}
+                            </button>
+                          ))}
+                        </div>
 
-                      {/* Indicateur */}
-                      <div className="ml-14 mt-3 text-sm">
-                        {responses[question.id] ? (
-                          <span className="text-green-600 font-semibold">✓ Réponse: <strong>{responses[question.id]}</strong></span>
-                        ) : (
-                          <span className="text-gray-500">Pas de réponse</span>
-                        )}
+                        {/* Indicateur */}
+                        <div className="ml-14 mt-3 text-sm">
+                          {responses[question.id] ? (
+                            <span className="text-green-600 font-semibold">✓ Réponse: <strong>{responses[question.id]}</strong></span>
+                          ) : (
+                            <span className="text-gray-500">Pas de réponse</span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Footer - Boutons action */}

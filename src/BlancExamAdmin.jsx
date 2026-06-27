@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Save, X, Eye, Clock, BookOpen, BarChart3, FileDown, CheckCircle, AlertCircle, Loader, Calendar, TrendingDown } from 'lucide-react';
-import { db } from './firebase';
+import { Plus, Edit2, Trash2, Save, X, Eye, Clock, BookOpen, BarChart3, FileDown, CheckCircle, AlertCircle, Loader, Calendar, TrendingDown, Upload, File } from 'lucide-react';
+import { db, storage } from './firebase';
 import { doc, setDoc, getDoc, getDocs, deleteDoc, collection, query, where, updateDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { jsPDF } from 'jspdf';
 import * as XLSX from 'xlsx';
 import BlancExamResults from './BlancExamResults';
@@ -31,7 +32,8 @@ const BlancExamAdmin = ({ onClose }) => {
     titre: '',
     duree: 60,
     nombreQuestions: 20,
-    questions: []
+    questions: [],
+    pdfUrl: null
   });
 
   const [currentQuestion, setCurrentQuestion] = useState({
@@ -39,6 +41,8 @@ const BlancExamAdmin = ({ onClose }) => {
     bonneReponse: 'A',
     points: 1
   });
+
+  const [uploadingPdf, setUploadingPdf] = useState(null);
 
   // Charger les examens au montage
   useEffect(() => {
@@ -86,7 +90,8 @@ const BlancExamAdmin = ({ onClose }) => {
       titre: '',
       duree: 60,
       nombreQuestions: 20,
-      questions: []
+      questions: [],
+      pdfUrl: null
     });
   };
 
@@ -105,7 +110,17 @@ const BlancExamAdmin = ({ onClose }) => {
 
     const updatedQuestions = [...currentEpreuve.questions, newQuestion].sort((a, b) => a.numero - b.numero);
     setCurrentEpreuve({ ...currentEpreuve, questions: updatedQuestions });
-    setCurrentQuestion({ numero: '', bonneReponse: 'A', points: 1 });
+
+    // Auto-increment le numéro de question suivant
+    const nextNum = parseInt(currentQuestion.numero) + 1;
+    setCurrentQuestion({ numero: nextNum.toString(), bonneReponse: 'A', points: 1 });
+  };
+
+  const handleEditQuestion = (questionId, updatedQuestion) => {
+    setCurrentEpreuve({
+      ...currentEpreuve,
+      questions: currentEpreuve.questions.map(q => q.id === questionId ? { ...q, ...updatedQuestion } : q)
+    });
   };
 
   const handleRemoveQuestion = (questionId) => {
@@ -113,6 +128,46 @@ const BlancExamAdmin = ({ onClose }) => {
       ...currentEpreuve,
       questions: currentEpreuve.questions.filter(q => q.id !== questionId)
     });
+  };
+
+  const handlePdfUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== 'application/pdf') {
+      setMessage('❌ Veuillez sélectionner un fichier PDF');
+      return;
+    }
+
+    setUploadingPdf(true);
+    try {
+      const storageRef = ref(storage, `blanc_exams_pdf/${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const downloadUrl = await getDownloadURL(storageRef);
+
+      setCurrentEpreuve({ ...currentEpreuve, pdfUrl: downloadUrl });
+      setMessage('✅ PDF uploadé avec succès!');
+      setTimeout(() => setMessage(''), 2000);
+    } catch (error) {
+      console.error('Erreur upload PDF:', error);
+      setMessage('❌ Erreur lors de l\'upload');
+    } finally {
+      setUploadingPdf(false);
+    }
+  };
+
+  const handleRemovePdf = async () => {
+    if (!currentEpreuve.pdfUrl) return;
+
+    try {
+      const fileRef = ref(storage, currentEpreuve.pdfUrl);
+      await deleteObject(fileRef);
+      setCurrentEpreuve({ ...currentEpreuve, pdfUrl: null });
+      setMessage('✅ PDF supprimé');
+    } catch (error) {
+      console.error('Erreur suppression PDF:', error);
+      setMessage('❌ Erreur lors de la suppression');
+    }
   };
 
   const handleAddEpreuveToExam = () => {
@@ -126,21 +181,35 @@ const BlancExamAdmin = ({ onClose }) => {
       return;
     }
 
-    const epreuveId = `ep_${Date.now()}`;
-    const newEpreuve = {
-      id: epreuveId,
-      ...currentEpreuve,
-      nombreQuestions: currentEpreuve.questions.length
-    };
+    // Mode édition - mise à jour d'une épreuve existante
+    if (currentEpreuve.id && formData.epreuves.find(e => e.id === currentEpreuve.id)) {
+      setFormData({
+        ...formData,
+        epreuves: formData.epreuves.map(e =>
+          e.id === currentEpreuve.id
+            ? { ...currentEpreuve, nombreQuestions: currentEpreuve.questions.length }
+            : e
+        )
+      });
+      setMessage('✅ Épreuve mise à jour');
+    } else {
+      // Mode création - nouvelle épreuve
+      const epreuveId = `ep_${Date.now()}`;
+      const newEpreuve = {
+        id: epreuveId,
+        ...currentEpreuve,
+        nombreQuestions: currentEpreuve.questions.length
+      };
 
-    setFormData({
-      ...formData,
-      epreuves: [...formData.epreuves, newEpreuve]
-    });
+      setFormData({
+        ...formData,
+        epreuves: [...formData.epreuves, newEpreuve]
+      });
+      setMessage('✅ Épreuve ajoutée');
+    }
 
-    setCurrentEpreuve({ titre: '', duree: 60, nombreQuestions: 20, questions: [] });
-    setMessage('✅ Épreuve ajoutée');
     setTimeout(() => setMessage(''), 2000);
+    setCurrentEpreuve({ titre: '', duree: 60, nombreQuestions: 20, questions: [], pdfUrl: null });
   };
 
   const handleRemoveEpreuve = (epreuveId) => {
@@ -582,15 +651,27 @@ const BlancExamAdmin = ({ onClose }) => {
                       <div className="flex-1">
                         <h4 className="font-bold text-gray-900">{epreuve.titre}</h4>
                         <p className="text-sm text-gray-600">
-                          ⏱️ {epreuve.duree}min | 📋 {epreuve.questions.length} questions
+                          ⏱️ {epreuve.duree}min | 📋 {epreuve.questions.length} questions {epreuve.pdfUrl && '| 📄 PDF'}
                         </p>
                       </div>
-                      <button
-                        onClick={() => handleRemoveEpreuve(epreuve.id)}
-                        className="text-red-600 hover:bg-red-100 p-2 rounded-lg transition"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            setCurrentEpreuve(epreuve);
+                            setMessage('');
+                          }}
+                          className="text-blue-600 hover:bg-blue-100 p-2 rounded-lg transition"
+                          title="Éditer cette épreuve"
+                        >
+                          <Edit2 className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => handleRemoveEpreuve(epreuve.id)}
+                          className="text-red-600 hover:bg-red-100 p-2 rounded-lg transition"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
                     </div>
 
                     {/* Questions de l'épreuve */}
@@ -631,6 +712,40 @@ const BlancExamAdmin = ({ onClose }) => {
                       max="480"
                       className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
+                  </div>
+
+                  {/* Upload PDF */}
+                  <div className="bg-purple-50 p-3 rounded-lg mb-3 border-2 border-purple-200">
+                    <h5 className="font-semibold text-gray-800 mb-2 text-sm flex items-center gap-2">
+                      <Upload className="w-4 h-4" /> 📄 Upload PDF de l'épreuve
+                    </h5>
+                    {currentEpreuve.pdfUrl ? (
+                      <div className="flex items-center justify-between bg-green-50 p-2 rounded border border-green-200">
+                        <div className="flex items-center gap-2">
+                          <File className="w-5 h-5 text-green-600" />
+                          <span className="text-sm font-semibold text-green-700">✅ PDF uploadé</span>
+                        </div>
+                        <button
+                          onClick={handleRemovePdf}
+                          className="text-red-600 hover:bg-red-100 px-2 py-1 rounded text-sm"
+                        >
+                          ✕ Supprimer
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-purple-300 rounded-lg cursor-pointer hover:bg-purple-100 transition">
+                        <Upload className="w-6 h-6 text-purple-600 mb-2" />
+                        <span className="text-sm font-semibold text-purple-700">Cliquez pour uploadé un PDF</span>
+                        <span className="text-xs text-purple-600 mt-1">ou déposez le fichier ici</span>
+                        <input
+                          type="file"
+                          accept="application/pdf"
+                          onChange={handlePdfUpload}
+                          disabled={uploadingPdf}
+                          className="hidden"
+                        />
+                      </label>
+                    )}
                   </div>
 
                   {/* Ajouter questions */}
@@ -701,11 +816,11 @@ const BlancExamAdmin = ({ onClose }) => {
                     {currentEpreuve.questions.length > 0 && (
                       <div className="space-y-2 max-h-32 overflow-y-auto">
                         {currentEpreuve.questions.map(q => (
-                          <div key={q.id} className="flex items-center justify-between bg-gray-50 p-2 rounded text-xs border border-gray-200">
+                          <div key={q.id} className="flex items-center justify-between bg-gray-50 p-2 rounded text-xs border border-gray-200 group">
                             <span>Q{q.numero} → <strong>{q.bonneReponse}</strong> ({q.points}pts)</span>
                             <button
                               onClick={() => handleRemoveQuestion(q.id)}
-                              className="text-red-500 hover:text-red-700"
+                              className="text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition"
                             >
                               ✕
                             </button>
@@ -715,12 +830,23 @@ const BlancExamAdmin = ({ onClose }) => {
                     )}
                   </div>
 
-                  <button
-                    onClick={handleAddEpreuveToExam}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition font-semibold"
-                  >
-                    ✅ Ajouter cette épreuve
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setCurrentEpreuve({ titre: '', duree: 60, nombreQuestions: 20, questions: [], pdfUrl: null })}
+                      className="flex-1 bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded-lg transition font-semibold text-sm"
+                    >
+                      🔄 Réinitialiser
+                    </button>
+                    <button
+                      onClick={handleAddEpreuveToExam}
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition font-semibold"
+                    >
+                      {currentEpreuve.id && formData.epreuves.find(e => e.id === currentEpreuve.id)
+                        ? '✅ Mettre à jour cette épreuve'
+                        : '✅ Ajouter cette épreuve'
+                      }
+                    </button>
+                  </div>
                 </div>
               </div>
 
