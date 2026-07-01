@@ -926,8 +926,8 @@ const BlancExamStudent = ({ studentMatricule, onClose }) => {
                         </div>
 
                         {/* Options */}
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 ml-14">
-                          {['A', 'B', 'C', 'D'].map(option => (
+                        <div className="grid grid-cols-1 md:grid-cols-5 gap-3 ml-14">
+                          {['A', 'B', 'C', 'D', 'E'].map(option => (
                             <button
                               key={option}
                               onClick={() => handleResponseChange(question.id, option)}
