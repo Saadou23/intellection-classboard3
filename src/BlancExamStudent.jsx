@@ -21,6 +21,8 @@ const BlancExamStudent = ({ studentMatricule, onClose }) => {
   const [previousResults, setPreviousResults] = useState([]);
   const [allTimeResults, setAllTimeResults] = useState([]);
   const [currentEpreuveId, setCurrentEpreuveId] = useState(null);
+  const [studentMassar, setStudentMassar] = useState('');
+  const [showMassarForm, setShowMassarForm] = useState(false);
 
   useEffect(() => {
     console.log('🎓 BlancExamStudent monté avec matricule:', studentMatricule);
@@ -148,23 +150,35 @@ const BlancExamStudent = ({ studentMatricule, onClose }) => {
 
   const handleStartExam = (exam) => {
     setSelectedExam(exam);
+    setShowMassarForm(true);
+    setStudentMassar('');
+  };
+
+  const handleMassarSubmit = () => {
+    if (!studentMassar.trim()) {
+      alert('Veuillez entrer votre code MASSAR');
+      return;
+    }
+
     setResponses({});
     setSubmitted(false);
-    setStartTime(Date.now()); // Démarrer le chronomètre
-    setTimeLeft(exam.dureeTotal * 60);
+    setStartTime(Date.now());
+    setTimeLeft(selectedExam.dureeTotal * 60);
 
     // Expand all épreuves par défaut
     const expanded = {};
-    exam.epreuves?.forEach((ep, idx) => {
-      expanded[ep.id] = idx === 0; // Expand first one
+    selectedExam.epreuves?.forEach((ep, idx) => {
+      expanded[ep.id] = idx === 0;
     });
     setExpandedEpreuves(expanded);
 
     // Set current epreuve to the first one with PDF or just the first one
-    if (exam.epreuves && exam.epreuves.length > 0) {
-      const firstEpreuveWithPdf = exam.epreuves.find(ep => ep.pdfUrl);
-      setCurrentEpreuveId(firstEpreuveWithPdf?.id || exam.epreuves[0].id);
+    if (selectedExam.epreuves && selectedExam.epreuves.length > 0) {
+      const firstEpreuveWithPdf = selectedExam.epreuves.find(ep => ep.pdfUrl);
+      setCurrentEpreuveId(firstEpreuveWithPdf?.id || selectedExam.epreuves[0].id);
     }
+
+    setShowMassarForm(false);
   };
 
   const handleResponseChange = (questionId, response) => {
@@ -250,6 +264,7 @@ const BlancExamStudent = ({ studentMatricule, onClose }) => {
       await setDoc(doc(db, 'blanc_answers', answerId), {
         examId: selectedExam.id,
         studentMatricule: studentMatricule,
+        studentMassar: studentMassar,
         epreuves: epreuvesData,
         totalScore: totalScore,
         submittedAt: new Date().toISOString(),
@@ -436,6 +451,72 @@ const BlancExamStudent = ({ studentMatricule, onClose }) => {
             >
               ← Retour
             </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Vue formulaire MASSAR
+  if (showMassarForm && selectedExam) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-lg shadow-2xl max-w-md w-full overflow-hidden">
+          <div className="bg-gradient-to-br from-blue-600 to-blue-800 text-white p-8 text-center">
+            <div className="text-5xl mb-4">📋</div>
+            <h2 className="text-2xl font-bold mb-2">Code MASSAR</h2>
+            <p className="text-blue-100">Identification de l'étudiant</p>
+          </div>
+
+          <div className="p-8 space-y-6">
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-3">
+                Veuillez entrer votre code MASSAR:
+              </label>
+              <input
+                type="text"
+                value={studentMassar}
+                onChange={(e) => setStudentMassar(e.target.value.toUpperCase())}
+                onKeyPress={(e) => e.key === 'Enter' && handleMassarSubmit()}
+                placeholder="Ex: A123456"
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg font-semibold"
+                autoFocus
+              />
+              <p className="text-xs text-gray-600 mt-2">
+                Ce code sera utilisé pour identifier vos résultats
+              </p>
+            </div>
+
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <p className="text-sm text-blue-900">
+                <strong>ℹ️ Note:</strong> Assurez-vous que votre code MASSAR est correct avant de commencer l'examen.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <button
+                onClick={handleMassarSubmit}
+                disabled={!studentMassar.trim()}
+                className={`w-full px-6 py-3 rounded-lg transition font-semibold flex items-center justify-center gap-2 ${
+                  studentMassar.trim()
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                    : 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                }`}
+              >
+                <span>▶️</span>
+                Commencer l'examen
+              </button>
+              <button
+                onClick={() => {
+                  setShowMassarForm(false);
+                  setSelectedExam(null);
+                  setStudentMassar('');
+                }}
+                className="w-full px-6 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+              >
+                Annuler
+              </button>
+            </div>
           </div>
         </div>
       </div>

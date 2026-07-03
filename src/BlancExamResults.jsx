@@ -107,12 +107,13 @@ const BlancExamResults = ({ exam, onBack }) => {
     data.push(['Score max possible', stats.totalMax]);
     data.push(['']);
     data.push(['CLASSEMENT']);
-    data.push(['Rang', 'Matricule', 'Nom', 'Score', 'Pourcentage']);
+    data.push(['Rang', 'Code MASSAR', 'Matricule', 'Nom', 'Score', 'Pourcentage']);
 
     getSortedResults().forEach((result, idx) => {
       const percentage = ((result.totalScore || 0) / stats.totalMax * 100).toFixed(2);
       data.push([
         idx + 1,
+        result.studentMassar || '—',
         result.studentMatricule,
         result.studentName,
         result.totalScore || 0,
@@ -285,6 +286,7 @@ const BlancExamResults = ({ exam, onBack }) => {
             <thead className="bg-gray-900 text-white">
               <tr>
                 <th className="px-4 py-3 text-left font-bold">Rang</th>
+                <th className="px-4 py-3 text-left font-bold">Code MASSAR</th>
                 <th className="px-4 py-3 text-left font-bold">Matricule</th>
                 <th className="px-4 py-3 text-left font-bold">Nom</th>
                 <th className="px-4 py-3 text-center font-bold">Score</th>
@@ -307,6 +309,7 @@ const BlancExamResults = ({ exam, onBack }) => {
                         {idx < 3 ? '🏅' : ''} {idx + 1}
                       </span>
                     </td>
+                    <td className="px-4 py-3 font-mono font-semibold text-blue-600">{result.studentMassar || '—'}</td>
                     <td className="px-4 py-3 font-mono">{result.studentMatricule}</td>
                     <td className="px-4 py-3">{result.studentName}</td>
                     <td className="px-4 py-3 text-center font-bold text-blue-600">
@@ -356,7 +359,10 @@ const BlancExamResults = ({ exam, onBack }) => {
             <div className="flex justify-between items-center mb-4">
               <div>
                 <h3 className="text-xl font-bold text-gray-900">{selectedStudent.studentName}</h3>
-                <p className="text-gray-600">Matricule: {selectedStudent.studentMatricule}</p>
+                <div className="flex gap-4 mt-2 text-sm text-gray-600">
+                  <p>📌 Code MASSAR: <strong className="text-blue-600">{selectedStudent.studentMassar || '—'}</strong></p>
+                  <p>ID: <strong>{selectedStudent.studentMatricule}</strong></p>
+                </div>
               </div>
               <button
                 onClick={() => setSelectedStudent(null)}
