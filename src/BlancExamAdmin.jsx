@@ -16,6 +16,8 @@ const BlancExamAdmin = ({ onClose }) => {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [examRatings, setExamRatings] = useState({});
+  const [selectedExamRatings, setSelectedExamRatings] = useState(null);
 
   // Form states
   const [formData, setFormData] = useState({
@@ -53,6 +55,23 @@ const BlancExamAdmin = ({ onClose }) => {
     loadExams();
   }, []);
 
+  const loadRatingsForExam = async (examId) => {
+    try {
+      const q = query(collection(db, 'exam_ratings'), where('examId', '==', examId));
+      const snapshot = await getDocs(q);
+      const ratings = snapshot.docs.map(doc => doc.data());
+
+      if (ratings.length > 0) {
+        const average = (ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length).toFixed(1);
+        return { average, count: ratings.length, ratings };
+      }
+      return { average: 0, count: 0, ratings: [] };
+    } catch (error) {
+      console.error('Erreur chargement avis:', error);
+      return { average: 0, count: 0, ratings: [] };
+    }
+  };
+
   const loadExams = async () => {
     setLoading(true);
     try {
@@ -60,6 +79,13 @@ const BlancExamAdmin = ({ onClose }) => {
       const examsData = snapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() }))
         .sort((a, b) => new Date(b.dateExamen) - new Date(a.dateExamen));
+
+      // Charger les avis pour chaque examen
+      const ratingsMap = {};
+      for (const exam of examsData) {
+        ratingsMap[exam.id] = await loadRatingsForExam(exam.id);
+      }
+      setExamRatings(ratingsMap);
       setExams(examsData);
     } catch (error) {
       console.error('Erreur chargement examens:', error);
@@ -563,7 +589,7 @@ const BlancExamAdmin = ({ onClose }) => {
                                 Fin: {formatDateLocal(exam.dateFin || exam.dateDebut)} à {exam.heureFin || '16:00'}
                               </span>
                             </div>
-                            <div className="flex gap-6 text-sm text-gray-600">
+                            <div className="flex gap-4 text-sm text-gray-600 flex-wrap items-center">
                               <span className="flex items-center gap-1">
                                 <BookOpen className="w-4 h-4" />
                                 {exam.epreuves?.length || 0} épreuves
@@ -572,6 +598,14 @@ const BlancExamAdmin = ({ onClose }) => {
                                 <BarChart3 className="w-4 h-4" />
                                 {exam.epreuves?.reduce((sum, e) => sum + (e.questions?.length || 0), 0) || 0} questions
                               </span>
+                              {examRatings[exam.id]?.count > 0 && (
+                                <button
+                                  onClick={() => setSelectedExamRatings({ exam, ...examRatings[exam.id] })}
+                                  className="flex items-center gap-1 bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full hover:bg-yellow-200 transition cursor-pointer font-semibold text-xs"
+                                >
+                                  ⭐ {examRatings[exam.id].average}/5 ({examRatings[exam.id].count})
+                                </button>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1024,6 +1058,93 @@ const BlancExamAdmin = ({ onClose }) => {
           {/* VIEW: Results */}
           {view === 'results' && currentExam && (
             <BlancExamResults exam={currentExam} onBack={() => setView('list')} />
+          )}
+
+          {/* MODAL: Détail des avis */}
+          {selectedExamRatings && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+                <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white p-6 flex justify-between items-center sticky top-0">
+                  <div>
+                    <h2 className="text-2xl font-bold">⭐ Avis des étudiants</h2>
+                    <p className="text-yellow-100 text-sm mt-1">{selectedExamRatings.exam.titre}</p>
+                  </div>
+                  <button
+                    onClick={() => setSelectedExamRatings(null)}
+                    className="hover:bg-yellow-700 p-2 rounded-lg transition"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="p-6 space-y-6">
+                  {/* Statistiques */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-yellow-50 p-4 rounded-lg border-2 border-yellow-200 text-center">
+                      <p className="text-sm text-yellow-700 font-semibold">Moyenne</p>
+                      <p className="text-3xl font-bold text-yellow-600 mt-1">
+                        {selectedExamRatings.average}/5
+                      </p>
+                    </div>
+                    <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200 text-center">
+                      <p className="text-sm text-blue-700 font-semibold">Total avis</p>
+                      <p className="text-3xl font-bold text-blue-600 mt-1">
+                        {selectedExamRatings.count}
+                      </p>
+                    </div>
+                    <div className="bg-green-50 p-4 rounded-lg border-2 border-green-200 text-center">
+                      <p className="text-sm text-green-700 font-semibold">Taux réponse</p>
+                      <p className="text-3xl font-bold text-green-600 mt-1">
+                        {Math.round((selectedExamRatings.count / (selectedExamRatings.exam.studentCount || selectedExamRatings.count)) * 100)}%
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Distribution */}
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h3 className="font-bold text-gray-900 mb-3">Distribution des notes</h3>
+                    <div className="space-y-2">
+                      {[5, 4, 3, 2, 1].map(star => {
+                        const count = selectedExamRatings.ratings.filter(r => r.rating === star).length;
+                        const percent = selectedExamRatings.count > 0 ? (count / selectedExamRatings.count) * 100 : 0;
+                        return (
+                          <div key={star} className="flex items-center gap-3">
+                            <span className="font-bold text-yellow-500 w-8">⭐ {star}</span>
+                            <div className="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden">
+                              <div
+                                className="bg-yellow-500 h-full transition-all"
+                                style={{ width: `${percent}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-sm text-gray-600 w-12 text-right">{count}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Liste des avis récents */}
+                  <div>
+                    <h3 className="font-bold text-gray-900 mb-3">Avis récents</h3>
+                    <div className="space-y-3">
+                      {selectedExamRatings.ratings
+                        .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt))
+                        .slice(0, 10)
+                        .map((rating, idx) => (
+                          <div key={idx} className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                            <div className="flex justify-between items-start">
+                              <div className="text-xl">{'⭐'.repeat(rating.rating)}</div>
+                              <span className="text-xs text-gray-500">
+                                {new Date(rating.submittedAt).toLocaleDateString('fr-FR')}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </div>
