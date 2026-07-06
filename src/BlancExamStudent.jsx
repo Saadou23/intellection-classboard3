@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, CheckCircle, AlertCircle, Send, BookOpen, BarChart3, ChevronDown, ChevronUp, XCircle } from 'lucide-react';
+import { Clock, CheckCircle, AlertCircle, Send, BookOpen, BarChart3, ChevronDown, ChevronUp, XCircle, Share2, Download } from 'lucide-react';
 import { db } from './firebase';
 import { collection, getDocs, setDoc, doc, query, where } from 'firebase/firestore';
 import { formatDateLocal } from './utils/examAvailability';
+import html2canvas from 'html2canvas';
 
 const BlancExamStudent = ({ studentMatricule, onClose }) => {
   const [exams, setExams] = useState([]);
@@ -24,6 +25,9 @@ const BlancExamStudent = ({ studentMatricule, onClose }) => {
   const [currentEpreuveId, setCurrentEpreuveId] = useState(null);
   const [studentMassar, setStudentMassar] = useState('');
   const [showMassarForm, setShowMassarForm] = useState(false);
+  const [examRating, setExamRating] = useState(0);
+  const [ratingSubmitted, setRatingSubmitted] = useState(false);
+  const [showScoreShare, setShowScoreShare] = useState(false);
 
   useEffect(() => {
     console.log('🎓 BlancExamStudent monté avec matricule:', studentMatricule);
@@ -224,6 +228,51 @@ const BlancExamStudent = ({ studentMatricule, onClose }) => {
     });
 
     return { totalQuestions, answeredQuestions, percentage: Math.round((answeredQuestions / totalQuestions) * 100) };
+  };
+
+  const handleDownloadScoreImage = async () => {
+    try {
+      const element = document.getElementById('score-share-card');
+      if (!element) return;
+
+      const canvas = await html2canvas(element, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+        logging: false
+      });
+
+      const link = document.createElement('a');
+      link.href = canvas.toDataURL('image/png');
+      link.download = `score_${selectedExam.titre}_${new Date().toISOString().split('T')[0]}.png`;
+      link.click();
+
+      alert('✅ Image téléchargée ! Partage-la en story sur tes réseaux ! 📱');
+    } catch (error) {
+      console.error('Erreur génération image:', error);
+      alert('❌ Erreur lors de la génération de l\'image');
+    }
+  };
+
+  const handleSubmitRating = async () => {
+    if (examRating === 0) {
+      alert('Veuillez sélectionner une note');
+      return;
+    }
+
+    try {
+      await setDoc(doc(db, 'exam_ratings', `${studentMatricule}_${selectedExam.id}_${Date.now()}`), {
+        studentMatricule,
+        examId: selectedExam.id,
+        examTitle: selectedExam.titre,
+        rating: examRating,
+        submittedAt: new Date().toISOString()
+      });
+      setRatingSubmitted(true);
+      setTimeout(() => onClose(), 2000);
+    } catch (error) {
+      console.error('Erreur sauvegarde rating:', error);
+      alert('❌ Erreur lors de la sauvegarde de votre avis');
+    }
   };
 
   const handleSubmitExam = async () => {
@@ -776,15 +825,178 @@ const BlancExamStudent = ({ studentMatricule, onClose }) => {
             })}
           </div>
 
-          {/* Bouton Fermer */}
-          <div className="bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-end">
+          {/* Bouton Partager Score */}
+          <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-t border-blue-200 px-6 py-4">
             <button
-              onClick={onClose}
-              className="px-8 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition font-bold"
+              onClick={() => setShowScoreShare(!showScoreShare)}
+              className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg transition font-bold flex items-center justify-center gap-2"
             >
-              Fermer
+              <Share2 className="w-5 h-5" />
+              📱 Partager mon score en story
             </button>
           </div>
+
+          {/* Aperçu et téléchargement */}
+          {showScoreShare && (
+            <div className="bg-white border-t border-gray-200 px-6 py-6">
+              <div className="mb-4">
+                {/* Carte de score à télécharger - Style Premium */}
+                <div
+                  id="score-share-card"
+                  className="relative rounded-2xl p-8 text-white text-center max-w-sm mx-auto overflow-hidden"
+                  style={{
+                    background: 'linear-gradient(135deg, #1a0a0a 0%, #4a1515 50%, #8b2e2e 100%)',
+                    aspectRatio: '9/16'
+                  }}
+                >
+                  {/* Fond géométrique décoratif */}
+                  <div className="absolute inset-0 opacity-20">
+                    <div className="absolute top-4 right-4 w-32 h-32 border-4 border-red-500/30 rounded-lg transform rotate-12"></div>
+                    <div className="absolute bottom-20 left-4 w-24 h-24 border-4 border-red-500/30 rounded-lg transform -rotate-12"></div>
+                  </div>
+
+                  <div className="relative z-10 h-full flex flex-col justify-between">
+                    {/* Header avec Logo */}
+                    <div>
+                      <div className="mb-2 text-center">
+                        <div className="flex items-center justify-center gap-2 mb-1">
+                          <div className="w-6 h-6 bg-red-500 rounded-full transform -rotate-45"></div>
+                        </div>
+                        <p className="text-xl font-black tracking-widest">INTELLECTION</p>
+                        <p className="text-xs font-semibold text-yellow-300 tracking-widest">CENTRE DE SOUTIEN</p>
+                      </div>
+                      <div className="h-1 bg-gradient-to-r from-transparent via-yellow-400 to-transparent my-3"></div>
+                    </div>
+
+                    {/* Score Principal */}
+                    <div className="flex-1 flex flex-col justify-center">
+                      {/* Cadre Score */}
+                      <div className="border-2 border-yellow-500/50 rounded-2xl p-6 mb-4 bg-black/30 backdrop-blur">
+                        <p className="text-6xl font-black mb-1">
+                          {examResults.totalScore}/{totalMax}
+                        </p>
+                      </div>
+
+                      {/* Pourcentage avec lauriers */}
+                      <div className="mb-4">
+                        <p className="text-5xl font-black text-yellow-300">
+                          {percentage}%
+                        </p>
+                        <p className="text-xs text-yellow-300 mt-1">🏆 EXCELLENT 🏆</p>
+                      </div>
+                    </div>
+
+                    {/* Infos Examen */}
+                    <div className="space-y-2">
+                      <div className="h-px bg-red-500/50 my-2"></div>
+                      <p className="text-lg font-bold text-white tracking-wide">
+                        {selectedExam.titre}
+                      </p>
+                      <p className="text-sm text-gray-300 flex items-center justify-center gap-1">
+                        📅 {new Date().toLocaleDateString('fr-FR')}
+                      </p>
+                      <div className="h-px bg-red-500/50 my-2"></div>
+                      <p className="text-xs text-gray-400 font-semibold">
+                        Testé avec Intellection
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Boutons */}
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={() => setShowScoreShare(false)}
+                  className="px-6 py-2 bg-gray-400 hover:bg-gray-500 text-white rounded-lg transition font-semibold"
+                >
+                  Fermer
+                </button>
+                <button
+                  onClick={handleDownloadScoreImage}
+                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-semibold flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  Télécharger l'image
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Section Rating */}
+          {!ratingSubmitted && (
+            <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border-t-2 border-yellow-200 px-6 py-6">
+              <div className="text-center">
+                <h3 className="text-lg font-bold text-gray-900 mb-2">
+                  ⭐ Votre avis sur cette épreuve
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Aidez-nous à améliorer la plateforme en notant cette épreuve
+                </p>
+
+                {/* Stars Rating */}
+                <div className="flex justify-center gap-3 mb-4">
+                  {[1, 2, 3, 4, 5].map(star => (
+                    <button
+                      key={star}
+                      onClick={() => setExamRating(star)}
+                      className={`text-4xl transition transform hover:scale-125 ${
+                        star <= examRating ? 'text-yellow-400' : 'text-gray-300'
+                      }`}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </div>
+
+                {examRating > 0 && (
+                  <p className="text-sm text-gray-600 mb-4">
+                    Vous avez noté : <strong>{examRating}/5 étoiles</strong>
+                  </p>
+                )}
+
+                {/* Boutons */}
+                <div className="flex gap-3 justify-center">
+                  <button
+                    onClick={onClose}
+                    className="px-6 py-2 bg-gray-400 hover:bg-gray-500 text-white rounded-lg transition font-semibold"
+                  >
+                    Passer
+                  </button>
+                  <button
+                    onClick={handleSubmitRating}
+                    disabled={examRating === 0}
+                    className={`px-6 py-2 rounded-lg transition font-semibold flex items-center gap-2 ${
+                      examRating === 0
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-yellow-500 hover:bg-yellow-600 text-white'
+                    }`}
+                  >
+                    ✓ Envoyer mon avis
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {ratingSubmitted && (
+            <div className="bg-green-50 border-t-2 border-green-200 px-6 py-6 text-center">
+              <p className="text-lg font-bold text-green-700">✅ Merci pour votre avis !</p>
+              <p className="text-sm text-green-600 mt-2">Fermeture automatique...</p>
+            </div>
+          )}
+
+          {/* Bouton Fermer */}
+          {ratingSubmitted && (
+            <div className="bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-end">
+              <button
+                onClick={onClose}
+                className="px-8 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition font-bold"
+              >
+                Fermer
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
