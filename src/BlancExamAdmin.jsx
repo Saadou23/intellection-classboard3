@@ -6,6 +6,7 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage
 import { jsPDF } from 'jspdf';
 import * as XLSX from 'xlsx';
 import BlancExamResults from './BlancExamResults';
+import { formatDateLocal } from './utils/examAvailability';
 
 const BlancExamAdmin = ({ onClose }) => {
   const [view, setView] = useState('list'); // list, create, edit, results
@@ -553,13 +554,13 @@ const BlancExamAdmin = ({ onClose }) => {
                             <div className="flex items-center gap-2 text-sm bg-green-50 text-green-800 px-3 py-2 rounded border border-green-200">
                               <Calendar className="w-4 h-4" />
                               <span className="font-semibold">
-                                Début: {new Date(exam.dateDebut).toLocaleDateString('fr-FR')} à {exam.heureDebut || '14:00'}
+                                Début: {formatDateLocal(exam.dateDebut)} à {exam.heureDebut || '14:00'}
                               </span>
                             </div>
                             <div className="flex items-center gap-2 text-sm bg-red-50 text-red-800 px-3 py-2 rounded border border-red-200">
                               <Clock className="w-4 h-4" />
                               <span className="font-semibold">
-                                Fin: {new Date(exam.dateFin || exam.dateDebut).toLocaleDateString('fr-FR')} à {exam.heureFin || '16:00'}
+                                Fin: {formatDateLocal(exam.dateFin || exam.dateDebut)} à {exam.heureFin || '16:00'}
                               </span>
                             </div>
                             <div className="flex gap-6 text-sm text-gray-600">
@@ -935,18 +936,36 @@ const BlancExamAdmin = ({ onClose }) => {
 
                     {/* Liste questions */}
                     {currentEpreuve.questions.length > 0 && (
-                      <div className="space-y-2 max-h-32 overflow-y-auto">
-                        {currentEpreuve.questions.map(q => (
-                          <div key={q.id} className="flex items-center justify-between bg-gray-50 p-2 rounded text-xs border border-gray-200 group">
-                            <span>Q{q.numero} → <strong>{q.bonneReponse}</strong> ({q.points}pts)</span>
-                            <button
-                              onClick={() => handleRemoveQuestion(q.id)}
-                              className="text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        ))}
+                      <div className="border-2 border-blue-200 rounded-lg p-4 bg-blue-50">
+                        <h6 className="font-bold text-blue-900 mb-3 text-sm">
+                          📋 Questions ajoutées ({currentEpreuve.questions.length})
+                        </h6>
+                        <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
+                          {currentEpreuve.questions.map(q => (
+                            <div key={q.id} className="flex items-center justify-between bg-white p-3 rounded-lg border-2 border-blue-100 hover:border-blue-400 transition group">
+                              <div className="flex-1">
+                                <span className="text-sm font-semibold text-gray-900">
+                                  📌 Question {q.numero}
+                                </span>
+                                <div className="flex gap-4 mt-1 text-sm">
+                                  <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full font-bold">
+                                    ✅ {q.bonneReponse}
+                                  </span>
+                                  <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full font-bold">
+                                    🎯 {q.points} pts
+                                  </span>
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => handleRemoveQuestion(q.id)}
+                                className="ml-3 text-red-600 hover:text-red-800 hover:bg-red-100 p-2 rounded-lg transition opacity-0 group-hover:opacity-100 font-bold text-lg"
+                                title="Supprimer cette question"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>

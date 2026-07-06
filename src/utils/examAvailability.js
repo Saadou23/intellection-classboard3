@@ -3,8 +3,17 @@ export const isExamAvailable = (exam) => {
   if (!exam) return false;
 
   const now = new Date();
-  const startDateTime = new Date(`${exam.dateDebut}T${exam.heureDebut || '00:00'}`);
-  const endDateTime = new Date(`${exam.dateFin || exam.dateDebut}T${exam.heureFin || '23:59'}`);
+
+  // Parser les dates en format YYYY-MM-DD
+  const [startYear, startMonth, startDay] = exam.dateDebut.split('-').map(Number);
+  const [endYear, endMonth, endDay] = (exam.dateFin || exam.dateDebut).split('-').map(Number);
+
+  const [startHour, startMin] = (exam.heureDebut || '00:00').split(':').map(Number);
+  const [endHour, endMin] = (exam.heureFin || '23:59').split(':').map(Number);
+
+  // Créer les dates en heure locale (pas UTC)
+  const startDateTime = new Date(startYear, startMonth - 1, startDay, startHour, startMin, 0);
+  const endDateTime = new Date(endYear, endMonth - 1, endDay, endHour, endMin, 59);
 
   return now >= startDateTime && now <= endDateTime;
 };
@@ -13,8 +22,17 @@ export const getExamStatus = (exam) => {
   if (!exam) return { status: 'unknown', message: 'Examen introuvable' };
 
   const now = new Date();
-  const startDateTime = new Date(`${exam.dateDebut}T${exam.heureDebut || '00:00'}`);
-  const endDateTime = new Date(`${exam.dateFin || exam.dateDebut}T${exam.heureFin || '23:59'}`);
+
+  // Parser les dates en format YYYY-MM-DD
+  const [startYear, startMonth, startDay] = exam.dateDebut.split('-').map(Number);
+  const [endYear, endMonth, endDay] = (exam.dateFin || exam.dateDebut).split('-').map(Number);
+
+  const [startHour, startMin] = (exam.heureDebut || '00:00').split(':').map(Number);
+  const [endHour, endMin] = (exam.heureFin || '23:59').split(':').map(Number);
+
+  // Créer les dates en heure locale (pas UTC)
+  const startDateTime = new Date(startYear, startMonth - 1, startDay, startHour, startMin, 0);
+  const endDateTime = new Date(endYear, endMonth - 1, endDay, endHour, endMin, 59);
 
   if (now < startDateTime) {
     const daysUntil = Math.ceil((startDateTime - now) / (1000 * 60 * 60 * 24));
@@ -41,11 +59,19 @@ export const getExamStatus = (exam) => {
   };
 };
 
+// Formatter une date YYYY-MM-DD en format local fr-FR
+export const formatDateLocal = (dateStr) => {
+  if (!dateStr) return '—';
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  return date.toLocaleDateString('fr-FR');
+};
+
 export const formatExamPeriod = (exam) => {
   if (!exam) return '';
 
-  const startDate = new Date(exam.dateDebut).toLocaleDateString('fr-FR');
-  const endDate = new Date(exam.dateFin || exam.dateDebut).toLocaleDateString('fr-FR');
+  const startDate = formatDateLocal(exam.dateDebut);
+  const endDate = formatDateLocal(exam.dateFin || exam.dateDebut);
 
   if (exam.dateDebut === exam.dateFin) {
     return `${startDate} de ${exam.heureDebut} à ${exam.heureFin}`;
