@@ -24,9 +24,12 @@ const BlancExamAdmin = ({ onClose }) => {
     dureeTotal: 120,
     dateDebut: new Date().toISOString().split('T')[0],
     heureDebut: '14:00',
+    dateFin: new Date().toISOString().split('T')[0],
     heureFin: '16:00',
-    epreuves: []
+    epreuves: [],
+    visible: true
   });
+  const [showArchived, setShowArchived] = useState(false);
 
   const [currentEpreuve, setCurrentEpreuve] = useState({
     titre: '',
@@ -66,15 +69,18 @@ const BlancExamAdmin = ({ onClose }) => {
   };
 
   const handleCreateExam = () => {
+    const today = new Date().toISOString().split('T')[0];
     setFormData({
       titre: '',
       description: '',
-      dateExamen: new Date().toISOString().split('T')[0],
+      dateExamen: today,
       dureeTotal: 120,
-      dateDebut: new Date().toISOString().split('T')[0],
+      dateDebut: today,
       heureDebut: '14:00',
+      dateFin: today,
       heureFin: '16:00',
-      epreuves: []
+      epreuves: [],
+      visible: true
     });
     setView('create');
   };
@@ -230,6 +236,12 @@ const BlancExamAdmin = ({ onClose }) => {
       return;
     }
 
+    // Validation: dateFin >= dateDebut
+    if (new Date(formData.dateFin) < new Date(formData.dateDebut)) {
+      alert('❌ La date de fin doit être égale ou après la date de début');
+      return;
+    }
+
     setSaving(true);
     try {
       const examId = currentExam?.id || `exam_${Date.now()}`;
@@ -254,6 +266,22 @@ const BlancExamAdmin = ({ onClose }) => {
       setMessage('❌ Erreur lors de la sauvegarde');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleToggleVisibility = async (exam) => {
+    try {
+      await updateDoc(doc(db, 'blanc_exams', exam.id), {
+        visible: !exam.visible
+      });
+      setExams(exams.map(e =>
+        e.id === exam.id ? { ...e, visible: !e.visible } : e
+      ));
+      setMessage(exam.visible ? '✅ Concours masqué' : '✅ Concours affiché');
+      setTimeout(() => setMessage(''), 2000);
+    } catch (error) {
+      console.error('Erreur changement visibilité:', error);
+      setMessage('❌ Erreur lors du changement de visibilité');
     }
   };
 
@@ -432,9 +460,15 @@ const BlancExamAdmin = ({ onClose }) => {
     }
   };
 
-  const filteredExams = exams.filter(exam =>
-    exam.titre.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredExams = exams.filter(exam => {
+    const matchesSearch = exam.titre.toLowerCase().includes(searchTerm.toLowerCase());
+    const isVisible = exam.visible !== false; // Par défaut visible
+
+    if (showArchived) {
+      return matchesSearch && !isVisible; // Montrer les masqués
+    }
+    return matchesSearch && isVisible; // Montrer les visibles
+  });
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -465,14 +499,29 @@ const BlancExamAdmin = ({ onClose }) => {
           {/* VIEW: List */}
           {view === 'list' && (
             <div className="space-y-6">
-              <div className="flex gap-4 items-center">
+              <div className="flex gap-4 items-center flex-wrap">
                 <input
                   type="text"
                   placeholder="Rechercher un concours..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex-1 min-w-64 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
+                <button
+                  onClick={() => setShowArchived(!showArchived)}
+                  className={`px-4 py-2 rounded-lg transition font-semibold flex items-center gap-2 ${
+                    showArchived
+                      ? 'bg-orange-600 hover:bg-orange-700 text-white'
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
+                  }`}
+                >
+                  👁️ {showArchived ? 'Masqués' : 'Visibles'}
+                  {showArchived && (
+                    <span className="text-xs bg-orange-700 px-2 py-1 rounded-full">
+                      {exams.filter(e => e.visible === false).length}
+                    </span>
+                  )}
+                </button>
                 <button
                   onClick={handleCreateExam}
                   className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition font-semibold"
@@ -500,23 +549,33 @@ const BlancExamAdmin = ({ onClose }) => {
                         <div className="flex-1">
                           <h3 className="text-xl font-bold text-gray-900">{exam.titre}</h3>
                           <p className="text-gray-600 text-sm mt-1">{exam.description}</p>
-                          <div className="flex gap-6 mt-3 text-sm text-gray-600">
-                            <span className="flex items-center gap-1">
+                          <div className="flex flex-col gap-2 mt-3">
+                            <div className="flex items-center gap-2 text-sm bg-green-50 text-green-800 px-3 py-2 rounded border border-green-200">
                               <Calendar className="w-4 h-4" />
-                              {new Date(exam.dateExamen).toLocaleDateString('fr-FR')}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <BookOpen className="w-4 h-4" />
-                              {exam.epreuves?.length || 0} épreuves
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <BarChart3 className="w-4 h-4" />
-                              {exam.epreuves?.reduce((sum, e) => sum + (e.questions?.length || 0), 0) || 0} questions
-                            </span>
+                              <span className="font-semibold">
+                                Début: {new Date(exam.dateDebut).toLocaleDateString('fr-FR')} à {exam.heureDebut || '14:00'}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm bg-red-50 text-red-800 px-3 py-2 rounded border border-red-200">
+                              <Clock className="w-4 h-4" />
+                              <span className="font-semibold">
+                                Fin: {new Date(exam.dateFin || exam.dateDebut).toLocaleDateString('fr-FR')} à {exam.heureFin || '16:00'}
+                              </span>
+                            </div>
+                            <div className="flex gap-6 text-sm text-gray-600">
+                              <span className="flex items-center gap-1">
+                                <BookOpen className="w-4 h-4" />
+                                {exam.epreuves?.length || 0} épreuves
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <BarChart3 className="w-4 h-4" />
+                                {exam.epreuves?.reduce((sum, e) => sum + (e.questions?.length || 0), 0) || 0} questions
+                              </span>
+                            </div>
                           </div>
                         </div>
 
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
                           <button
                             onClick={() => handleViewResults(exam)}
                             className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition text-sm"
@@ -540,8 +599,20 @@ const BlancExamAdmin = ({ onClose }) => {
                             Modifier
                           </button>
                           <button
+                            onClick={() => handleToggleVisibility(exam)}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition text-sm font-semibold ${
+                              exam.visible === false
+                                ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                                : 'bg-yellow-600 hover:bg-yellow-700 text-white'
+                            }`}
+                            title={exam.visible === false ? 'Afficher ce concours' : 'Masquer ce concours'}
+                          >
+                            {exam.visible === false ? '👁️ Afficher' : '🙈 Masquer'}
+                          </button>
+                          <button
                             onClick={() => handleDeleteExam(exam.id)}
                             className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition text-sm"
+                            title="Supprimer définitivement"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -606,39 +677,88 @@ const BlancExamAdmin = ({ onClose }) => {
 
               {/* Disponibilité */}
               <div className="bg-purple-50 border-2 border-purple-200 p-4 rounded-lg">
-                <h4 className="font-bold text-gray-900 mb-4">📅 Disponibilité de l'examen</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Date</label>
-                    <input
-                      type="date"
-                      value={formData.dateDebut}
-                      onChange={(e) => setFormData({ ...formData, dateDebut: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    />
+                <h4 className="font-bold text-gray-900 mb-4">📅 Période de disponibilité de l'examen</h4>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Date et heure de début */}
+                  <div className="bg-white p-4 rounded-lg border-2 border-green-200">
+                    <h5 className="font-bold text-green-700 mb-3 flex items-center gap-2">
+                      ▶️ Début
+                    </h5>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-2">Date de début</label>
+                        <input
+                          type="date"
+                          value={formData.dateDebut}
+                          onChange={(e) => {
+                            setFormData({
+                              ...formData,
+                              dateDebut: e.target.value,
+                              // Assurer que dateFin >= dateDebut
+                              dateFin: e.target.value > formData.dateFin ? e.target.value : formData.dateFin
+                            });
+                          }}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-2">Heure de début</label>
+                        <input
+                          type="time"
+                          value={formData.heureDebut}
+                          onChange={(e) => setFormData({ ...formData, heureDebut: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Heure de début</label>
-                    <input
-                      type="time"
-                      value={formData.heureDebut}
-                      onChange={(e) => setFormData({ ...formData, heureDebut: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Heure de fin</label>
-                    <input
-                      type="time"
-                      value={formData.heureFin}
-                      onChange={(e) => setFormData({ ...formData, heureFin: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    />
+
+                  {/* Date et heure de fin */}
+                  <div className="bg-white p-4 rounded-lg border-2 border-red-200">
+                    <h5 className="font-bold text-red-700 mb-3 flex items-center gap-2">
+                      ⏹️ Fin
+                    </h5>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-2">Date de fin</label>
+                        <input
+                          type="date"
+                          value={formData.dateFin}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            dateFin: e.target.value
+                          })}
+                          min={formData.dateDebut}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-2">Heure de fin</label>
+                        <input
+                          type="time"
+                          value={formData.heureFin}
+                          onChange={(e) => setFormData({ ...formData, heureFin: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <p className="text-xs text-gray-600 mt-2">
-                  Ex: Samedi 20/06 de 14:00 à 16:00 - Les étudiants verront un message s'ils tentent d'accéder en dehors de cette période
-                </p>
+
+                {/* Résumé de la période */}
+                <div className="bg-blue-50 border-l-4 border-blue-500 p-3 mt-4 rounded">
+                  <p className="text-sm font-bold text-blue-900">
+                    📊 Période: {new Date(formData.dateDebut).toLocaleDateString('fr-FR')} à {formData.heureDebut}
+                    {formData.dateDebut === formData.dateFin
+                      ? ` à ${formData.heureFin}`
+                      : ` → ${new Date(formData.dateFin).toLocaleDateString('fr-FR')} à ${formData.heureFin}`
+                    }
+                  </p>
+                  <p className="text-xs text-blue-700 mt-2">
+                    ✓ Les étudiants peuvent passer l'examen à tout moment pendant cette période
+                  </p>
+                </div>
               </div>
 
               {/* Épreuves */}
