@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Clock, CheckCircle, AlertCircle, Send, BookOpen, BarChart3, ChevronDown, ChevronUp, XCircle } from 'lucide-react';
 import { db } from './firebase';
 import { collection, getDocs, setDoc, doc, query, where } from 'firebase/firestore';
+import { formatDateLocal } from './utils/examAvailability';
 
 const BlancExamStudent = ({ studentMatricule, onClose }) => {
   const [exams, setExams] = useState([]);
@@ -818,8 +819,16 @@ const BlancExamStudent = ({ studentMatricule, onClose }) => {
               <div className="space-y-4">
                 {exams.map(exam => {
                   const now = new Date();
-                  const startDateTime = new Date(`${exam.dateDebut}T${exam.heureDebut}`);
-                  const endDateTime = new Date(`${exam.dateDebut}T${exam.heureFin}`);
+
+                  // Parse dates correctly in local timezone
+                  const [startYear, startMonth, startDay] = exam.dateDebut.split('-').map(Number);
+                  const [endYear, endMonth, endDay] = (exam.dateFin || exam.dateDebut).split('-').map(Number);
+                  const [startHour, startMin] = (exam.heureDebut || '00:00').split(':').map(Number);
+                  const [endHour, endMin] = (exam.heureFin || '23:59').split(':').map(Number);
+
+                  const startDateTime = new Date(startYear, startMonth - 1, startDay, startHour, startMin, 0);
+                  const endDateTime = new Date(endYear, endMonth - 1, endDay, endHour, endMin, 59);
+
                   const isAvailable = now >= startDateTime && now <= endDateTime;
                   const isUpcoming = now < startDateTime;
 
@@ -848,15 +857,15 @@ const BlancExamStudent = ({ studentMatricule, onClose }) => {
                           <div className="mt-4">
                             {isAvailable ? (
                               <div className="inline-block bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold">
-                                ✅ Examen en cours - Disponible jusqu'à {exam.heureFin}
+                                ✅ Examen en cours - Disponible jusqu'au {formatDateLocal(exam.dateFin || exam.dateDebut)} à {exam.heureFin}
                               </div>
                             ) : isUpcoming ? (
                               <div className="inline-block bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-bold">
-                                ⏳ Disponible à partir du {new Date(exam.dateDebut).toLocaleDateString('fr-FR')} à {exam.heureDebut}
+                                ⏳ Disponible à partir du {formatDateLocal(exam.dateDebut)} à {exam.heureDebut}
                               </div>
                             ) : (
                               <div className="inline-block bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold">
-                                ❌ Examen terminé le {new Date(exam.dateDebut).toLocaleDateString('fr-FR')} à {exam.heureFin}
+                                ❌ Examen terminé le {formatDateLocal(exam.dateFin || exam.dateDebut)} à {exam.heureFin}
                               </div>
                             )}
                           </div>
@@ -888,36 +897,36 @@ const BlancExamStudent = ({ studentMatricule, onClose }) => {
   const stats = getProgressStats();
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-2xl w-full max-w-7xl max-h-[95vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2">
+      <div className="bg-white rounded-lg shadow-2xl w-[calc(100%-16px)] h-[calc(100%-16px)] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-6 flex justify-between items-center">
+        <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white px-6 py-3 flex justify-between items-center gap-4">
           <div>
-            <h2 className="text-2xl font-bold">{selectedExam.titre}</h2>
-            <p className="text-blue-100 text-sm mt-1">{selectedExam.epreuves?.length || 0} épreuves - {stats?.totalQuestions || 0} questions</p>
+            <h2 className="text-xl font-bold">{selectedExam.titre}</h2>
+            <p className="text-blue-100 text-xs mt-0.5">{selectedExam.epreuves?.length || 0} épreuves - {stats?.totalQuestions || 0} questions</p>
           </div>
-          <div className="text-right flex items-center gap-6">
-            <div>
-              <div className={`text-4xl font-bold tabular-nums ${
+          <div className="text-right flex items-center gap-4 flex-shrink-0">
+            <div className="text-center">
+              <div className={`text-3xl font-bold tabular-nums ${
                 timeLeft && timeLeft < 300 ? 'text-red-300 animate-pulse' : 'text-white'
               }`}>
                 {formatTime(timeLeft)}
               </div>
-              <p className="text-sm text-blue-100">Temps restant</p>
+              <p className="text-xs text-blue-100">Temps</p>
             </div>
-            <button onClick={onClose} className="hover:bg-blue-700 p-2 rounded-lg transition">
+            <button onClick={onClose} className="hover:bg-blue-700 p-1 rounded transition">
               ✕
             </button>
           </div>
         </div>
 
         {/* Barre de progression */}
-        <div className="bg-blue-50 px-6 py-4 border-b border-blue-200">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-bold text-gray-700">Progression: {stats?.answeredQuestions}/{stats?.totalQuestions} questions</span>
-            <span className="text-sm font-bold text-blue-600">{stats?.percentage}%</span>
+        <div className="bg-blue-50 px-6 py-2 border-b border-blue-200">
+          <div className="flex items-center justify-between mb-1 text-xs">
+            <span className="font-bold text-gray-700">Progression: {stats?.answeredQuestions}/{stats?.totalQuestions}</span>
+            <span className="font-bold text-blue-600">{stats?.percentage}%</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+          <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
             <div
               className="bg-gradient-to-r from-blue-500 to-blue-600 h-full transition-all duration-300"
               style={{ width: `${stats?.percentage || 0}%` }}
@@ -928,7 +937,7 @@ const BlancExamStudent = ({ studentMatricule, onClose }) => {
         {/* Contenu - Layout 2 colonnes */}
         <div className="flex-1 flex overflow-hidden">
           {/* Colonne gauche - PDF */}
-          <div className="w-3/5 border-r border-gray-200 overflow-hidden flex flex-col">
+          <div className="w-3/4 border-r border-gray-200 overflow-hidden flex flex-col">
             {currentEpreuveId && selectedExam.epreuves?.find(e => e.id === currentEpreuveId)?.pdfUrl ? (
               <div className="flex flex-col h-full">
                 <div className="bg-gray-100 px-4 py-2 border-b border-gray-200">
@@ -937,7 +946,7 @@ const BlancExamStudent = ({ studentMatricule, onClose }) => {
                   </p>
                 </div>
                 <iframe
-                  src={selectedExam.epreuves?.find(e => e.id === currentEpreuveId)?.pdfUrl}
+                  src={selectedExam.epreuves?.find(e => e.id === currentEpreuveId)?.pdfUrl + '#zoom=75&view=FitH'}
                   className="flex-1 w-full border-0"
                   title="PDF Épreuve"
                 />
@@ -952,7 +961,7 @@ const BlancExamStudent = ({ studentMatricule, onClose }) => {
           </div>
 
           {/* Colonne droite - Questions */}
-          <div className="w-2/5 overflow-y-auto p-4 space-y-3">
+          <div className="w-1/4 overflow-y-auto p-2 space-y-2">
             {selectedExam.epreuves && selectedExam.epreuves.map((epreuve) => (
               <div key={epreuve.id} className="border-2 border-gray-200 rounded-lg overflow-hidden">
                 {/* En-tête épreuve */}
@@ -961,58 +970,57 @@ const BlancExamStudent = ({ studentMatricule, onClose }) => {
                     toggleEpreuve(epreuve.id);
                     setCurrentEpreuveId(epreuve.id);
                   }}
-                  className={`w-full px-6 py-4 flex items-center justify-between transition ${
+                  className={`w-full px-3 py-2 flex items-center justify-between transition ${
                     currentEpreuveId === epreuve.id
                       ? 'bg-gradient-to-r from-blue-50 to-blue-100 border-l-4 border-l-blue-600'
                       : 'bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200'
                   }`}
                 >
                   <div className="text-left">
-                    <h3 className="font-bold text-gray-900">{epreuve.titre}</h3>
-                    <p className="text-sm text-gray-600">
-                      📋 {epreuve.questions?.length || 0} questions |
-                      ✅ {epreuve.questions?.filter(q => responses[q.id])?.length || 0} répondues
-                      {epreuve.pdfUrl && ' | 📄 PDF'}
+                    <h3 className="font-bold text-gray-900 text-sm">{epreuve.titre}</h3>
+                    <p className="text-xs text-gray-600">
+                      📋 {epreuve.questions?.length || 0} | ✅ {epreuve.questions?.filter(q => responses[q.id])?.length || 0}
+                      {epreuve.pdfUrl && ' | 📄'}
                     </p>
                   </div>
                   {expandedEpreuves[epreuve.id] ? (
-                    <ChevronUp className="w-6 h-6 text-gray-700" />
+                    <ChevronUp className="w-4 h-4 text-gray-700 flex-shrink-0" />
                   ) : (
-                    <ChevronDown className="w-6 h-6 text-gray-700" />
+                    <ChevronDown className="w-4 h-4 text-gray-700 flex-shrink-0" />
                   )}
                 </button>
 
                 {/* Questions */}
                 {expandedEpreuves[epreuve.id] && (
-                  <div className="bg-white p-6 space-y-6 border-t border-gray-200">
+                  <div className="bg-white p-2 space-y-2 border-t border-gray-200">
                     {epreuve.questions && epreuve.questions.map((question) => (
-                      <div key={question.id} className="pb-6 border-b border-gray-200 last:border-b-0">
-                        <div className="flex items-start gap-4 mb-4">
+                      <div key={question.id} className="pb-2 border-b border-gray-200 last:border-b-0">
+                        <div className="flex items-start gap-2 mb-1">
                           <div className="flex-shrink-0">
-                            <div className="flex items-center justify-center h-10 w-10 rounded-full bg-blue-600 text-white font-bold">
+                            <div className="flex items-center justify-center h-6 w-6 rounded-full bg-blue-600 text-white font-bold text-xs">
                               {question.numero}
                             </div>
                           </div>
-                          <div className="flex-1">
-                            <h4 className="font-semibold text-gray-900">Question {question.numero}</h4>
-                            <p className="text-sm text-gray-600 mt-1">
-                              Points: <strong>{question.points || 1}</strong>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-gray-900 text-xs">Q{question.numero}</h4>
+                            <p className="text-xs text-gray-600 mt-0.5">
+                              {question.points || 1}pts
                             </p>
                           </div>
                           {responses[question.id] && (
                             <div className="flex-shrink-0">
-                              <CheckCircle className="w-6 h-6 text-green-600" />
+                              <CheckCircle className="w-4 h-4 text-green-600" />
                             </div>
                           )}
                         </div>
 
                         {/* Options */}
-                        <div className="grid grid-cols-1 md:grid-cols-5 gap-3 ml-14">
+                        <div className="grid grid-cols-5 gap-1.5 ml-6">
                           {['A', 'B', 'C', 'D', 'E'].map(option => (
                             <button
                               key={option}
                               onClick={() => handleResponseChange(question.id, option)}
-                              className={`p-4 rounded-lg border-2 transition font-bold text-lg ${
+                              className={`p-1.5 rounded text-sm border-2 transition font-bold ${
                                 responses[question.id] === option
                                   ? 'border-blue-600 bg-blue-50 text-blue-700'
                                   : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
@@ -1024,11 +1032,11 @@ const BlancExamStudent = ({ studentMatricule, onClose }) => {
                         </div>
 
                         {/* Indicateur */}
-                        <div className="ml-14 mt-3 text-sm">
+                        <div className="ml-6 mt-1 text-xs">
                           {responses[question.id] ? (
-                            <span className="text-green-600 font-semibold">✓ Réponse: <strong>{responses[question.id]}</strong></span>
+                            <span className="text-green-600 font-semibold">✓ {responses[question.id]}</span>
                           ) : (
-                            <span className="text-gray-500">Pas de réponse</span>
+                            <span className="text-gray-500">—</span>
                           )}
                         </div>
                       </div>
