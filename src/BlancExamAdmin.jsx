@@ -113,14 +113,21 @@ const BlancExamAdmin = ({ onClose }) => {
       dateFin: today,
       heureFin: '16:00',
       epreuves: [],
-      visible: true
+      visible: true,
+      level: [],      // ✨ Nouveau: Niveaux
+      subjects: []    // ✨ Nouveau: Matières
     });
     setView('create');
   };
 
   const handleEditExam = (exam) => {
     setCurrentExam(exam);
-    setFormData(exam);
+    // ✨ Ajouter des fallbacks pour level et subjects (pour les exams anciens)
+    setFormData({
+      ...exam,
+      level: exam.level || [],        // Fallback si undefined
+      subjects: exam.subjects || []   // Fallback si undefined
+    });
     setView('edit');
   };
 
@@ -710,12 +717,13 @@ const BlancExamAdmin = ({ onClose }) => {
                     <label key={level} className="flex items-center gap-2 p-2 border border-gray-300 rounded cursor-pointer hover:bg-blue-50">
                       <input
                         type="checkbox"
-                        checked={formData.level.includes(level)}
+                        checked={(formData.level || []).includes(level)}
                         onChange={(e) => {
+                          const currentLevel = formData.level || [];
                           if (e.target.checked) {
-                            setFormData({ ...formData, level: [...formData.level, level] });
+                            setFormData({ ...formData, level: [...currentLevel, level] });
                           } else {
-                            setFormData({ ...formData, level: formData.level.filter(l => l !== level) });
+                            setFormData({ ...formData, level: currentLevel.filter(l => l !== level) });
                           }
                         }}
                       />
@@ -733,12 +741,13 @@ const BlancExamAdmin = ({ onClose }) => {
                     <label key={subject} className="flex items-center gap-2 p-2 border border-gray-300 rounded cursor-pointer hover:bg-blue-50">
                       <input
                         type="checkbox"
-                        checked={formData.subjects.includes(subject)}
+                        checked={(formData.subjects || []).includes(subject)}
                         onChange={(e) => {
+                          const currentSubjects = formData.subjects || [];
                           if (e.target.checked) {
-                            setFormData({ ...formData, subjects: [...formData.subjects, subject] });
+                            setFormData({ ...formData, subjects: [...currentSubjects, subject] });
                           } else {
-                            setFormData({ ...formData, subjects: formData.subjects.filter(s => s !== subject) });
+                            setFormData({ ...formData, subjects: currentSubjects.filter(s => s !== subject) });
                           }
                         }}
                       />
