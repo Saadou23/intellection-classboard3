@@ -40,33 +40,34 @@ const BlancExamAdmin = ({ onClose }) => {
   const [availableSubjects, setAvailableSubjects] = useState([]);
   const [showArchived, setShowArchived] = useState(false);
 
-  // ✨ Charger les niveaux et matières depuis la configuration (Gestion des Paramètres)
+  // ✨ Charger les niveaux et matières depuis settings/global (où tous les niveaux sont stockés)
   const loadLevelsAndSubjects = async () => {
     try {
-      // Récupérer depuis la collection exam-settings, document config
-      const configRef = doc(db, 'exam-settings', 'config');
-      const configSnap = await getDoc(configRef);
+      // Récupérer depuis la collection settings, document global
+      // C'est là que SettingsManager stocke les 25 niveaux et matières
+      const globalRef = doc(db, 'settings', 'global');
+      const globalSnap = await getDoc(globalRef);
 
-      if (configSnap.exists()) {
-        const data = configSnap.data();
+      if (globalSnap.exists()) {
+        const data = globalSnap.data();
         const levels = data.levels || [];
         const subjects = data.subjects || [];
 
-        console.log('📚 Niveaux chargés depuis Paramètres:', levels);
-        console.log('📖 Matières chargées depuis Paramètres:', subjects);
+        console.log('✅ Niveaux chargés depuis settings/global:', levels.length, 'niveaux');
+        console.log('✅ Matières chargées depuis settings/global:', subjects.length, 'matières');
 
-        setAvailableLevels(levels.length > 0 ? levels : ['TC', '1BAC', '2BAC']);
-        setAvailableSubjects(subjects.length > 0 ? subjects : ['MATHS', 'PHYSIQUE', 'SVT']);
+        setAvailableLevels(levels.length > 0 ? levels : ['1AC', '2AC', '3AC']);
+        setAvailableSubjects(subjects.length > 0 ? subjects : ['MATHS', 'FRANÇAIS', 'ANGLAIS']);
       } else {
-        console.warn('⚠️ Configuration not found, using defaults');
-        setAvailableLevels(['TC', '1BAC', '2BAC']);
-        setAvailableSubjects(['MATHS', 'PHYSIQUE', 'SVT']);
+        console.warn('⚠️ settings/global not found, using defaults');
+        setAvailableLevels(['1AC', '2AC', '3AC', 'TRONC COMMUN', '1BAC']);
+        setAvailableSubjects(['MATHS', 'FRANÇAIS', 'ANGLAIS', 'SVT']);
       }
     } catch (error) {
       console.error('❌ Erreur chargement niveaux/matières:', error);
       // Fallback aux valeurs par défaut
-      setAvailableLevels(['TC', '1BAC', '2BAC']);
-      setAvailableSubjects(['MATHS', 'PHYSIQUE', 'SVT']);
+      setAvailableLevels(['1AC', '2AC', '3AC', 'TRONC COMMUN', '1BAC']);
+      setAvailableSubjects(['MATHS', 'FRANÇAIS', 'ANGLAIS', 'SVT']);
     }
   };
 
