@@ -35,10 +35,47 @@ const BlancExamAdmin = ({ onClose }) => {
     subjects: []    // ✨ NOUVEAU: Matières/Sujets
   });
 
-  // Niveaux disponibles
-  const availableLevels = ['1A', '2A', '3A', 'Prép 1', 'Prép 2'];
-  const availableSubjects = ['Mathématiques', 'Français', 'Anglais', 'Physique', 'Chimie', 'SVT', 'Philosophie', 'Histoire-Géo'];
+  // ✨ NOUVEAU: Charger dynamiquement depuis les emplois du temps
+  const [availableLevels, setAvailableLevels] = useState([]);
+  const [availableSubjects, setAvailableSubjects] = useState([]);
   const [showArchived, setShowArchived] = useState(false);
+
+  // Charger les niveaux et matières depuis les emplois du temps
+  const loadLevelsAndSubjects = async () => {
+    try {
+      // Récupérer tous les documents de sessions/emplois du temps
+      const sessionsSnapshot = await getDocs(collection(db, 'sessions'));
+
+      const levelsSet = new Set();
+      const subjectsSet = new Set();
+
+      // Extraire les niveaux et matières uniques
+      sessionsSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        if (data.level) levelsSet.add(data.level);
+        if (data.subject) subjectsSet.add(data.subject);
+        if (data.matiere) subjectsSet.add(data.matiere);
+        if (data.subjects && Array.isArray(data.subjects)) {
+          data.subjects.forEach(s => subjectsSet.add(s));
+        }
+      });
+
+      // Convertir les sets en arrays triés
+      const sortedLevels = Array.from(levelsSet).sort();
+      const sortedSubjects = Array.from(subjectsSet).sort();
+
+      console.log('📚 Niveaux chargés depuis emplois du temps:', sortedLevels);
+      console.log('📖 Matières chargées depuis emplois du temps:', sortedSubjects);
+
+      setAvailableLevels(sortedLevels.length > 0 ? sortedLevels : ['1A', '2A', '3A']);
+      setAvailableSubjects(sortedSubjects.length > 0 ? sortedSubjects : ['Mathématiques', 'Français', 'Anglais']);
+    } catch (error) {
+      console.error('Erreur chargement niveaux/matières:', error);
+      // Fallback aux valeurs par défaut
+      setAvailableLevels(['1A', '2A', '3A']);
+      setAvailableSubjects(['Mathématiques', 'Français', 'Anglais']);
+    }
+  };
 
   const [currentEpreuve, setCurrentEpreuve] = useState({
     titre: '',
@@ -56,9 +93,10 @@ const BlancExamAdmin = ({ onClose }) => {
 
   const [uploadingPdf, setUploadingPdf] = useState(null);
 
-  // Charger les examens au montage
+  // Charger les examens et les niveaux/matières au montage
   useEffect(() => {
     loadExams();
+    loadLevelsAndSubjects();
   }, []);
 
   const loadRatingsForExam = async (examId) => {
