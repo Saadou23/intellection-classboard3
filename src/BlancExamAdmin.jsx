@@ -30,8 +30,14 @@ const BlancExamAdmin = ({ onClose }) => {
     dateFin: new Date().toISOString().split('T')[0],
     heureFin: '16:00',
     epreuves: [],
-    visible: true
+    visible: true,
+    level: [],      // ✨ NOUVEAU: Niveaux concernés
+    subjects: []    // ✨ NOUVEAU: Matières/Sujets
   });
+
+  // Niveaux disponibles
+  const availableLevels = ['1A', '2A', '3A', 'Prép 1', 'Prép 2'];
+  const availableSubjects = ['Mathématiques', 'Français', 'Anglais', 'Physique', 'Chimie', 'SVT', 'Philosophie', 'Histoire-Géo'];
   const [showArchived, setShowArchived] = useState(false);
 
   const [currentEpreuve, setCurrentEpreuve] = useState({
@@ -694,6 +700,52 @@ const BlancExamAdmin = ({ onClose }) => {
                   rows="2"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
+              </div>
+
+              {/* ✨ NOUVEAU: Niveaux */}
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-3">📚 Niveaux concernés</label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {availableLevels.map(level => (
+                    <label key={level} className="flex items-center gap-2 p-2 border border-gray-300 rounded cursor-pointer hover:bg-blue-50">
+                      <input
+                        type="checkbox"
+                        checked={formData.level.includes(level)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFormData({ ...formData, level: [...formData.level, level] });
+                          } else {
+                            setFormData({ ...formData, level: formData.level.filter(l => l !== level) });
+                          }
+                        }}
+                      />
+                      <span className="text-sm font-medium">{level}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* ✨ NOUVEAU: Sujets/Matières */}
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-3">📖 Matières/Sujets</label>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {availableSubjects.map(subject => (
+                    <label key={subject} className="flex items-center gap-2 p-2 border border-gray-300 rounded cursor-pointer hover:bg-blue-50">
+                      <input
+                        type="checkbox"
+                        checked={formData.subjects.includes(subject)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFormData({ ...formData, subjects: [...formData.subjects, subject] });
+                          } else {
+                            setFormData({ ...formData, subjects: formData.subjects.filter(s => s !== subject) });
+                          }
+                        }}
+                      />
+                      <span className="text-sm font-medium">{subject}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
 
               <div>
