@@ -40,40 +40,33 @@ const BlancExamAdmin = ({ onClose }) => {
   const [availableSubjects, setAvailableSubjects] = useState([]);
   const [showArchived, setShowArchived] = useState(false);
 
-  // Charger les niveaux et matières depuis les emplois du temps
+  // ✨ Charger les niveaux et matières depuis la configuration (Gestion des Paramètres)
   const loadLevelsAndSubjects = async () => {
     try {
-      // Récupérer tous les documents de sessions/emplois du temps
-      const sessionsSnapshot = await getDocs(collection(db, 'sessions'));
+      // Récupérer depuis la collection exam-settings, document config
+      const configRef = doc(db, 'exam-settings', 'config');
+      const configSnap = await getDoc(configRef);
 
-      const levelsSet = new Set();
-      const subjectsSet = new Set();
+      if (configSnap.exists()) {
+        const data = configSnap.data();
+        const levels = data.levels || [];
+        const subjects = data.subjects || [];
 
-      // Extraire les niveaux et matières uniques
-      sessionsSnapshot.docs.forEach(doc => {
-        const data = doc.data();
-        if (data.level) levelsSet.add(data.level);
-        if (data.subject) subjectsSet.add(data.subject);
-        if (data.matiere) subjectsSet.add(data.matiere);
-        if (data.subjects && Array.isArray(data.subjects)) {
-          data.subjects.forEach(s => subjectsSet.add(s));
-        }
-      });
+        console.log('📚 Niveaux chargés depuis Paramètres:', levels);
+        console.log('📖 Matières chargées depuis Paramètres:', subjects);
 
-      // Convertir les sets en arrays triés
-      const sortedLevels = Array.from(levelsSet).sort();
-      const sortedSubjects = Array.from(subjectsSet).sort();
-
-      console.log('📚 Niveaux chargés depuis emplois du temps:', sortedLevels);
-      console.log('📖 Matières chargées depuis emplois du temps:', sortedSubjects);
-
-      setAvailableLevels(sortedLevels.length > 0 ? sortedLevels : ['1A', '2A', '3A']);
-      setAvailableSubjects(sortedSubjects.length > 0 ? sortedSubjects : ['Mathématiques', 'Français', 'Anglais']);
+        setAvailableLevels(levels.length > 0 ? levels : ['TC', '1BAC', '2BAC']);
+        setAvailableSubjects(subjects.length > 0 ? subjects : ['MATHS', 'PHYSIQUE', 'SVT']);
+      } else {
+        console.warn('⚠️ Configuration not found, using defaults');
+        setAvailableLevels(['TC', '1BAC', '2BAC']);
+        setAvailableSubjects(['MATHS', 'PHYSIQUE', 'SVT']);
+      }
     } catch (error) {
-      console.error('Erreur chargement niveaux/matières:', error);
+      console.error('❌ Erreur chargement niveaux/matières:', error);
       // Fallback aux valeurs par défaut
-      setAvailableLevels(['1A', '2A', '3A']);
-      setAvailableSubjects(['Mathématiques', 'Français', 'Anglais']);
+      setAvailableLevels(['TC', '1BAC', '2BAC']);
+      setAvailableSubjects(['MATHS', 'PHYSIQUE', 'SVT']);
     }
   };
 
