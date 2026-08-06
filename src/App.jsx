@@ -9,6 +9,7 @@ import PrivacyPolicy from './PrivacyPolicy';
 import Dashboard from './Dashboard';
 import OTPPointagePanel from './OTPPointagePanel';
 import ProfessorSalaryCollection from './ProfessorSalaryCollection';
+import WhatsAppGroups from './WhatsAppGroups';
 import './App.css';
 
 function App() {
@@ -34,6 +35,8 @@ function App() {
     pageComponent = <OTPPointagePanel />;
   } else if (path === '/salaire-collecte') {
     pageComponent = <ProfessorSalaryCollection />;
+  } else if (path === '/groupes-whatsapp') {
+    pageComponent = <WhatsAppGroups />;
   } else {
     pageComponent = <ClassBoard />;
   }
