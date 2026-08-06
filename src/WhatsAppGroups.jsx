@@ -43,6 +43,13 @@ function WhatsAppGroups() {
         { label: '2 BAC ECO', labelAr: 'ثانية باك ع.ج', name: 'Économie & Gestion', nameAr: 'العلوم الاقتصادية', link: 'https://chat.whatsapp.com/GgHqcYZ3qIdABIwoAZjc0C?s=sh&p=i&ilr=0&amv=2' },
       ]
     },
+    {
+      section: 'Formations Supérieures',
+      sectionAr: 'التعليم العالي',
+      items: [
+        { label: 'FSJES / ENCG 1', labelAr: 'الدراسات العليا 1', name: 'FSJES / ENCG 1', nameAr: 'كلية الاقتصاد والقانون 1', link: 'https://chat.whatsapp.com/BCHYs1NDakUFFgbh6QFHYJ' },
+      ]
+    },
   ];
 
   return (
