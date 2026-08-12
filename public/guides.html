@@ -151,6 +151,9 @@
             overflow: hidden;
             border: 1px solid #eee;
             background: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .viewer-wrap iframe {
@@ -163,6 +166,21 @@
             text-align: center;
             padding: 60px 20px;
             color: #666;
+        }
+
+        .fallback .icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .fallback p {
+            margin-bottom: 24px;
+            font-size: 15px;
+        }
+
+        .fallback .btn {
+            font-size: 16px;
+            padding: 14px 28px;
         }
 
         .footer {
@@ -212,9 +230,7 @@
                         <a class="btn btn-primary" href="guides/guide-etudiant.pdf" download>⬇ Télécharger</a>
                     </div>
                 </div>
-                <div class="viewer-wrap">
-                    <iframe src="guides/guide-etudiant.pdf" title="Guide Étudiant"></iframe>
-                </div>
+                <div class="viewer-wrap" data-pdf="guides/guide-etudiant.pdf"></div>
             </div>
 
             <div class="panel" id="panel-parent">
@@ -225,9 +241,7 @@
                         <a class="btn btn-primary" href="guides/guide-parent.pdf" download>⬇ Télécharger</a>
                     </div>
                 </div>
-                <div class="viewer-wrap">
-                    <iframe src="guides/guide-parent.pdf" title="Guide Parent"></iframe>
-                </div>
+                <div class="viewer-wrap" data-pdf="guides/guide-parent.pdf"></div>
             </div>
         </div>
 
@@ -247,6 +261,26 @@
             document.getElementById('panel-' + name).classList.add('active');
             document.getElementById('tab-' + name).classList.add('active');
         }
+
+        var isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth <= 768;
+
+        document.querySelectorAll('.viewer-wrap[data-pdf]').forEach(function (wrap) {
+            var pdfUrl = wrap.getAttribute('data-pdf');
+
+            if (isMobile) {
+                wrap.innerHTML =
+                    '<div class="fallback">' +
+                    '<div class="icon">📄</div>' +
+                    '<p>Sur mobile, ouvrez le guide dans votre visionneuse PDF pour une meilleure lecture.</p>' +
+                    '<a class="btn btn-primary" href="' + pdfUrl + '" target="_blank" rel="noopener">Ouvrir le PDF</a>' +
+                    '</div>';
+            } else {
+                var iframe = document.createElement('iframe');
+                iframe.src = pdfUrl;
+                iframe.title = pdfUrl;
+                wrap.appendChild(iframe);
+            }
+        });
     </script>
 </body>
 </html>
