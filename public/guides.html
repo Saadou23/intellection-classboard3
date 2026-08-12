@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guides d'Utilisation - INTELLECTION ClassBoard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 1px solid #eee;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 18px 20px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 15px;
+            color: #666;
+            cursor: pointer;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .tab:hover {
+            color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            background: white;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .panel {
+            display: none;
+        }
+
+        .panel.active {
+            display: block;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .panel-header h2 {
+            color: #667eea;
+            font-size: 20px;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 18px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-secondary {
+            background: #f0f4ff;
+            color: #667eea;
+            border: 1px solid #667eea;
+        }
+
+        .btn-secondary:hover {
+            background: #e4ecff;
+        }
+
+        .viewer-wrap {
+            width: 100%;
+            height: 75vh;
+            min-height: 500px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #eee;
+            background: #f8f9fa;
+        }
+
+        .viewer-wrap iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .fallback {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .footer {
+            background: #f8f9fa;
+            padding: 20px 30px;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            border-top: 1px solid #eee;
+        }
+
+        @media (max-width: 600px) {
+            .tab {
+                font-size: 13px;
+                padding: 14px 10px;
+            }
+
+            .panel-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .viewer-wrap {
+                height: 65vh;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📘 Guides d'Utilisation</h1>
+            <p>INTELLECTION ClassBoard - Application Mobile</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="showPanel('etudiant')" id="tab-etudiant">🎓 Espace Étudiant</button>
+            <button class="tab" onclick="showPanel('parent')" id="tab-parent">👨‍👩‍👧 Espace Parent</button>
+        </div>
+
+        <div class="content">
+            <div class="panel active" id="panel-etudiant">
+                <div class="panel-header">
+                    <h2>Guide d'Utilisation - Espace Étudiant</h2>
+                    <div class="actions">
+                        <a class="btn btn-secondary" href="guides/guide-etudiant.pdf" target="_blank" rel="noopener">Ouvrir dans un nouvel onglet</a>
+                        <a class="btn btn-primary" href="guides/guide-etudiant.pdf" download>⬇ Télécharger</a>
+                    </div>
+                </div>
+                <div class="viewer-wrap">
+                    <iframe src="guides/guide-etudiant.pdf" title="Guide Étudiant"></iframe>
+                </div>
+            </div>
+
+            <div class="panel" id="panel-parent">
+                <div class="panel-header">
+                    <h2>Guide d'Utilisation - Espace Parent</h2>
+                    <div class="actions">
+                        <a class="btn btn-secondary" href="guides/guide-parent.pdf" target="_blank" rel="noopener">Ouvrir dans un nouvel onglet</a>
+                        <a class="btn btn-primary" href="guides/guide-parent.pdf" download>⬇ Télécharger</a>
+                    </div>
+                </div>
+                <div class="viewer-wrap">
+                    <iframe src="guides/guide-parent.pdf" title="Guide Parent"></iframe>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>&copy; 2024-2026 INTELLECTION. Tous droits réservés.</p>
+        </div>
+    </div>
+
+    <script>
+        function showPanel(name) {
+            document.querySelectorAll('.panel').forEach(function (el) {
+                el.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(function (el) {
+                el.classList.remove('active');
+            });
+            document.getElementById('panel-' + name).classList.add('active');
+            document.getElementById('tab-' + name).classList.add('active');
+        }
+    </script>
+</body>
+</html>
