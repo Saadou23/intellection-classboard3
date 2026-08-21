@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Save, X, Upload, Eye, EyeOff, Settings } from 'lucide-react';
 import { db } from './firebase';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import SeedPromotions from './SeedPromotions';
 
 const PromotionManager = ({ onClose }) => {
   const [promotions, setPromotions] = useState([]);
@@ -208,6 +209,11 @@ const PromotionManager = ({ onClose }) => {
           <X className="w-6 h-6 text-gray-600" />
         </button>
       </div>
+
+      {/* Seed Promotions - Afficher seulement si aucune promotion */}
+      {promotions.length === 0 && (
+        <SeedPromotions />
+      )}
 
       {/* Bouton Ajouter */}
       {!showForm && (
