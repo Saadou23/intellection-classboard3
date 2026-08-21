@@ -41,6 +41,7 @@ import GroupAttendanceControl from './GroupAttendanceControl';
 import StudentDataImporter from './StudentDataImporter';
 import BlancExamAdmin from './BlancExamAdmin';
 import BlancExamStudent from './BlancExamStudent';
+import PromotionManager from './PromotionManager';
 
 const ClassBoard = () => {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -93,6 +94,7 @@ const [showWhatsAppAutomation, setShowWhatsAppAutomation] = useState(false);
   const [viewLevelFilter, setViewLevelFilter] = useState(null); // null = tous, "1BAC" = niveau spécifique
   const [viewGroupFilter, setViewGroupFilter] = useState(null); // null = tous, "G1" = groupe spécifique
   const [showMessageManager, setShowMessageManager] = useState(false);
+  const [showPromotionManager, setShowPromotionManager] = useState(false);
   const [showSecurityDashboard, setShowSecurityDashboard] = useState(false);
   const [showOTPSystem, setShowOTPSystem] = useState(false);
   const [showOTPDashboard, setShowOTPDashboard] = useState(false);
@@ -1448,6 +1450,19 @@ const branchNames = branchesArray.map(b => b.name) || [];
     );
   }
 
+  // Si on est sur la gestion des promotions
+  if (showPromotionManager) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-7xl mx-auto">
+          <PromotionManager
+            onClose={() => setShowPromotionManager(false)}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-blue-900 text-white p-4 shadow-lg">
@@ -1513,6 +1528,12 @@ const branchNames = branchesArray.map(b => b.name) || [];
               >
                 <MessageSquare className="w-4 h-4" />
                 Gestion des Messages
+              </button>
+              <button
+                onClick={() => setShowPromotionManager(true)}
+                className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm text-white"
+              >
+                📢 Gestion des Promotions
               </button>
             </div>
 

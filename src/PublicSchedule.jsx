@@ -6,6 +6,7 @@ import { db } from './firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import PromotionDisplay from './PromotionDisplay';
 
 const daysOfWeek = [
   { value: 0, label: 'Dimanche', ar: 'الأحد' },
@@ -719,6 +720,8 @@ const PublicSchedule = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Affichage des promotions */}
+      <PromotionDisplay audience="students" />
 
       {/* Header */}
       <header className="bg-white border-b border-gray-200 shadow-sm">

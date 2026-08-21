@@ -40,11 +40,9 @@ const BlancExamAdmin = ({ onClose }) => {
   const [availableSubjects, setAvailableSubjects] = useState([]);
   const [showArchived, setShowArchived] = useState(false);
 
-  // ✨ Charger les niveaux et matières depuis settings/global (où tous les niveaux sont stockés)
+  // ✨ Charger les niveaux et matières depuis ⚙️ Configuration
   const loadLevelsAndSubjects = async () => {
     try {
-      // Récupérer depuis la collection settings, document global
-      // C'est là que SettingsManager stocke les 25 niveaux et matières
       const globalRef = doc(db, 'settings', 'global');
       const globalSnap = await getDoc(globalRef);
 
@@ -53,21 +51,32 @@ const BlancExamAdmin = ({ onClose }) => {
         const levels = data.levels || [];
         const subjects = data.subjects || [];
 
-        console.log('✅ Niveaux chargés depuis settings/global:', levels.length, 'niveaux');
-        console.log('✅ Matières chargées depuis settings/global:', subjects.length, 'matières');
-
-        setAvailableLevels(levels.length > 0 ? levels : ['1AC', '2AC', '3AC']);
-        setAvailableSubjects(subjects.length > 0 ? subjects : ['MATHS', 'FRANÇAIS', 'ANGLAIS']);
+        if (levels.length > 0 && subjects.length > 0) {
+          console.log('✅ Niveaux chargés depuis ⚙️ Configuration:', levels.length, 'niveaux');
+          console.log('✅ Matières chargées depuis ⚙️ Configuration:', subjects.length, 'matières');
+          setAvailableLevels(levels);
+          setAvailableSubjects(subjects);
+        } else {
+          console.warn('⚠️ settings/global existe mais niveaux/matières vides');
+          console.warn('📝 Configure les niveaux et matières dans ⚙️ Configuration → Niveaux Profs & Matières');
+          setAvailableLevels(levels.length > 0 ? levels : ['1AC', '2AC', '3AC', 'TRONC COMMUN', '1BAC', '2BAC', '3BAC']);
+          setAvailableSubjects(subjects.length > 0 ? subjects : ['MATHS', 'FRANÇAIS', 'ANGLAIS', 'SVT', 'PHYSIQUE', 'CHIMIE']);
+        }
       } else {
-        console.warn('⚠️ settings/global not found, using defaults');
-        setAvailableLevels(['1AC', '2AC', '3AC', 'TRONC COMMUN', '1BAC']);
-        setAvailableSubjects(['MATHS', 'FRANÇAIS', 'ANGLAIS', 'SVT']);
+        console.error('❌ settings/global n\'existe pas!');
+        console.error('📝 Veuillez d\'abord configurer les niveaux et matières dans:');
+        console.error('   ⚙️ Configuration → Niveaux Profs & Matières');
+        setMessage('⚠️ Veuillez configurer les niveaux et matières dans ⚙️ Configuration');
+        // Fallback
+        setAvailableLevels(['1AC', '2AC', '3AC', 'TRONC COMMUN', '1BAC', '2BAC', '3BAC']);
+        setAvailableSubjects(['MATHS', 'FRANÇAIS', 'ANGLAIS', 'SVT', 'PHYSIQUE', 'CHIMIE']);
       }
     } catch (error) {
       console.error('❌ Erreur chargement niveaux/matières:', error);
-      // Fallback aux valeurs par défaut
-      setAvailableLevels(['1AC', '2AC', '3AC', 'TRONC COMMUN', '1BAC']);
-      setAvailableSubjects(['MATHS', 'FRANÇAIS', 'ANGLAIS', 'SVT']);
+      setMessage('❌ Erreur: Impossible de charger les niveaux et matières');
+      // Fallback
+      setAvailableLevels(['1AC', '2AC', '3AC', 'TRONC COMMUN', '1BAC', '2BAC', '3BAC']);
+      setAvailableSubjects(['MATHS', 'FRANÇAIS', 'ANGLAIS', 'SVT', 'PHYSIQUE', 'CHIMIE']);
     }
   };
 
