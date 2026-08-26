@@ -42,6 +42,7 @@ import StudentDataImporter from './StudentDataImporter';
 import BlancExamAdmin from './BlancExamAdmin';
 import BlancExamStudent from './BlancExamStudent';
 import PromotionManager from './PromotionManager';
+import SubjectScheduleMatrix from './SubjectScheduleMatrix';
 
 const ClassBoard = () => {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -106,6 +107,7 @@ const [showWhatsAppAutomation, setShowWhatsAppAutomation] = useState(false);
   const [showBlancExamAdmin, setShowBlancExamAdmin] = useState(false);
   const [showBlancExamStudent, setShowBlancExamStudent] = useState(false);
   const [studentMatricule, setStudentMatricule] = useState('');
+  const [showSubjectScheduleMatrix, setShowSubjectScheduleMatrix] = useState(false);
   const [showStudentMatriculeModal, setShowStudentMatriculeModal] = useState(false);
 
   // ========== SÉCURITÉ - PROTECTION ANTI-BRUTE FORCE ==========
@@ -943,6 +945,11 @@ const branchNames = branchesArray.map(b => b.name) || [];
     }} />;
   }
 
+  // ========== MATRICE DES HORAIRES ==========
+  if (showSubjectScheduleMatrix) {
+    return <SubjectScheduleMatrix onClose={() => setShowSubjectScheduleMatrix(false)} />
+  }
+
   // ========== ÉCRAN DE LOGIN ==========
   if (view === 'login') {
     return (
@@ -1600,6 +1607,13 @@ const branchNames = branchesArray.map(b => b.name) || [];
               >
                 <BookOpen className="w-4 h-4" />
                 Concours Blancs (Admin)
+              <button
+                onClick={() => setShowSubjectScheduleMatrix(true)}
+                className="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
+              >
+                <BookOpen className="w-4 h-4" />
+                Matrice Horaires
+              </button>
               </button>
             </div>
 

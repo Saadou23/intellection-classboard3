@@ -10,6 +10,7 @@ import Dashboard from './Dashboard';
 import OTPPointagePanel from './OTPPointagePanel';
 import ProfessorSalaryCollection from './ProfessorSalaryCollection';
 import WhatsAppGroups from './WhatsAppGroups';
+import SubjectScheduleMatrix from './SubjectScheduleMatrix';
 import './App.css';
 
 function App() {
@@ -37,6 +38,8 @@ function App() {
     pageComponent = <ProfessorSalaryCollection />;
   } else if (path === '/groupes-whatsapp') {
     pageComponent = <WhatsAppGroups />;
+  } else if (path === '/matrice-horaires') {
+    pageComponent = <SubjectScheduleMatrix />;
   } else {
     pageComponent = <ClassBoard />;
   }
