@@ -1,9 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, Calendar, Bell, BookOpen, Zap, Download } from 'lucide-react';
 import { db } from './firebase';
-import { onSnapshot, collection, doc, getDoc } from 'firebase/firestore';
+import { onSnapshot, collection, doc } from 'firebase/firestore';
 
-const AppAdvertisement = ({ onAdVisibilityChange }) => {
+const DEFAULT_SLIDES = [
+  { icon: 'Calendar', color: 'blue', title: 'Consultez vos emplois du temps', description: 'Accédez instantanément à votre emploi du temps complet' },
+  { icon: 'Bell', color: 'red', title: 'Recevez les notifications', description: 'Soyez alerté des absences ou retards des professeurs' },
+  { icon: 'BookOpen', color: 'purple', title: 'Demandez des cours individuels', description: 'Accédez aux supports de cours et exercices électroniques' },
+  { icon: 'Zap', color: 'amber', title: 'Restez connectés', description: 'Suivi en temps réel de votre scolarité' },
+  { icon: 'Bell', color: 'green', title: 'Suivi Parental en Temps Réel', description: 'Les parents suivent précisément: présences, emploi du temps, performances et communications directes' }
+];
+
+const AppAdvertisement = ({ onAdVisibilityChange, adLockRef }) => {
   const [showAd, setShowAd] = useState(false);
   const [shouldRender, setShouldRender] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -14,13 +22,7 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
     qrSlideDuration: 15,
     resultSlideDuration: 10
   });
-  const [adSlides, setAdSlides] = useState([
-    { icon: 'Calendar', color: 'blue', title: 'Consultez vos emplois du temps', description: 'Accédez instantanément à votre emploi du temps complet' },
-    { icon: 'Bell', color: 'red', title: 'Recevez les notifications', description: 'Soyez alerté des absences ou retards des professeurs' },
-    { icon: 'BookOpen', color: 'purple', title: 'Demandez des cours individuels', description: 'Accédez aux supports de cours et exercices électroniques' },
-    { icon: 'Zap', color: 'amber', title: 'Restez connectés', description: 'Suivi en temps réel de votre scolarité' },
-    { icon: 'Bell', color: 'green', title: 'Suivi Parental en Temps Réel', description: 'Les parents suivent précisément: présences, emploi du temps, performances et communications directes' }
-  ]);
+  const [adSlides, setAdSlides] = useState(DEFAULT_SLIDES);
   const [notePhotos, setNotePhotos] = useState([]);
   const audioRef = React.useRef(null);
 
@@ -31,7 +33,10 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
 
   // Fallback photos si Firebase est vide
   const fallbackNotePhotos = ['/results-27950.jpg', '/results-3422.jpg', '/results-9168.jpg', '/results-4.jpg'];
-  const resultImages = notePhotos.length > 0 ? notePhotos : fallbackNotePhotos.map(url => ({ url, displayDuration: adParams.resultSlideDuration }));
+  const resultImages = useMemo(
+    () => (notePhotos.length > 0 ? notePhotos : fallbackNotePhotos.map(url => ({ url, displayDuration: adParams.resultSlideDuration }))),
+    [notePhotos, adParams.resultSlideDuration]
+  );
 
   const iconMap = {
     Calendar, Bell, BookOpen, Zap
@@ -61,52 +66,28 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
     } catch (e) {}
   };
 
-  // Charger les paramètres depuis Firebase
+  // Charger les paramètres depuis Firebase (live: reflète les changements admin sans recharger la page)
   useEffect(() => {
-    const loadAdParams = async () => {
-      try {
-        const docRef = doc(db, 'settings', 'advertisement_params');
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setAdParams(docSnap.data());
-        }
-      } catch (error) {
-        console.error('Erreur chargement paramètres:', error);
-      }
-    };
-    loadAdParams();
+    const unsubscribe = onSnapshot(doc(db, 'settings', 'advertisement_params'), (docSnap) => {
+      if (docSnap.exists()) setAdParams(prev => ({ ...prev, ...docSnap.data() }));
+    }, (error) => console.error('Erreur chargement paramètres:', error));
+    return () => unsubscribe();
   }, []);
 
-  // Charger les slides depuis Firebase
+  // Charger les slides depuis Firebase (live)
   useEffect(() => {
-    const loadSlides = async () => {
-      try {
-        const docRef = doc(db, 'settings', 'advertisement_slides');
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setAdSlides(docSnap.data().slides || adSlides);
-        }
-      } catch (error) {
-        console.error('Erreur chargement slides:', error);
-      }
-    };
-    loadSlides();
+    const unsubscribe = onSnapshot(doc(db, 'settings', 'advertisement_slides'), (docSnap) => {
+      if (docSnap.exists() && docSnap.data().slides) setAdSlides(docSnap.data().slides);
+    }, (error) => console.error('Erreur chargement slides:', error));
+    return () => unsubscribe();
   }, []);
 
-  // Charger les photos de notes depuis Firebase
+  // Charger les photos de notes depuis Firebase (live)
   useEffect(() => {
-    const loadNotePhotos = async () => {
-      try {
-        const docRef = doc(db, 'settings', 'note_photos');
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setNotePhotos(docSnap.data().photos || []);
-        }
-      } catch (error) {
-        console.error('Erreur chargement photos de notes:', error);
-      }
-    };
-    loadNotePhotos();
+    const unsubscribe = onSnapshot(doc(db, 'settings', 'note_photos'), (docSnap) => {
+      if (docSnap.exists()) setNotePhotos(docSnap.data().photos || []);
+    }, (error) => console.error('Erreur chargement photos de notes:', error));
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -115,121 +96,70 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
     else stopAdSoundtrack();
   }, [showAd, onAdVisibilityChange]);
 
-
-  // Main advertisement - USING PARAMÈTRES CONFIGURABLES
+  // Planification (auto + déclenchement manuel admin) — une seule fonction partagée, verrouillée
+  // avec les autres pubs plein écran via adLockRef pour ne jamais s'afficher en même temps qu'elles.
   useEffect(() => {
-    if (!adParams.enabled) return;
+    if (!adParams.enabled) return undefined;
 
-    const showAdvertisement = () => {
+    let activeCleanup = null;
+
+    const runAd = () => {
+      if (activeCleanup) {
+        activeCleanup();
+        activeCleanup = null;
+      }
+      if (adLockRef && adLockRef.current && adLockRef.current !== 'app') {
+        return; // une autre pub est déjà affichée, on saute ce cycle
+      }
+      if (adLockRef) adLockRef.current = 'app';
+
       setShouldRender(true);
       setShowAd(true);
       setCurrentSlide(0);
 
-      const intervals = [];
-      let currentTime = 0;
+      const timers = [];
+      let elapsed = 0;
 
-      // Features slides: duration from params
       for (let i = 0; i < adSlides.length; i++) {
-        intervals.push(
-          setTimeout(() => {
-            setCurrentSlide(i);
-          }, currentTime)
-        );
-        currentTime += adParams.featureSlideDuration * 1000;
+        timers.push(setTimeout(() => setCurrentSlide(i), elapsed));
+        elapsed += adParams.featureSlideDuration * 1000;
       }
 
-      // QR slide: duration from params
-      intervals.push(
-        setTimeout(() => {
-          setCurrentSlide(adSlides.length);
-        }, currentTime)
-      );
-      currentTime += adParams.qrSlideDuration * 1000;
+      timers.push(setTimeout(() => setCurrentSlide(adSlides.length), elapsed));
+      elapsed += adParams.qrSlideDuration * 1000;
 
-      // Results slides: use individual displayDuration for each photo
       for (let i = 0; i < resultImages.length; i++) {
-        intervals.push(
-          setTimeout(() => {
-            setCurrentSlide(adSlides.length + 1 + i);
-          }, currentTime)
-        );
+        timers.push(setTimeout(() => setCurrentSlide(adSlides.length + 1 + i), elapsed));
         const duration = resultImages[i].displayDuration || adParams.resultSlideDuration;
-        currentTime += duration * 1000;
+        elapsed += duration * 1000;
       }
 
-      // Close ad
       const closeTimer = setTimeout(() => {
         setShowAd(false);
+        if (adLockRef && adLockRef.current === 'app') adLockRef.current = null;
         setTimeout(() => setShouldRender(false), 500);
-      }, currentTime);
+      }, elapsed);
+      timers.push(closeTimer);
 
-      return () => {
-        intervals.forEach(t => clearTimeout(t));
-        clearTimeout(closeTimer);
-      };
+      activeCleanup = () => timers.forEach(clearTimeout);
     };
 
-    const cleanup = showAdvertisement();
-    const recurringInterval = setInterval(showAdvertisement, adParams.frequencyMinutes * 60 * 1000);
+    runAd();
+    const recurringInterval = setInterval(runAd, adParams.frequencyMinutes * 60 * 1000);
 
-    return () => {
-      cleanup();
-      clearInterval(recurringInterval);
-    };
-  }, [adSlides.length, adParams]);
-
-  // Admin trigger
-  useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'advertisement_trigger'), (snapshot) => {
+    const unsubscribeTrigger = onSnapshot(collection(db, 'advertisement_trigger'), (snapshot) => {
       snapshot.docChanges().forEach((change) => {
-        if (change.type === 'added') {
-          setShouldRender(true);
-          setShowAd(true);
-          setCurrentSlide(0);
-
-          const intervals = [];
-          let currentTime = 0;
-
-          // Features slides: duration from params
-          for (let i = 0; i < slides.length; i++) {
-            intervals.push(
-              setTimeout(() => {
-                setCurrentSlide(i);
-              }, currentTime)
-            );
-            currentTime += adParams.featureSlideDuration * 1000;
-          }
-
-          // QR slide: duration from params
-          intervals.push(
-            setTimeout(() => {
-              setCurrentSlide(slides.length);
-            }, currentTime)
-          );
-          currentTime += adParams.qrSlideDuration * 1000;
-
-          // Results slides: use individual displayDuration for each photo
-          for (let i = 0; i < resultImages.length; i++) {
-            intervals.push(
-              setTimeout(() => {
-                setCurrentSlide(adSlides.length + 1 + i);
-              }, currentTime)
-            );
-            const duration = resultImages[i].displayDuration || adParams.resultSlideDuration;
-            currentTime += duration * 1000;
-          }
-
-          // Close ad
-          const closeTimer = setTimeout(() => {
-            setShowAd(false);
-            setTimeout(() => setShouldRender(false), 500);
-          }, currentTime);
-        }
+        if (change.type === 'added') runAd();
       });
     });
 
-    return () => unsubscribe();
-  }, [adSlides.length, adParams]);
+    return () => {
+      if (activeCleanup) activeCleanup();
+      clearInterval(recurringInterval);
+      unsubscribeTrigger();
+      if (adLockRef && adLockRef.current === 'app') adLockRef.current = null;
+    };
+  }, [adSlides, resultImages, adParams, adLockRef]);
 
   if (!shouldRender) return null;
 
@@ -266,7 +196,7 @@ const AppAdvertisement = ({ onAdVisibilityChange }) => {
         <div className="absolute top-0 left-0 w-96 h-96 bg-gray-700/10 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-gray-800/10 rounded-full blur-3xl animate-pulse" style={{animationDelay: '1s'}}></div>
 
-        <button onClick={() => { setShowAd(false); setTimeout(() => setShouldRender(false), 500); }} className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full transition z-50">
+        <button onClick={() => { setShowAd(false); if (adLockRef && adLockRef.current === 'app') adLockRef.current = null; setTimeout(() => setShouldRender(false), 500); }} className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full transition z-50">
           <X className="w-6 h-6 text-white" />
         </button>
 

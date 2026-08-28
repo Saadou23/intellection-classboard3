@@ -45,7 +45,9 @@ const MessageManager = () => {
   // Images et Durées des Pubs
   const [concoursImage, setConcoursImage] = useState({
     url: '/concours-prep.jpg',
-    displayDuration: 30
+    displayDuration: 30,
+    autoTriggerMinutes: 2,
+    enabled: true
   });
   const [savingConcoursImage, setSavingConcoursImage] = useState(false);
   const [concoursImageSuccess, setConcoursImageSuccess] = useState(false);
@@ -53,7 +55,9 @@ const MessageManager = () => {
 
   const [languagesImage, setLanguagesImage] = useState({
     url: '/languages-courses.jpg',
-    displayDuration: 30
+    displayDuration: 30,
+    autoTriggerMinutes: 5,
+    enabled: true
   });
   const [savingLanguagesImage, setSavingLanguagesImage] = useState(false);
   const [languagesImageSuccess, setLanguagesImageSuccess] = useState(false);
@@ -61,9 +65,12 @@ const MessageManager = () => {
 
   // Autres pubs personnalisées
   const [customAds, setCustomAds] = useState([]);
+  const [customAdsAutoTriggerMinutes, setCustomAdsAutoTriggerMinutes] = useState(3);
   const [savingCustomAds, setSavingCustomAds] = useState(false);
   const [customAdsSuccess, setCustomAdsSuccess] = useState(false);
   const [uploadingCustomAdIndex, setUploadingCustomAdIndex] = useState(null);
+  const [launchingCustomAds, setLaunchingCustomAds] = useState(false);
+  const [customAdsLaunchSuccess, setCustomAdsLaunchSuccess] = useState(false);
 
   // Photos de notes (gestion)
   const [notePhotos, setNotePhotos] = useState([]);
@@ -136,7 +143,8 @@ const MessageManager = () => {
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
-          setConcoursImage(docSnap.data());
+          const data = docSnap.data();
+          setConcoursImage({ ...data, autoTriggerMinutes: data.autoTriggerMinutes || 2, enabled: data.enabled !== false });
         }
       } catch (error) {
         console.error('Erreur lors du chargement Concours:', error);
@@ -154,7 +162,8 @@ const MessageManager = () => {
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
-          setLanguagesImage(docSnap.data());
+          const data = docSnap.data();
+          setLanguagesImage({ ...data, autoTriggerMinutes: data.autoTriggerMinutes || 5, enabled: data.enabled !== false });
         }
       } catch (error) {
         console.error('Erreur lors du chargement Langues:', error);
@@ -172,7 +181,9 @@ const MessageManager = () => {
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
-          setCustomAds(docSnap.data().ads || []);
+          const data = docSnap.data();
+          setCustomAds((data.ads || []).map(ad => ({ ...ad, enabled: ad.enabled !== false })));
+          setCustomAdsAutoTriggerMinutes(data.autoTriggerMinutes || 3);
         }
       } catch (error) {
         console.error('Erreur lors du chargement des pubs:', error);
@@ -359,7 +370,7 @@ const MessageManager = () => {
     setSavingCustomAds(true);
     try {
       const docRef = doc(db, 'settings', 'custom_ads');
-      await setDoc(docRef, { ads: customAds });
+      await setDoc(docRef, { ads: customAds, autoTriggerMinutes: customAdsAutoTriggerMinutes });
       setCustomAdsSuccess(true);
       setTimeout(() => setCustomAdsSuccess(false), 3000);
     } catch (error) {
@@ -367,6 +378,24 @@ const MessageManager = () => {
       alert('❌ Erreur lors de la sauvegarde');
     }
     setSavingCustomAds(false);
+  };
+
+  // Lancer les pubs personnalisées immédiatement
+  const launchCustomAds = async () => {
+    setLaunchingCustomAds(true);
+    try {
+      await addDoc(collection(db, 'custom_ads_trigger'), {
+        triggeredAt: new Date(),
+        type: 'custom_ads'
+      });
+      setCustomAdsLaunchSuccess(true);
+      setTimeout(() => setCustomAdsLaunchSuccess(false), 3000);
+    } catch (error) {
+      console.error('Erreur lors du lancement des pubs personnalisées:', error);
+      alert('❌ Erreur lors du lancement');
+    } finally {
+      setLaunchingCustomAds(false);
+    }
   };
 
   // Upload image Concours Prep
@@ -1015,6 +1044,16 @@ const MessageManager = () => {
           )}
 
           <div className="bg-gray-50 p-4 rounded-lg border-2 border-gray-200 mb-4 space-y-4">
+            <label className="flex items-center justify-between text-sm font-medium text-gray-700 bg-white p-3 rounded-lg border border-gray-200">
+              <span>🔌 Pub activée (affichage auto + déclenchement manuel)</span>
+              <input
+                type="checkbox"
+                checked={concoursImage.enabled !== false}
+                onChange={(e) => setConcoursImage({ ...concoursImage, enabled: e.target.checked })}
+                className="w-5 h-5"
+              />
+            </label>
+
             {/* Preview image */}
             {concoursImage.url && (
               <div>
@@ -1067,6 +1106,20 @@ const MessageManager = () => {
                 className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-500"
               />
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                🔁 Fréquence d'affichage auto (minutes)
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="60"
+                value={concoursImage.autoTriggerMinutes || 2}
+                onChange={(e) => setConcoursImage({...concoursImage, autoTriggerMinutes: parseInt(e.target.value) || 1})}
+                className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+              />
+            </div>
           </div>
 
           <button
@@ -1105,6 +1158,16 @@ const MessageManager = () => {
           )}
 
           <div className="bg-gray-50 p-4 rounded-lg border-2 border-gray-200 mb-4 space-y-4">
+            <label className="flex items-center justify-between text-sm font-medium text-gray-700 bg-white p-3 rounded-lg border border-gray-200">
+              <span>🔌 Pub activée (affichage auto + déclenchement manuel)</span>
+              <input
+                type="checkbox"
+                checked={languagesImage.enabled !== false}
+                onChange={(e) => setLanguagesImage({ ...languagesImage, enabled: e.target.checked })}
+                className="w-5 h-5"
+              />
+            </label>
+
             {/* Preview image */}
             {languagesImage.url && (
               <div>
@@ -1157,6 +1220,20 @@ const MessageManager = () => {
                 className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                🔁 Fréquence d'affichage auto (minutes)
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="60"
+                value={languagesImage.autoTriggerMinutes || 5}
+                onChange={(e) => setLanguagesImage({...languagesImage, autoTriggerMinutes: parseInt(e.target.value) || 1})}
+                className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+            </div>
           </div>
 
           <button
@@ -1194,6 +1271,16 @@ const MessageManager = () => {
             </div>
           )}
 
+          {customAdsLaunchSuccess && (
+            <div className="bg-purple-100 border-l-4 border-purple-600 p-4 mb-4 rounded">
+              <p className="text-purple-700 font-medium">✅ Pubs personnalisées lancées!</p>
+            </div>
+          )}
+
+          <p className="text-sm text-gray-500 mb-4">
+            S'affichent en rotation à l'écran, chaque pub désactivée ci-dessous est simplement ignorée.
+          </p>
+
           <div className="space-y-4 mb-4">
             {customAds.map((ad, idx) => (
               <div key={idx} className="bg-gray-50 p-4 rounded-lg border-2 border-gray-200 relative">
@@ -1210,6 +1297,20 @@ const MessageManager = () => {
                 </button>
 
                 <div className="space-y-3 pr-10">
+                  <label className="flex items-center justify-between text-sm font-medium text-gray-700 bg-white p-3 rounded-lg border border-gray-200">
+                    <span>🔌 Pub activée</span>
+                    <input
+                      type="checkbox"
+                      checked={ad.enabled !== false}
+                      onChange={(e) => {
+                        const updated = [...customAds];
+                        updated[idx].enabled = e.target.checked;
+                        setCustomAds(updated);
+                      }}
+                      className="w-5 h-5"
+                    />
+                  </label>
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Pub {idx + 1} - Titre
@@ -1298,7 +1399,7 @@ const MessageManager = () => {
               onClick={() => {
                 setCustomAds([
                   ...customAds,
-                  { title: 'Nouvelle Pub', url: '', displayDuration: 15 }
+                  { title: 'Nouvelle Pub', url: '', displayDuration: 15, enabled: true }
                 ]);
               }}
               className="flex-1 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition"
@@ -1308,27 +1409,66 @@ const MessageManager = () => {
             </button>
           </div>
 
-          <button
-            onClick={saveCustomAds}
-            disabled={savingCustomAds}
-            className={`py-3 px-6 rounded-lg font-bold text-white flex items-center justify-center gap-2 transition ${
-              savingCustomAds
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-purple-600 hover:bg-purple-700'
-            }`}
-          >
-            {savingCustomAds ? (
-              <>
-                <span className="animate-spin">⏳</span>
-                Sauvegarde...
-              </>
-            ) : (
-              <>
-                <Save className="w-5 h-5" />
-                Sauvegarder les Pubs Personnalisées
-              </>
-            )}
-          </button>
+          <div className="mb-4 bg-gray-50 p-4 rounded-lg border-2 border-gray-200">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              🔁 Fréquence d'affichage auto (minutes)
+            </label>
+            <input
+              type="number"
+              min="1"
+              max="60"
+              value={customAdsAutoTriggerMinutes}
+              onChange={(e) => setCustomAdsAutoTriggerMinutes(parseInt(e.target.value) || 1)}
+              className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
+            <p className="text-xs text-gray-500 mt-1">Les pubs activées s'enchaînent, chacune pendant sa durée d'affichage.</p>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={saveCustomAds}
+              disabled={savingCustomAds}
+              className={`py-3 px-6 rounded-lg font-bold text-white flex items-center justify-center gap-2 transition ${
+                savingCustomAds
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-purple-600 hover:bg-purple-700'
+              }`}
+            >
+              {savingCustomAds ? (
+                <>
+                  <span className="animate-spin">⏳</span>
+                  Sauvegarde...
+                </>
+              ) : (
+                <>
+                  <Save className="w-5 h-5" />
+                  Sauvegarder les Pubs Personnalisées
+                </>
+              )}
+            </button>
+
+            <button
+              onClick={launchCustomAds}
+              disabled={launchingCustomAds}
+              className={`py-3 px-6 rounded-lg font-bold text-white flex items-center justify-center gap-2 transition ${
+                launchingCustomAds
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-indigo-600 hover:bg-indigo-700'
+              }`}
+            >
+              {launchingCustomAds ? (
+                <>
+                  <span className="animate-spin">⏳</span>
+                  Lancement...
+                </>
+              ) : (
+                <>
+                  <Send className="w-5 h-5" />
+                  Lancer maintenant
+                </>
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Photos de Notes */}

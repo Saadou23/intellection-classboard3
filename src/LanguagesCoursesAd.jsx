@@ -1,43 +1,65 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { db } from './firebase';
-import { onSnapshot, collection, doc, getDoc } from 'firebase/firestore';
+import { onSnapshot, collection, doc } from 'firebase/firestore';
 
-const LanguagesCoursesAd = () => {
+const DEFAULT_AUTO_TRIGGER_MINUTES = 5;
+
+const LanguagesCoursesAd = ({ onAdVisibilityChange, adLockRef }) => {
   const [showAd, setShowAd] = useState(false);
   const [shouldRender, setShouldRender] = useState(false);
   const [progress, setProgress] = useState(100);
   const [imageUrl, setImageUrl] = useState('/languages-courses.jpg');
   const [displayDuration, setDisplayDuration] = useState(30000);
+  const [autoTriggerInterval, setAutoTriggerInterval] = useState(DEFAULT_AUTO_TRIGGER_MINUTES * 60 * 1000);
+  const [enabled, setEnabled] = useState(true);
 
-  // Charger l'image et durée depuis Firebase
+  // Charger l'image, la durée, la fréquence et l'activation depuis Firebase (live)
   useEffect(() => {
-    const loadImageConfig = async () => {
-      try {
-        const docRef = doc(db, 'settings', 'languages_courses_image');
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setImageUrl(docSnap.data().url || '/languages-courses.jpg');
-          setDisplayDuration((docSnap.data().displayDuration || 30) * 1000);
-        }
-      } catch (error) {
-        console.error('Erreur chargement image Langues:', error);
+    const unsubscribe = onSnapshot(doc(db, 'settings', 'languages_courses_image'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setImageUrl(data.url || '/languages-courses.jpg');
+        setDisplayDuration((data.displayDuration || 30) * 1000);
+        setAutoTriggerInterval((data.autoTriggerMinutes || DEFAULT_AUTO_TRIGGER_MINUTES) * 60 * 1000);
+        setEnabled(data.enabled !== false);
       }
-    };
-    loadImageConfig();
+    }, (error) => console.error('Erreur chargement image Langues:', error));
+    return () => unsubscribe();
   }, []);
 
-  const AUTO_TRIGGER_INTERVAL = 300000;
-
-  // Auto-display every 3 minutes
   useEffect(() => {
+    if (onAdVisibilityChange) onAdVisibilityChange(showAd);
+  }, [showAd, onAdVisibilityChange]);
+
+  // Affichage auto, cadencé par autoTriggerInterval (configurable côté admin)
+  useEffect(() => {
+    if (!enabled) {
+      setShowAd(false);
+      if (adLockRef && adLockRef.current === 'languages') adLockRef.current = null;
+      setTimeout(() => setShouldRender(false), 500);
+      return undefined;
+    }
+
+    let activeCleanup = null;
+
     const showAuto = () => {
+      if (activeCleanup) {
+        activeCleanup();
+        activeCleanup = null;
+      }
+      if (adLockRef && adLockRef.current && adLockRef.current !== 'languages') {
+        return; // une autre pub est déjà affichée, on saute ce cycle
+      }
+      if (adLockRef) adLockRef.current = 'languages';
+
       setShouldRender(true);
       setShowAd(true);
       setProgress(100);
 
       const closeTimer = setTimeout(() => {
         setShowAd(false);
+        if (adLockRef && adLockRef.current === 'languages') adLockRef.current = null;
         setTimeout(() => setShouldRender(false), 500);
       }, displayDuration);
 
@@ -45,49 +67,28 @@ const LanguagesCoursesAd = () => {
         setProgress(prev => Math.max(0, prev - (100 / (displayDuration / 100))));
       }, 100);
 
-      return () => {
+      activeCleanup = () => {
         clearTimeout(closeTimer);
         clearInterval(progressInterval);
       };
     };
 
-    const cleanup = showAuto();
-    const recurringInterval = setInterval(showAuto, AUTO_TRIGGER_INTERVAL);
+    showAuto();
+    const recurringInterval = setInterval(showAuto, autoTriggerInterval);
 
-    return () => {
-      cleanup();
-      clearInterval(recurringInterval);
-    };
-  }, [displayDuration]);
-
-  // Admin trigger from Firebase
-  useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'languages_courses_trigger'), (snapshot) => {
+    const unsubscribeTrigger = onSnapshot(collection(db, 'languages_courses_trigger'), (snapshot) => {
       snapshot.docChanges().forEach((change) => {
-        if (change.type === 'added') {
-          setShouldRender(true);
-          setShowAd(true);
-          setProgress(100);
-
-          const closeTimer = setTimeout(() => {
-            setShowAd(false);
-            setTimeout(() => setShouldRender(false), 500);
-          }, displayDuration);
-
-          const progressInterval = setInterval(() => {
-            setProgress(prev => Math.max(0, prev - (100 / (displayDuration / 100))));
-          }, 100);
-
-          return () => {
-            clearTimeout(closeTimer);
-            clearInterval(progressInterval);
-          };
-        }
+        if (change.type === 'added') showAuto();
       });
     });
 
-    return () => unsubscribe();
-  }, [displayDuration]);
+    return () => {
+      if (activeCleanup) activeCleanup();
+      clearInterval(recurringInterval);
+      unsubscribeTrigger();
+      if (adLockRef && adLockRef.current === 'languages') adLockRef.current = null;
+    };
+  }, [displayDuration, autoTriggerInterval, adLockRef, enabled]);
 
   if (!shouldRender) return null;
 
@@ -182,6 +183,7 @@ const LanguagesCoursesAd = () => {
       <button
         onClick={() => {
           setShowAd(false);
+          if (adLockRef && adLockRef.current === 'languages') adLockRef.current = null;
           setTimeout(() => setShouldRender(false), 500);
         }}
         className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full transition z-50"

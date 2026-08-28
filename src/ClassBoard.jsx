@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Save, X, Monitor, Settings, AlertCircle, Maximize, Clock, BarChart3, Sliders, Building2, Calendar, Printer, Moon, FileDown, MapPin, BookOpen, Users, Bell, MessageSquare, MessageCircle, Shield, CheckCircle, Upload } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Plus, Edit2, Trash2, Save, X, Monitor, Settings, AlertCircle, Maximize, Clock, BarChart3, Sliders, Building2, Calendar, Printer, Moon, FileDown, MapPin, BookOpen, Users, Bell, MessageSquare, MessageCircle, Shield, CheckCircle, Upload, Smartphone } from 'lucide-react';
 import { db } from './firebase';
 import SecurityService from './SecurityService';
 import { doc, setDoc, getDoc, onSnapshot, collection, deleteDoc } from 'firebase/firestore';
@@ -26,9 +26,11 @@ import ProfPresenceModal from './ProfPresenceModal';
 import ProfessorSettingsManager from './ProfessorSettingsManager';
 import StudentIndividualLessonsManager from './StudentIndividualLessonsManager';
 import MessageManager from './MessageManager';
+import AdvertisementManager from './AdvertisementManager';
 import AppAdvertisement from './AppAdvertisement';
 import ConcoursPrepAd from './ConcoursPrepAd';
 import LanguagesCoursesAd from './LanguagesCoursesAd';
+import CustomAdsDisplay from './CustomAdsDisplay';
 import BrandingBanner from './BrandingBanner';
 import { loadTodayRecords, createDisciplineRecord } from './disciplineService';
 import { Volume2, VolumeX, Eye } from 'lucide-react';
@@ -73,7 +75,13 @@ const ClassBoard = () => {
   const [showMessage, setShowMessage] = useState(false);
   const [currentMessage, setCurrentMessage] = useState('');
   const [allMessages, setAllMessages] = useState([]);
-  const [isAdDisplayed, setIsAdDisplayed] = useState(false);
+  // Un seul verrou partagé entre les 3 pubs plein écran pour éviter qu'elles se superposent
+  const adLockRef = useRef(null);
+  const [appAdShown, setAppAdShown] = useState(false);
+  const [concoursAdShown, setConcoursAdShown] = useState(false);
+  const [languagesAdShown, setLanguagesAdShown] = useState(false);
+  const [customAdShown, setCustomAdShown] = useState(false);
+  const isAdDisplayed = appAdShown || concoursAdShown || languagesAdShown || customAdShown;
   const [branches, setBranches] = useState(['Hay Salam', 'Doukkali', 'Saada']); // Valeurs par défaut
   const [scrollPosition, setScrollPosition] = useState(0);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(false);
@@ -95,6 +103,7 @@ const [showWhatsAppAutomation, setShowWhatsAppAutomation] = useState(false);
   const [viewLevelFilter, setViewLevelFilter] = useState(null); // null = tous, "1BAC" = niveau spécifique
   const [viewGroupFilter, setViewGroupFilter] = useState(null); // null = tous, "G1" = groupe spécifique
   const [showMessageManager, setShowMessageManager] = useState(false);
+  const [showAdvertisementManager, setShowAdvertisementManager] = useState(false);
   const [showPromotionManager, setShowPromotionManager] = useState(false);
   const [showSecurityDashboard, setShowSecurityDashboard] = useState(false);
   const [showOTPSystem, setShowOTPSystem] = useState(false);
@@ -1143,9 +1152,10 @@ const branchNames = branchesArray.map(b => b.name) || [];
           <div className="h-screen flex flex-col">
 
             {/* Publicité Application Mobile */}
-            <AppAdvertisement onAdVisibilityChange={setIsAdDisplayed} />
-            <ConcoursPrepAd />
-            <LanguagesCoursesAd />
+            <AppAdvertisement adLockRef={adLockRef} onAdVisibilityChange={setAppAdShown} />
+            <ConcoursPrepAd adLockRef={adLockRef} onAdVisibilityChange={setConcoursAdShown} />
+            <LanguagesCoursesAd adLockRef={adLockRef} onAdVisibilityChange={setLanguagesAdShown} />
+            <CustomAdsDisplay adLockRef={adLockRef} onAdVisibilityChange={setCustomAdShown} />
             <BrandingBanner />
 
             <div className="bg-blue-700 py-2 px-6">
@@ -1457,6 +1467,24 @@ const branchNames = branchesArray.map(b => b.name) || [];
     );
   }
 
+  // Si on est sur la gestion des publicités
+  if (showAdvertisementManager) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-7xl mx-auto">
+          <button
+            onClick={() => setShowAdvertisementManager(false)}
+            className="mb-6 flex items-center gap-2 text-blue-900 hover:text-blue-700 font-semibold"
+          >
+            <X className="w-5 h-5" />
+            Retour
+          </button>
+          <AdvertisementManager />
+        </div>
+      </div>
+    );
+  }
+
   // Si on est sur la gestion des promotions
   if (showPromotionManager) {
     return (
@@ -1534,13 +1562,20 @@ const branchNames = branchesArray.map(b => b.name) || [];
                 className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
               >
                 <MessageSquare className="w-4 h-4" />
-                Gestion des Messages
+                Messages & Réglages Pubs (photos, fréquence, activer/désactiver)
               </button>
               <button
                 onClick={() => setShowPromotionManager(true)}
                 className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm text-white"
               >
                 📢 Gestion des Promotions
+              </button>
+              <button
+                onClick={() => setShowAdvertisementManager(true)}
+                className="bg-teal-600 hover:bg-teal-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm text-white"
+              >
+                <Smartphone className="w-4 h-4" />
+                Lancer une Pub Maintenant
               </button>
             </div>
 

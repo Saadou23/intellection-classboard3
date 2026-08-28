@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Send, Smartphone } from 'lucide-react';
+import { Send, Smartphone, Info } from 'lucide-react';
 import { db } from './firebase';
 import { addDoc, collection } from 'firebase/firestore';
 
@@ -83,9 +83,17 @@ const AdvertisementManager = () => {
 
   return (
     <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-3 mb-2">
         <Smartphone className="w-8 h-8 text-green-600" />
-        <h2 className="text-2xl font-bold text-gray-800">Publicités & Branding</h2>
+        <h2 className="text-2xl font-bold text-gray-800">Publicités & Branding — Déclenchement rapide</h2>
+      </div>
+
+      <div className="bg-blue-50 border-l-4 border-blue-500 p-3 mb-6 rounded flex items-start gap-2">
+        <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+        <p className="text-sm text-blue-800">
+          Pour changer les images, ajouter/supprimer des photos, régler la fréquence ou <strong>désactiver</strong> une pub,
+          utilisez <strong>Gestion des Messages</strong>. Ici vous pouvez seulement lancer une pub immédiatement sur tous les écrans.
+        </p>
       </div>
 
       {success && (
@@ -152,12 +160,6 @@ const AdvertisementManager = () => {
               </>
             )}
           </button>
-
-          <div className="mt-4 p-3 bg-blue-100 border-l-4 border-blue-500 rounded">
-            <p className="text-sm text-blue-800">
-              <strong>Durée:</strong> 15 secondes auto-fermeture
-            </p>
-          </div>
         </div>
 
         {/* Branding Banner */}
@@ -195,12 +197,6 @@ const AdvertisementManager = () => {
               </>
             )}
           </button>
-
-          <div className="mt-4 p-3 bg-blue-100 border-l-4 border-blue-500 rounded">
-            <p className="text-sm text-blue-800">
-              <strong>Durée:</strong> 8 secondes auto-fermeture
-            </p>
-          </div>
         </div>
 
         {/* Concours Prep Advertisement */}
@@ -238,12 +234,6 @@ const AdvertisementManager = () => {
               </>
             )}
           </button>
-
-          <div className="mt-4 p-3 bg-yellow-100 border-l-4 border-yellow-500 rounded">
-            <p className="text-sm text-yellow-800">
-              <strong>Durée:</strong> 30 secondes auto-fermeture
-            </p>
-          </div>
         </div>
 
         {/* Languages Courses Advertisement */}
@@ -281,12 +271,6 @@ const AdvertisementManager = () => {
               </>
             )}
           </button>
-
-          <div className="mt-4 p-3 bg-blue-100 border-l-4 border-blue-500 rounded">
-            <p className="text-sm text-blue-800">
-              <strong>Durée:</strong> 20 secondes auto-fermeture
-            </p>
-          </div>
         </div>
       </div>
     </div>
