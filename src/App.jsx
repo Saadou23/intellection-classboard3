@@ -3,6 +3,7 @@ import ClassBoard from './ClassBoard';
 import PublicSchedule from './PublicSchedule';
 import ProfessorSchedule from './ProfessorSchedule';
 import ProfessorPublicSchedule from './ProfessorPublicSchedule';
+import PublicRoomAvailability from './PublicRoomAvailability';
 import StudentExamPortal from './StudentExamPortal';
 import ExamAdmin from './ExamAdmin';
 import ProfessorExamCreator from './ProfessorExamCreator';
@@ -23,6 +24,8 @@ function App() {
     pageComponent = <PublicSchedule />;
   } else if (path === '/emploi-profs') {
     pageComponent = <ProfessorPublicSchedule />;
+  } else if (path === '/salles-dispo') {
+    pageComponent = <PublicRoomAvailability />;
   } else if (path === '/mon-emploi') {
     pageComponent = <ProfessorSchedule />;
   } else if (path === '/test-niveau') {
