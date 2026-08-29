@@ -41,18 +41,18 @@ const PublicRoomAvailability = () => {
           if (branchNames.length > 0) {
             setSelectedBranch(branchNames[0]);
           }
-        }
 
-        // Charger les sessions de toutes les branches
-        const allSessions = {};
-        for (const branch of branches) {
-          const docRef = doc(db, 'branches', branch);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            allSessions[branch] = docSnap.data().sessions || [];
+          // Charger les sessions de toutes les branches
+          const allSessions = {};
+          for (const branchName of branchNames) {
+            const docRef = doc(db, 'branches', branchName);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+              allSessions[branchName] = docSnap.data().sessions || [];
+            }
           }
+          setSessions(allSessions);
         }
-        setSessions(allSessions);
       } catch (error) {
         console.error('Erreur chargement:', error);
       } finally {
@@ -103,13 +103,22 @@ const PublicRoomAvailability = () => {
 
   const getOccupyingSessions = (room) => {
     const branchSessions = sessions[selectedBranch] || [];
-    return branchSessions.filter(session => {
+    const occupying = branchSessions.filter(session => {
+      // Vérifier le jour
       if (session.dayOfWeek !== selectedDay) return false;
+
+      // Normaliser et comparer la salle
       const normalizedRoom = normalizeRoomName(session.room);
       if (normalizedRoom !== room) return false;
+
+      // Exclure les périodes exceptionnelles
       if (session.period) return false;
+
+      // Vérifier le chevauchement de temps
       return timesOverlap(startTime, endTime, session.startTime, session.endTime);
     });
+
+    return occupying;
   };
 
   const isRoomAvailable = (room) => {
