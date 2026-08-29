@@ -1590,6 +1590,13 @@ const branchNames = branchesArray.map(b => b.name) || [];
                 Dashboard
               </button>
               <button
+                onClick={() => window.open('/catalogue-profs', '_blank')}
+                className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm text-white"
+              >
+                <Users className="w-4 h-4" />
+                Catalogue Profs
+              </button>
+              <button
                 onClick={() => setShowThermalPrint(true)}
                 className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
               >
