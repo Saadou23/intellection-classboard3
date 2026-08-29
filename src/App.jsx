@@ -2,6 +2,7 @@ import React from 'react';
 import ClassBoard from './ClassBoard';
 import PublicSchedule from './PublicSchedule';
 import ProfessorSchedule from './ProfessorSchedule';
+import ProfessorPublicSchedule from './ProfessorPublicSchedule';
 import StudentExamPortal from './StudentExamPortal';
 import ExamAdmin from './ExamAdmin';
 import ProfessorExamCreator from './ProfessorExamCreator';
@@ -20,6 +21,8 @@ function App() {
 
   if (path === '/emploi-du-temps') {
     pageComponent = <PublicSchedule />;
+  } else if (path === '/emploi-profs') {
+    pageComponent = <ProfessorPublicSchedule />;
   } else if (path === '/mon-emploi') {
     pageComponent = <ProfessorSchedule />;
   } else if (path === '/test-niveau') {
