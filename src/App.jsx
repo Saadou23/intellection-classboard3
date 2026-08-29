@@ -4,6 +4,7 @@ import PublicSchedule from './PublicSchedule';
 import ProfessorSchedule from './ProfessorSchedule';
 import ProfessorPublicSchedule from './ProfessorPublicSchedule';
 import PublicRoomAvailability from './PublicRoomAvailability';
+import ProfessorsCatalog from './ProfessorsCatalog';
 import StudentExamPortal from './StudentExamPortal';
 import ExamAdmin from './ExamAdmin';
 import ProfessorExamCreator from './ProfessorExamCreator';
@@ -26,6 +27,8 @@ function App() {
     pageComponent = <ProfessorPublicSchedule />;
   } else if (path === '/salles-dispo') {
     pageComponent = <PublicRoomAvailability />;
+  } else if (path === '/catalogue-profs') {
+    pageComponent = <ProfessorsCatalog />;
   } else if (path === '/mon-emploi') {
     pageComponent = <ProfessorSchedule />;
   } else if (path === '/test-niveau') {
