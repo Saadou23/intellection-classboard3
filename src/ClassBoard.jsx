@@ -31,7 +31,6 @@ import AppAdvertisement from './AppAdvertisement';
 import ConcoursPrepAd from './ConcoursPrepAd';
 import LanguagesCoursesAd from './LanguagesCoursesAd';
 import CustomAdsDisplay from './CustomAdsDisplay';
-import BrandingBanner from './BrandingBanner';
 import { loadTodayRecords, createDisciplineRecord } from './disciplineService';
 import { Volume2, VolumeX, Eye } from 'lucide-react';
 import SecurityDashboard from './SecurityDashboard';
@@ -1156,7 +1155,6 @@ const branchNames = branchesArray.map(b => b.name) || [];
             <ConcoursPrepAd adLockRef={adLockRef} onAdVisibilityChange={setConcoursAdShown} />
             <LanguagesCoursesAd adLockRef={adLockRef} onAdVisibilityChange={setLanguagesAdShown} />
             <CustomAdsDisplay adLockRef={adLockRef} onAdVisibilityChange={setCustomAdShown} />
-            <BrandingBanner />
 
             <div className="bg-blue-700 py-2 px-6">
               <div className="flex justify-between items-center">
