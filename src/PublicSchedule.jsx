@@ -78,6 +78,28 @@ const Bi = ({ fr, ar, className = '' }) => (
   </div>
 );
 
+/* ── Tri personnalisé des niveaux ─────────────────────────────── */
+const sortLevelsByOrder = (levels) => {
+  const levelOrder = {
+    'Primaire': 1,
+    'Collège': 2,
+    'TC': 3,
+    '1BAC': 4,
+    '2BAC': 5
+  };
+
+  return [...levels].sort((a, b) => {
+    const orderA = levelOrder[a] ?? 999; // Les autres niveaux à la fin
+    const orderB = levelOrder[b] ?? 999;
+
+    if (orderA !== orderB) {
+      return orderA - orderB;
+    }
+    // Si même ordre, tri alphabétique
+    return a.localeCompare(b);
+  });
+};
+
 /* ── Contact footer strip ────────────────────────────────── */
 const ContactStrip = () => (
   <div className="mt-6 flex flex-col items-center gap-1">
@@ -166,7 +188,7 @@ const PublicSchedule = () => {
     const src = allSessions.filter(s => s.branch === tempBranch);
     const set = new Set();
     src.forEach(s => getSessionLevels(s).forEach(l => set.add(l)));
-    setAllLevels([...set].sort());
+    setAllLevels(sortLevelsByOrder([...set]));
   }, [tempBranch, allSessions]);
 
   /* groups for the selected branch and level in wizard */
@@ -211,7 +233,7 @@ const PublicSchedule = () => {
       sessionLevels.forEach(level => levelsSet.add(level));
     });
 
-    const levels = [...levelsSet].sort();
+    const levels = sortLevelsByOrder([...levelsSet]);
     setAvailableLevelsForFilter(levels);
   }, [filterBranch, allSessions]);
 
