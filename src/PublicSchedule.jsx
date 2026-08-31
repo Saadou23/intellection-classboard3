@@ -80,22 +80,60 @@ const Bi = ({ fr, ar, className = '' }) => (
 
 /* ── Tri personnalisé des niveaux ─────────────────────────────── */
 const sortLevelsByOrder = (levels) => {
-  const levelOrder = {
-    'Primaire': 1,
-    'Collège': 2,
-    'TC': 3,
-    '1BAC': 4,
-    '2BAC': 5
+  const categorizeLevel = (level) => {
+    // Primaire
+    if (level.includes('PRIMAIRE') || level.includes('6')) {
+      return { category: 0, section: 'Primaire', priority: 1, branch: null };
+    }
+
+    // Collège
+    if (level.match(/^[123]AC/)) {
+      const match = level.match(/^(\d)AC/);
+      const year = match ? parseInt(match[1]) : 0;
+      return { category: 1, section: 'Collège', priority: year, branch: null };
+    }
+
+    // Lycée - TRONC COMMUN
+    if (level === 'TC' || level === 'TRONC COMMUN') {
+      return { category: 2, section: 'Lycée', priority: 1, branch: null };
+    }
+
+    // Lycée - 1BAC avec branches
+    if (level.startsWith('1BAC')) {
+      const branch = level.substring(4).trim() || 'Général';
+      return { category: 2, section: 'Lycée', priority: 2, year: 1, branch };
+    }
+
+    // Lycée - 2BAC avec branches
+    if (level.startsWith('2BAC')) {
+      const branch = level.substring(4).trim() || 'Général';
+      return { category: 2, section: 'Lycée', priority: 3, year: 2, branch };
+    }
+
+    // Autres niveaux
+    return { category: 999, section: 'Autre', priority: 999, branch: null };
   };
 
   return [...levels].sort((a, b) => {
-    const orderA = levelOrder[a] ?? 999; // Les autres niveaux à la fin
-    const orderB = levelOrder[b] ?? 999;
+    const catA = categorizeLevel(a);
+    const catB = categorizeLevel(b);
 
-    if (orderA !== orderB) {
-      return orderA - orderB;
+    // Comparer par catégorie d'abord
+    if (catA.category !== catB.category) {
+      return catA.category - catB.category;
     }
-    // Si même ordre, tri alphabétique
+
+    // Même catégorie - comparer par priority (year pour collège)
+    if (catA.priority !== catB.priority) {
+      return catA.priority - catB.priority;
+    }
+
+    // Si c'est un BAC avec branches
+    if (catA.branch && catB.branch) {
+      return catA.branch.localeCompare(catB.branch);
+    }
+
+    // Fallback: tri alphabétique
     return a.localeCompare(b);
   });
 };
