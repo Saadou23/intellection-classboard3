@@ -9,13 +9,13 @@ import autoTable from 'jspdf-autotable';
 import PromotionDisplay from './PromotionDisplay';
 
 const daysOfWeek = [
-  { value: 0, label: 'Dimanche', ar: 'الأحد' },
   { value: 1, label: 'Lundi',    ar: 'الإثنين' },
   { value: 2, label: 'Mardi',    ar: 'الثلاثاء' },
   { value: 3, label: 'Mercredi', ar: 'الأربعاء' },
   { value: 4, label: 'Jeudi',    ar: 'الخميس' },
   { value: 5, label: 'Vendredi', ar: 'الجمعة' },
   { value: 6, label: 'Samedi',   ar: 'السبت' },
+  { value: 0, label: 'Dimanche', ar: 'الأحد' },
 ];
 
 const COLORS = [
