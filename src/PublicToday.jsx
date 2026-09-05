@@ -250,7 +250,9 @@ const PublicToday = () => {
           <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6">
             <div className="flex items-start justify-between flex-wrap gap-4">
               <div className="flex-1 min-w-[200px]">
-                <h1 className="text-4xl font-bold mb-3">{selectedBranch}</h1>
+                <h1 className="text-4xl font-bold mb-3">
+                  🏢 {selectedBranch} • {today?.label} • {currentTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                </h1>
                 <div className="flex items-center gap-4 flex-wrap text-lg">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-6 h-6" />

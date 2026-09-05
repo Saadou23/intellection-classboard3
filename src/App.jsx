@@ -1,6 +1,7 @@
 import React from 'react';
 import ClassBoard from './ClassBoard';
 import PublicSchedule from './PublicSchedule';
+import PublicToday from './PublicToday';
 import ProfessorSchedule from './ProfessorSchedule';
 import ProfessorPublicSchedule from './ProfessorPublicSchedule';
 import PublicRoomAvailability from './PublicRoomAvailability';
@@ -23,6 +24,8 @@ function App() {
 
   if (path === '/emploi-du-temps') {
     pageComponent = <PublicSchedule />;
+  } else if (path === '/affichage-public') {
+    pageComponent = <PublicToday />;
   } else if (path === '/emploi-profs') {
     pageComponent = <ProfessorPublicSchedule />;
   } else if (path === '/salles-dispo') {

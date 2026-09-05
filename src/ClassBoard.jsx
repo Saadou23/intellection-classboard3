@@ -983,7 +983,7 @@ const branchNames = branchesArray.map(b => b.name) || [];
 
             <button
               onClick={() => setShowStudentMatriculeModal(true)}
-              className="w-full bg-purple-600/80 hover:bg-purple-500 text-white py-4 rounded-lg font-semibold transition-all border border-purple-400/30 flex items-center justify-center gap-2"
+              className="hidden w-full bg-purple-600/80 hover:bg-purple-500 text-white py-4 rounded-lg font-semibold transition-all border border-purple-400/30 flex items-center justify-center gap-2"
             >
               <BookOpen className="w-5 h-5" />
               Passer un Concours Blanc
@@ -1156,26 +1156,52 @@ const branchNames = branchesArray.map(b => b.name) || [];
             <LanguagesCoursesAd adLockRef={adLockRef} onAdVisibilityChange={setLanguagesAdShown} />
             <CustomAdsDisplay adLockRef={adLockRef} onAdVisibilityChange={setCustomAdShown} />
 
-            <div className="bg-blue-700 py-2 px-6">
+            <div className="bg-gradient-to-r from-blue-950 to-blue-900 py-3 px-6 shadow-lg border-b-2 border-blue-700">
               <div className="flex justify-between items-center">
-                <div className="text-xl font-bold tracking-wide">
-                  SÉANCES DU {daysOfWeek.find(d => d.value === currentTime.getDay())?.label.toUpperCase()}
+                <div className="flex items-center gap-4">
+                  <img src="/logo.png" alt="Logo" className="h-20 w-20" style={{filter: 'drop-shadow(0 0 35px rgba(255,255,255,1)) drop-shadow(0 0 22px rgba(100,200,255,0.95)) drop-shadow(0 0 12px rgba(255,255,255,0.85))'}} />
+                  <div className="bebas-neue text-4xl text-white">
+                    GROUPE INTELLECTION
+                  </div>
                 </div>
-                <div className="text-lg">
-                  {currentTime.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase()}
+                <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-2">
+                    <div className="text-sm font-bold text-blue-100 tracking-wide">
+                      FILIALE :
+                    </div>
+                    <div className="text-lg font-black text-white">
+                      {selectedBranch}
+                    </div>
+                  </div>
+                  <div className="w-1 h-7 bg-blue-400 rounded-full opacity-50"></div>
+                  <div className="flex flex-col items-center">
+                    <div className="text-xs font-semibold text-blue-200 uppercase">Heure</div>
+                    <div className="text-3xl font-mono font-black text-yellow-400">
+                      {currentTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                  <div className="w-1 h-7 bg-blue-400 rounded-full opacity-50"></div>
+                  <div className="flex flex-col items-center">
+                    <div className="text-lg font-bold text-white">
+                      {daysOfWeek.find(d => d.value === currentTime.getDay())?.label.toUpperCase()}
+                    </div>
+                    <div className="text-xs font-semibold text-blue-200">
+                      {currentTime.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase()}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="bg-blue-800 py-2 px-6">
-              <div className="grid gap-2 text-xs font-bold tracking-wider" style={{gridTemplateColumns: '1fr 1.5fr 1.5fr 1fr 1.5fr 1fr 1fr'}}>
-                <div>HORAIRE</div>
-                <div>FILIÈRE</div>
-                <div>MATIÈRE</div>
+            <div className="bg-blue-800 py-3 px-6 border-b-2 border-blue-600">
+              <div className="grid gap-2 text-sm font-bold tracking-wider text-white" style={{gridTemplateColumns: '1fr 1.5fr 1.5fr 1fr 1.5fr 1fr 1fr'}}>
+                <div>🕐 HORAIRE</div>
+                <div>🎓 NIVEAU / FILIÈRE</div>
+                <div>📖 MATIÈRE</div>
                 <div>👥 GROUPES</div>
-                <div>PROFESSEUR</div>
-                <div>SALLE</div>
-                <div>STATUT</div>
+                <div>👨‍🏫 PROFESSEUR</div>
+                <div>🏛️ SALLE</div>
+                <div>✅ STATUT</div>
               </div>
             </div>
 
@@ -1272,10 +1298,10 @@ const branchNames = branchesArray.map(b => b.name) || [];
                     return (
                       <div
                         key={session.id}
-                        className={`py-2.5 px-6 transition-all duration-300 ${statusInfo?.bg} ${
-                          isOngoing ? 'border-l-8 border-green-400' : ''
-                        } ${isExceptional ? 'border-r-8 border-purple-500' : ''} animate-slideDown opacity-0`}
-                        style={{ 
+                        className={`py-3 px-6 transition-all duration-300 ${statusInfo?.bg} ${
+                          isOngoing ? 'border-l-8 border-green-400 bg-green-900/20 shadow-lg shadow-green-500/50' : ''
+                        } ${isExceptional ? 'border-r-8 border-purple-500' : ''} ${idx % 2 === 0 ? 'bg-opacity-60' : 'bg-opacity-40'} hover:shadow-md animate-slideDown opacity-0`}
+                        style={{
                           animation: `slideDown 0.5s ease-out ${idx * 0.15}s forwards`,
                         }}
                       >
