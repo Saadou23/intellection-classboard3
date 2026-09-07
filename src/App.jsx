@@ -2,6 +2,7 @@ import React from 'react';
 import ClassBoard from './ClassBoard';
 import PublicSchedule from './PublicSchedule';
 import PublicToday from './PublicToday';
+import ManualDownloadPage from './ManualDownloadPage';
 import ProfessorSchedule from './ProfessorSchedule';
 import ProfessorPublicSchedule from './ProfessorPublicSchedule';
 import PublicRoomAvailability from './PublicRoomAvailability';
@@ -52,6 +53,8 @@ function App() {
     pageComponent = <WhatsAppGroups />;
   } else if (path === '/matrice-horaires') {
     pageComponent = <SubjectScheduleMatrix />;
+  } else if (path === '/manuels') {
+    pageComponent = <ManualDownloadPage onBack={() => window.history.back()} />;
   } else {
     pageComponent = <ClassBoard />;
   }

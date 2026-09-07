@@ -982,6 +982,14 @@ const branchNames = branchesArray.map(b => b.name) || [];
             </button>
 
             <button
+              onClick={() => window.location.href = '/manuels'}
+              className="w-full bg-green-600 hover:bg-green-700 text-white py-4 rounded-lg font-semibold transition-all transform hover:scale-105 flex items-center justify-center gap-2"
+            >
+              <FileDown className="w-5 h-5" />
+              Manuels d'Utilisation
+            </button>
+
+            <button
               onClick={() => setShowStudentMatriculeModal(true)}
               className="hidden w-full bg-purple-600/80 hover:bg-purple-500 text-white py-4 rounded-lg font-semibold transition-all border border-purple-400/30 flex items-center justify-center gap-2"
             >
