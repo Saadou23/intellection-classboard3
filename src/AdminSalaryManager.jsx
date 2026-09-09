@@ -226,6 +226,35 @@ const AdminSalaryManager = () => {
     }
   };
 
+  const handleDeleteAllSalaries = async () => {
+    const totalCount = salaries.length;
+
+    if (totalCount === 0) {
+      setError('Aucun salaire à supprimer');
+      return;
+    }
+
+    if (!window.confirm(`⚠️ ATTENTION! Supprimer TOUS les ${totalCount} salaire(s)?\n\nCette action est IRRÉVERSIBLE!\n\nConfirmez avec "OK"`)) {
+      return;
+    }
+
+    setSaving(true);
+    try {
+      for (const salary of salaries) {
+        const salaryRef = doc(db, 'professor_salaries', salary.id);
+        await deleteDoc(salaryRef);
+      }
+
+      setSuccess(`✅ ${totalCount} salaire(s) supprimé(s) définitivement!`);
+      await loadSalaries();
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (e) {
+      setError('Erreur: ' + e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const getTotalAmount = () => {
     return salaries.filter(s => s.status !== 'deleted').reduce((sum, s) => sum + (s.amount || 0), 0);
   };
@@ -394,16 +423,28 @@ const AdminSalaryManager = () => {
           <h3 className="font-semibold">
             📋 Tous les Salaires {filterMonth && `- ${filterMonth}`}
           </h3>
-          {salaries.some(s => s.status === 'deleted') && (
-            <button
-              onClick={handlePurgeAllDeleted}
-              disabled={saving}
-              className="bg-red-600 hover:bg-red-700 disabled:bg-red-800 px-3 py-1 rounded text-sm transition flex items-center gap-1"
-              title="Supprimer définitivement tous les salaires supprimés"
-            >
-              🗑️ Nettoyer
-            </button>
-          )}
+          <div className="flex gap-2">
+            {salaries.length > 0 && (
+              <button
+                onClick={handleDeleteAllSalaries}
+                disabled={saving}
+                className="bg-red-700 hover:bg-red-800 disabled:bg-red-900 px-3 py-1 rounded text-sm transition flex items-center gap-1 font-semibold"
+                title="Supprimer TOUS les salaires (irréversible)"
+              >
+                🗑️ Vider tout
+              </button>
+            )}
+            {salaries.some(s => s.status === 'deleted') && (
+              <button
+                onClick={handlePurgeAllDeleted}
+                disabled={saving}
+                className="bg-red-600 hover:bg-red-700 disabled:bg-red-800 px-3 py-1 rounded text-sm transition flex items-center gap-1"
+                title="Supprimer définitivement tous les salaires supprimés"
+              >
+                🗑️ Nettoyer
+              </button>
+            )}
+          </div>
         </div>
 
         {loading ? (
