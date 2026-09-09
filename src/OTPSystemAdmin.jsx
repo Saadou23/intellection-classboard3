@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, QrCode, MapPin, Users, Settings, Eye, EyeOff, AlertCircle, Smartphone, Clock, HelpCircle, DollarSign } from 'lucide-react';
 import QRCode from 'qrcode';
+import { db } from './firebase';
+import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import AgentSchedulesManager from './AgentSchedulesManager';
 import CheckoutQuestionsManager from './CheckoutQuestionsManager';
 import AdminSalaryManager from './AdminSalaryManager';
@@ -21,12 +23,17 @@ const OTPSystemAdmin = ({ onClose }) => {
   const [activeTab, setActiveTab] = useState('users');
   const [users, setUsers] = useState([]);
   const [computers, setComputers] = useState([]);
+  const [professors, setProfessors] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // User management form
   const [formData, setFormData] = useState({ name: '', role: 'agent', email: '' });
   const [formError, setFormError] = useState('');
+
+  // Professor management form
+  const [profFormData, setProfFormData] = useState({ name: '', email: '' });
+  const [profFormError, setProfFormError] = useState('');
 
   // Computer management form
   const [computerFormData, setComputerFormData] = useState({ name: '', centreZone: 'Hay Salam', code: '' });
@@ -61,7 +68,26 @@ const OTPSystemAdmin = ({ onClose }) => {
     loadUsers();
     loadComputers();
     loadSettings();
+    loadProfessors();
   }, []);
+
+  const loadProfessors = async () => {
+    try {
+      const q = query(
+        collection(db, 'otp_users'),
+        where('role', '==', 'professor'),
+        orderBy('createdAt', 'desc')
+      );
+      const snap = await getDocs(q);
+      setProfessors(snap.docs.map(d => ({
+        id: d.id,
+        ...d.data(),
+        createdAt: d.data().createdAt?.toDate?.() || new Date()
+      })));
+    } catch (e) {
+      console.error('Error loading professors:', e);
+    }
+  };
 
   const loadUsers = async () => {
     setLoading(true);
@@ -173,6 +199,32 @@ const OTPSystemAdmin = ({ onClose }) => {
       handleShowQR(newUser);
     } catch (e) {
       setFormError('Erreur: ' + e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCreateProfessor = async e => {
+    e.preventDefault();
+    setProfFormError('');
+
+    if (!profFormData.name.trim()) {
+      setProfFormError('Le nom du professeur est requis');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const newProf = await createOTPUser({
+        name: profFormData.name,
+        role: 'professor',
+        email: profFormData.email || ''
+      });
+      setProfessors([newProf, ...professors]);
+      setProfFormData({ name: '', email: '' });
+      handleShowQR(newProf);
+    } catch (e) {
+      setProfFormError('Erreur: ' + e.message);
     } finally {
       setSaving(false);
     }
@@ -291,6 +343,22 @@ const OTPSystemAdmin = ({ onClose }) => {
             >
               <HelpCircle className="w-4 h-4" />
               Questions Checkout
+            </button>
+          </div>
+
+          {/* Professors Management */}
+          <div className="flex gap-3">
+            <div className="text-xs font-semibold text-gray-400 uppercase px-2 py-2">👨‍🏫 Professeurs</div>
+            <button
+              onClick={() => setActiveTab('professors')}
+              className={`px-6 py-2 rounded-lg transition flex items-center gap-2 ${
+                activeTab === 'professors'
+                  ? 'bg-teal-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              Gestion Professeurs
             </button>
           </div>
 
@@ -650,6 +718,129 @@ const OTPSystemAdmin = ({ onClose }) => {
         {activeTab === 'checkout-questions' && (
           <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
             <CheckoutQuestionsManager />
+          </div>
+        )}
+
+        {/* Professors Tab */}
+        {activeTab === 'professors' && (
+          <div className="space-y-6">
+            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+              <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                <Plus className="w-5 h-5 text-teal-400" />
+                Enregistrer un professeur
+              </h2>
+
+              <form onSubmit={handleCreateProfessor} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm mb-2">Nom du professeur</label>
+                    <input
+                      type="text"
+                      value={profFormData.name}
+                      onChange={e => setProfFormData({ ...profFormData, name: e.target.value })}
+                      className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"
+                      placeholder="Dr. Mohammed Bennani"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm mb-2">Email (optionnel)</label>
+                    <input
+                      type="text"
+                      value={profFormData.email}
+                      onChange={e => setProfFormData({ ...profFormData, email: e.target.value })}
+                      className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"
+                      placeholder="prof@example.com"
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <button
+                      type="submit"
+                      disabled={saving}
+                      className="w-full bg-teal-600 hover:bg-teal-700 disabled:bg-teal-800 px-6 py-2 rounded-lg transition flex items-center justify-center gap-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      {saving ? 'Création...' : 'Enregistrer'}
+                    </button>
+                  </div>
+                </div>
+
+                {profFormError && (
+                  <div className="bg-red-900/30 border border-red-500 rounded p-3 text-red-200 flex gap-2">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    {profFormError}
+                  </div>
+                )}
+              </form>
+            </div>
+
+            <div className="bg-blue-900/30 border border-blue-500 rounded p-4 text-blue-200 text-sm">
+              <p><strong>📱 Flux d'enregistrement:</strong></p>
+              <ol className="list-decimal list-inside mt-2 space-y-1">
+                <li>Entrez le nom du professeur</li>
+                <li>Cliquez "Enregistrer"</li>
+                <li>Un QR code s'affiche → Le professeur le scanne avec Google Authenticator</li>
+                <li>Le professeur reçoit un code OTP de 6 chiffres</li>
+                <li>C'est ce code qu'il saisira pour confirmer son salaire</li>
+              </ol>
+            </div>
+
+            <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-700">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-sm font-semibold">Nom</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold">Email</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold">Statut OTP</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold">Enregistré</th>
+                      <th className="px-6 py-3 text-right text-sm font-semibold">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-700">
+                    {professors.map(prof => (
+                      <tr key={prof.id} className="hover:bg-gray-700/50">
+                        <td className="px-6 py-4 font-semibold">{prof.name}</td>
+                        <td className="px-6 py-4 text-gray-400">{prof.email || '—'}</td>
+                        <td className="px-6 py-4">
+                          <span className={`px-3 py-1 rounded text-xs font-semibold ${
+                            prof.isActive ? 'bg-green-900 text-green-200' : 'bg-gray-700 text-gray-400'
+                          }`}>
+                            {prof.isActive ? '✅ Actif' : '⚠️ Inactif'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-gray-400 text-sm">
+                          {new Date(prof.createdAt).toLocaleDateString('fr-FR')}
+                        </td>
+                        <td className="px-6 py-4 text-right space-x-2 flex justify-end">
+                          <button
+                            onClick={() => handleShowQR(prof)}
+                            className="bg-indigo-600 hover:bg-indigo-700 px-3 py-1 rounded text-xs flex items-center gap-1"
+                            title="Afficher QR Code"
+                          >
+                            <QrCode className="w-3 h-3" />
+                            QR Code
+                          </button>
+                          <button
+                            onClick={() => handleToggleUser(prof.id, prof.isActive)}
+                            className={`px-3 py-1 rounded text-xs flex items-center gap-1 ${
+                              prof.isActive
+                                ? 'bg-yellow-600 hover:bg-yellow-700'
+                                : 'bg-green-600 hover:bg-green-700'
+                            }`}
+                          >
+                            {prof.isActive ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {professors.length === 0 && !loading && (
+                <div className="text-center py-12 text-gray-400">Aucun professeur enregistré</div>
+              )}
+            </div>
           </div>
         )}
 
