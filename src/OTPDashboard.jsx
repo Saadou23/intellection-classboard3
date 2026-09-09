@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Download, Calendar, BarChart3, Users, Clock, AlertCircle, Smartphone, FileText } from 'lucide-react';
+import { X, Download, Calendar, BarChart3, Users, Clock, AlertCircle, Smartphone, FileText, DollarSign } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import CheckoutResponsesViewer from './CheckoutResponsesViewer';
 import {
@@ -158,12 +158,22 @@ const OTPDashboard = ({ onBack }) => {
             <BarChart3 className="w-8 h-8 text-emerald-400" />
             <h1 className="text-3xl font-bold">Dashboard Pointages</h1>
           </div>
-          <button
-            onClick={onBack}
-            className="bg-gray-700 hover:bg-gray-600 p-2 rounded-lg transition"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => window.location.href = '/salaire-collecte'}
+              className="bg-green-700 hover:bg-green-600 px-4 py-2 rounded-lg transition flex items-center gap-2"
+              title="Aller à la collecte des salaires"
+            >
+              <DollarSign className="w-5 h-5" />
+              Collecte Salaires
+            </button>
+            <button
+              onClick={onBack}
+              className="bg-gray-700 hover:bg-gray-600 p-2 rounded-lg transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* View Mode Toggle */}
