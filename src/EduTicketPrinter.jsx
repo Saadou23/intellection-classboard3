@@ -82,9 +82,9 @@ const EduTicketPrinter = ({ onClose }) => {
     }
 
     .container {
-      border: 2px solid #000;
-      padding: 3mm;
-      background: #fafafa;
+      border: 3px solid #000;
+      padding: 3.5mm;
+      background: #ffffff;
     }
 
     .header {
@@ -95,17 +95,17 @@ const EduTicketPrinter = ({ onClose }) => {
     }
 
     .header h1 {
-      font-size: 20px;
+      font-size: 22px;
       font-weight: 700;
       letter-spacing: 2px;
-      margin-bottom: 1mm;
+      margin-bottom: 1.5mm;
     }
 
     .header h2 {
-      font-size: 10px;
+      font-size: 11px;
       font-weight: 700;
       letter-spacing: 1px;
-      margin-bottom: 1mm;
+      margin-bottom: 1.5mm;
     }
 
     .section-header {
@@ -153,16 +153,16 @@ const EduTicketPrinter = ({ onClose }) => {
     }
 
     .qr-item img {
-      width: 70px;
-      height: 70px;
-      margin: 1.5mm 0;
-      border: 1px solid #000;
+      width: 72px;
+      height: 72px;
+      margin: 2mm 0;
+      border: 2px solid #000;
     }
 
     .qr-label {
-      font-size: 8px;
+      font-size: 9px;
       font-weight: 700;
-      margin: 1mm 0;
+      margin: 1.2mm 0;
       word-break: break-word;
     }
 
@@ -189,20 +189,22 @@ const EduTicketPrinter = ({ onClose }) => {
 
     .footer {
       text-align: center;
-      border-top: 2px solid #000;
-      padding-top: 2mm;
+      border-top: 3px solid #000;
+      padding-top: 2.5mm;
       margin-top: 3mm;
-      font-size: 7px;
-      font-weight: 600;
+      font-size: 8px;
+      font-weight: 700;
     }
 
     .footer-text {
-      margin: 0.5mm 0;
+      margin: 1mm 0;
+      letter-spacing: 0.5px;
     }
 
     .divider {
       border-top: 2px dashed #000;
-      margin: 2mm 0;
+      margin: 2.5mm 0;
+      padding: 0;
     }
   </style>
 </head>
