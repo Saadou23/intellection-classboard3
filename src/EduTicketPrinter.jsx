@@ -32,7 +32,7 @@ const EduTicketPrinter = ({ onClose }) => {
       }
       setQrCodes(qrs);
     } catch (e) {
-      console.error('Erreur génération QR:', e);
+      // QR generation failed silently
     }
   };
 
