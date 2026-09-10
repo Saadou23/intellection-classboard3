@@ -284,10 +284,13 @@ const EduTicketPrinter = ({ onClose }) => {
     <!-- Features Section -->
     <div class="features">
       <div style="font-weight: 700; margin-bottom: 1mm; text-align: center; font-size: 9px;">L'APPLICATION</div>
-      <div class="feature-item">• Suivi des paiements</div>
-      <div class="feature-item">• Emplois du temps</div>
+      <div class="feature-item">• Suivi des paiements en temps réel</div>
+      <div class="feature-item">• Emplois du temps et horaires</div>
       <div class="feature-item">• Absence &amp; présence</div>
-      <div class="feature-item">• Documentation</div>
+      <div class="feature-item">• Discipline et suivi comportement</div>
+      <div class="feature-item">• Demande de cours individuels</div>
+      <div class="feature-item">• Notifications instantanées</div>
+      <div class="feature-item">• Documentation &amp; manuels</div>
     </div>
 
     <!-- Footer -->
