@@ -9,7 +9,6 @@ const EduTicketPrinter = ({ onClose }) => {
     manuals: ''
   });
   const [isPrinting, setIsPrinting] = useState(false);
-  const ticketRef = useRef(null);
 
   useEffect(() => {
     generateQRCodes();
@@ -25,7 +24,11 @@ const EduTicketPrinter = ({ onClose }) => {
 
       const qrs = {};
       for (const [key, url] of Object.entries(urls)) {
-        qrs[key] = await QRCode.toDataURL(url, { width: 140, margin: 0, color: { dark: '#000', light: '#fff' } });
+        qrs[key] = await QRCode.toDataURL(url, {
+          width: 150,
+          margin: 0,
+          color: { dark: '#000000', light: '#ffffff' }
+        });
       }
       setQrCodes(qrs);
     } catch (e) {
@@ -33,214 +36,302 @@ const EduTicketPrinter = ({ onClose }) => {
     }
   };
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     setIsPrinting(true);
-    try {
-      window.print();
-      setTimeout(() => setIsPrinting(false), 1000);
-    } catch (e) {
-      setIsPrinting(false);
+
+    const printWindow = window.open('', '_blank');
+
+    const printContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Ticket Éducatif INTELLECTION</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue:wght@400;700&display=swap" rel="stylesheet">
+
+  <style>
+    @media print {
+      @page {
+        size: 80mm auto;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        margin: 0;
+        padding: 0;
+      }
     }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Bebas Neue', 'Arial Black', sans-serif;
+      width: 80mm;
+      margin: 0 auto;
+      padding: 2mm;
+      background: white;
+      color: #000;
+      font-size: 14px;
+      line-height: 1.2;
+    }
+
+    .container {
+      border: 2px solid #000;
+      padding: 3mm;
+      background: #fafafa;
+    }
+
+    .header {
+      text-align: center;
+      border-bottom: 3px solid #000;
+      padding-bottom: 2mm;
+      margin-bottom: 3mm;
+    }
+
+    .header h1 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      margin-bottom: 1mm;
+    }
+
+    .header h2 {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      margin-bottom: 1mm;
+    }
+
+    .section-header {
+      background: #000;
+      color: #fff;
+      padding: 2mm;
+      text-align: center;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      margin: 3mm 0 2mm 0;
+      border: 2px solid #000;
+    }
+
+    .rules {
+      font-size: 8px;
+      font-weight: 600;
+      margin: 2mm 0;
+      line-height: 1.4;
+    }
+
+    .rule-item {
+      display: flex;
+      align-items: flex-start;
+      margin: 1mm 0;
+    }
+
+    .rule-item span:first-child {
+      font-weight: 700;
+      margin-right: 3px;
+      flex-shrink: 0;
+    }
+
+    .qr-section {
+      display: flex;
+      justify-content: space-around;
+      margin: 2mm 0;
+      gap: 2mm;
+    }
+
+    .qr-item {
+      text-align: center;
+      flex: 1;
+    }
+
+    .qr-item img {
+      width: 65px;
+      height: 65px;
+      margin: 1mm 0;
+      border: 1px solid #000;
+    }
+
+    .qr-label {
+      font-size: 7px;
+      font-weight: 700;
+      margin: 1mm 0;
+      word-break: break-word;
+    }
+
+    .features {
+      font-size: 8px;
+      font-weight: 600;
+      border: 1px solid #000;
+      padding: 1.5mm;
+      margin: 2mm 0;
+      line-height: 1.3;
+    }
+
+    .feature-item {
+      margin: 0.5mm 0;
+    }
+
+    .footer {
+      text-align: center;
+      border-top: 2px solid #000;
+      padding-top: 2mm;
+      margin-top: 3mm;
+      font-size: 7px;
+      font-weight: 600;
+    }
+
+    .footer-text {
+      margin: 0.5mm 0;
+    }
+
+    .divider {
+      border-top: 2px dashed #000;
+      margin: 2mm 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <h1>INTELLECTION</h1>
+      <h2>PLATEFORME EDUCATIVE</h2>
+    </div>
+
+    <!-- Rules Section -->
+    <div class="section-header">REGLES &amp; RESPECT</div>
+
+    <div class="rules">
+      <div style="text-align: center; font-weight: 700; font-size: 9px; margin-bottom: 1mm;">CONSIGNES</div>
+      <div class="rule-item">
+        <span>✓</span>
+        <span>Respectez vos groupes et horaires</span>
+      </div>
+      <div class="rule-item">
+        <span>✓</span>
+        <span>Pas de rassemblement devant le centre</span>
+      </div>
+      <div class="rule-item">
+        <span>✓</span>
+        <span>Respectez les voisins</span>
+      </div>
+      <div class="rule-item">
+        <span>✓</span>
+        <span>Évacuez les lieux à la fin des séances</span>
+      </div>
+      <div class="rule-item">
+        <span>✓</span>
+        <span>Utilisez l'application</span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Download App Section -->
+    <div class="section-header">TELECHARGER L'APP</div>
+
+    <div class="qr-section">
+      <div class="qr-item">
+        <div class="qr-label">iOS</div>
+        ${qrCodes.ios ? `<img src="${qrCodes.ios}" alt="iOS">` : ''}
+        <div style="font-size: 6px;">Apple</div>
+      </div>
+      <div class="qr-item">
+        <div class="qr-label">Android</div>
+        ${qrCodes.android ? `<img src="${qrCodes.android}" alt="Android">` : ''}
+        <div style="font-size: 6px;">Play Store</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Manuals Section -->
+    <div class="section-header">MANUELS &amp; AIDE</div>
+
+    <div style="text-align: center; margin: 2mm 0;">
+      <div class="qr-label" style="margin-bottom: 1mm;">DOCUMENTATION</div>
+      ${qrCodes.manuals ? `<img src="${qrCodes.manuals}" alt="Manuels" style="width: 70px; height: 70px; border: 1px solid #000;">` : ''}
+    </div>
+
+    <!-- Features Section -->
+    <div class="features">
+      <div style="font-weight: 700; margin-bottom: 1mm; text-align: center; font-size: 9px;">L'APPLICATION</div>
+      <div class="feature-item">• Suivi des paiements</div>
+      <div class="feature-item">• Emplois du temps</div>
+      <div class="feature-item">• Absence &amp; présence</div>
+      <div class="feature-item">• Documentation</div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <div class="footer-text">www.intellection.edu.ma</div>
+      <div class="footer-text">${new Date().toLocaleDateString('fr-FR')}</div>
+    </div>
+  </div>
+</body>
+</html>
+`;
+
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.print();
+        setIsPrinting(false);
+      }, 500);
+    };
   };
 
   return (
-    <>
-      <style>{`
-        @media print {
-          * {
-            margin: 0 !important;
-            padding: 0 !important;
-            border: 0 !important;
-          }
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg w-full max-w-md">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white p-4 rounded-t-lg flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <Printer className="w-5 h-5" />
+            <h2 className="text-lg font-bold">Ticket Thermique Éducatif</h2>
+          </div>
+          <button onClick={onClose} className="hover:bg-indigo-800 p-2 rounded transition">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
 
-          body, html {
-            margin: 0 !important;
-            padding: 0 !important;
-            width: 80mm !important;
-            height: auto !important;
-            background: white !important;
-          }
-
-          .print-hide {
-            display: none !important;
-          }
-
-          .ticket-container {
-            margin: 0 !important;
-            padding: 0 !important;
-            width: 80mm !important;
-            page-break-after: avoid !important;
-          }
-        }
-      `}</style>
-
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 overflow-auto print-hide">
-        <div className="bg-white rounded-lg w-full max-w-md max-h-screen overflow-auto">
-          {/* Header */}
-          <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
-            <h2 className="text-xl font-bold">Ticket Thermique</h2>
-            <button onClick={onClose} className="text-gray-600 hover:text-gray-900">
-              <X className="w-5 h-5" />
-            </button>
+        {/* Content */}
+        <div className="p-6 space-y-4">
+          <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm">
+            <p className="font-bold text-blue-900 mb-2">📋 Contenu du ticket:</p>
+            <ul className="text-blue-800 space-y-1 text-xs">
+              <li>✓ Consignes de respect (groupes, horaires, voisins)</li>
+              <li>✓ QR codes iOS et Android</li>
+              <li>✓ QR code Manuels &amp; Documentation</li>
+              <li>✓ Features principales de l'application</li>
+            </ul>
           </div>
 
-          {/* Content */}
-          <div className="p-6 space-y-4">
-            {/* Controls */}
-            <div className="flex gap-2">
-              <button
-                onClick={handlePrint}
-                disabled={isPrinting}
-                className="flex-1 bg-black hover:bg-gray-800 disabled:bg-gray-600 text-white px-4 py-2 rounded flex items-center justify-center gap-2 transition font-bold"
-              >
-                <Printer className="w-4 h-4" />
-                {isPrinting ? 'Impression...' : 'Imprimer'}
-              </button>
-            </div>
+          <button
+            onClick={handlePrint}
+            disabled={isPrinting || !qrCodes.ios}
+            className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg flex items-center justify-center gap-2 font-bold transition"
+          >
+            <Printer className="w-5 h-5" />
+            {isPrinting ? 'Impression...' : 'Imprimer le Ticket'}
+          </button>
 
-          {/* Ticket Preview - 80mm width */}
-          <div ref={ticketRef} className="ticket-container mx-auto bg-white" style={{ width: '80mm', fontFamily: 'Bebas Neue, Arial, sans-serif' }}>
-            <style>{`
-              @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue:wght@400;700&display=swap');
-
-              * {
-                margin: 0;
-                padding: 0;
-                font-family: 'Bebas Neue', Arial, sans-serif;
-              }
-
-              body {
-                background: white;
-                color: black;
-              }
-
-              @media print {
-                body, html {
-                  margin: 0;
-                  padding: 0;
-                  width: 80mm;
-                  height: auto;
-                }
-                .no-print { display: none !important; }
-                * { color-adjust: exact !important; -webkit-print-color-adjust: exact !important; }
-              }
-            `}</style>
-
-            {/* Ticket Body */}
-            <div className="border-2 border-black p-2 text-center" style={{ fontFamily: 'Bebas Neue, Arial, sans-serif', backgroundColor: '#f5f5f5' }}>
-              {/* Logo - SVG version */}
-              <svg viewBox="0 0 300 80" style={{ width: '100%', height: 'auto', marginBottom: '3px' }}>
-                {/* Left black diamond */}
-                <polygon points="20,40 35,25 50,40 35,55" fill="#000" />
-
-                {/* Red diamond (top center) */}
-                <polygon points="60,15 75,30 60,45 45,30" fill="#000" />
-
-                {/* Right black diamond */}
-                <polygon points="85,40 100,25 115,40 100,55" fill="#000" />
-
-                {/* Red vertical bar */}
-                <rect x="60" y="28" width="8" height="30" fill="#000" />
-
-                {/* Main text INTELLECTION */}
-                <text x="170" y="45" fontSize="28" fontWeight="900" fill="#000" fontFamily="Arial, sans-serif" letterSpacing="2">
-                  INTELLECTION
-                </text>
-
-                {/* Small text above */}
-                <text x="170" y="20" fontSize="10" fontWeight="700" fill="#000" fontFamily="Arial, sans-serif" letterSpacing="1">
-                  CENTRE DE SOUTIEN
-                </text>
-              </svg>
-
-              {/* Header */}
-              <div className="border-b-4 border-black pb-2 mb-2">
-                <div style={{ fontSize: '18px', fontWeight: '700', letterSpacing: '2px', color: '#000' }}>INTELLECTION</div>
-                <div style={{ fontSize: '9px', letterSpacing: '1px', fontWeight: '700', color: '#000' }}>PLATEFORME EDUCATIVE</div>
-              </div>
-
-              {/* Rules Section */}
-              <div style={{ borderTop: '3px solid black', borderBottom: '3px solid black', margin: '3px 0', padding: '3px 0', fontSize: '9px', fontWeight: '700', backgroundColor: '#000', color: '#fff' }}>
-                REGLES &amp; RESPECT
-              </div>
-
-              {/* Consignes */}
-              <div style={{ fontSize: '8px', textAlign: 'left', margin: '3px 0', lineHeight: '1.4', fontWeight: '600' }}>
-                <div style={{ fontWeight: '700', textAlign: 'center', marginBottom: '2px', fontSize: '9px' }}>CONSIGNES</div>
-                <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '1px' }}>
-                  <span style={{ fontWeight: 'bold', marginRight: '4px' }}>✓</span>
-                  <span>Respectez vos groupes et horaires</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '1px' }}>
-                  <span style={{ fontWeight: 'bold', marginRight: '4px' }}>✓</span>
-                  <span>Pas de rassemblement devant le centre</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '1px' }}>
-                  <span style={{ fontWeight: 'bold', marginRight: '4px' }}>✓</span>
-                  <span>Respectez les voisins</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '1px' }}>
-                  <span style={{ fontWeight: 'bold', marginRight: '4px' }}>✓</span>
-                  <span>Évacuez les lieux à la fin des séances</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-                  <span style={{ fontWeight: 'bold', marginRight: '4px' }}>✓</span>
-                  <span>Utilisez l'application</span>
-                </div>
-              </div>
-
-              {/* Download App Section */}
-              <div style={{ borderTop: '3px dashed black', borderBottom: '3px solid black', margin: '3px 0', padding: '3px 0', fontSize: '9px', fontWeight: '700' }}>
-                TELECHARGER L'APP
-              </div>
-
-              {/* QR Codes */}
-              <div style={{ margin: '4px 0', textAlign: 'center' }}>
-                <div style={{ fontSize: '8px', fontWeight: '700', marginBottom: '2px' }}>iOS - APPLE</div>
-                {qrCodes.ios && <img src={qrCodes.ios} alt="iOS" style={{ width: '75px', height: '75px', margin: '0 auto', display: 'block' }} />}
-              </div>
-
-              <div style={{ margin: '4px 0', textAlign: 'center' }}>
-                <div style={{ fontSize: '8px', fontWeight: '700', marginBottom: '2px' }}>ANDROID</div>
-                {qrCodes.android && <img src={qrCodes.android} alt="Android" style={{ width: '75px', height: '75px', margin: '0 auto', display: 'block' }} />}
-              </div>
-
-              {/* Manuals Section */}
-              <div style={{ borderTop: '3px dashed black', borderBottom: '3px solid black', margin: '3px 0', padding: '3px 0', fontSize: '9px', fontWeight: '700' }}>
-                MANUELS &amp; AIDE
-              </div>
-
-              <div style={{ margin: '4px 0', textAlign: 'center' }}>
-                <div style={{ fontSize: '8px', fontWeight: '700', marginBottom: '2px' }}>DOCUMENTATION</div>
-                {qrCodes.manuals && <img src={qrCodes.manuals} alt="Manuals" style={{ width: '75px', height: '75px', margin: '0 auto', display: 'block' }} />}
-              </div>
-
-              {/* App Features */}
-              <div style={{ borderTop: '2px solid black', borderBottom: '2px solid black', margin: '3px 0', padding: '2px 0', fontSize: '8px', fontWeight: '600' }}>
-                <div style={{ fontWeight: '700', marginBottom: '1px' }}>L'APPLICATION</div>
-                <div>• Suivi des paiements</div>
-                <div>• Emplois du temps</div>
-                <div>• Absence &amp; présence</div>
-                <div>• Documentation</div>
-              </div>
-
-              {/* Footer */}
-              <div style={{ fontSize: '7px', marginTop: '2px', borderTop: '2px solid black', paddingTop: '2px', fontWeight: '600' }}>
-                <div>www.intellection.edu.ma</div>
-                <div>{new Date().toLocaleDateString('fr-FR')}</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Info */}
-          <div className="bg-gray-100 p-3 text-xs border border-gray-300 rounded">
-            <p className="font-bold mb-2">Format thermique 80mm</p>
-            <p>Adapté pour imprimante thermique standard</p>
+          <div className="bg-yellow-50 border border-yellow-200 rounded p-3 text-xs text-yellow-800">
+            <p className="font-bold mb-1">⚙️ Optimisé pour:</p>
+            <p>Imprimante thermique 80mm • Bebas Neue • Noir et blanc</p>
           </div>
         </div>
       </div>
     </div>
-    </>
   );
 };
 
