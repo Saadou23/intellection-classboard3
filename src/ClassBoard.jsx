@@ -36,6 +36,7 @@ import { Volume2, VolumeX, Eye } from 'lucide-react';
 import SecurityDashboard from './SecurityDashboard';
 import OTPSystemAdmin from './OTPSystemAdmin';
 import OTPDashboard from './OTPDashboard';
+import EduTicketPrinter from './EduTicketPrinter';
 import SupervisionScheduleAdmin from './SupervisionScheduleAdmin';
 import GroupConstitution from './GroupConstitution';
 import GroupAttendanceControl from './GroupAttendanceControl';
@@ -107,6 +108,7 @@ const [showWhatsAppAutomation, setShowWhatsAppAutomation] = useState(false);
   const [showSecurityDashboard, setShowSecurityDashboard] = useState(false);
   const [showOTPSystem, setShowOTPSystem] = useState(false);
   const [showOTPDashboard, setShowOTPDashboard] = useState(false);
+  const [showEduTicket, setShowEduTicket] = useState(false);
   const [showSupervisionAdmin, setShowSupervisionAdmin] = useState(false);
   const [customGroupInput, setCustomGroupInput] = useState(''); // Pour saisir un groupe personnalisé
   const [showGroupConstitution, setShowGroupConstitution] = useState(false);
@@ -1741,6 +1743,18 @@ const branchNames = branchesArray.map(b => b.name) || [];
               </button>
             </div>
 
+            {/* Communication & Affichage */}
+            <div className="flex gap-3 items-center flex-wrap">
+              <div className="text-xs font-semibold text-gray-600 uppercase px-2 py-2 bg-gray-200 rounded">📢 Communication</div>
+              <button
+                onClick={() => setShowEduTicket(true)}
+                className="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
+              >
+                <Printer className="w-4 h-4" />
+                Ticket Éducatif
+              </button>
+            </div>
+
             {/* Paramètres */}
             <div className="flex gap-3 items-center flex-wrap">
               <div className="text-xs font-semibold text-gray-600 uppercase px-2 py-2 bg-gray-200 rounded">⚙️ Paramètres</div>
@@ -2747,6 +2761,9 @@ const branchNames = branchesArray.map(b => b.name) || [];
           }}
         />
       )}
+
+      {/* Modal Ticket Éducatif */}
+      {showEduTicket && <EduTicketPrinter onClose={() => setShowEduTicket(false)} />}
 
     </div>
   );

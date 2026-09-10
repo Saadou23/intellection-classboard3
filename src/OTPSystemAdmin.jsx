@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, QrCode, MapPin, Users, Settings, Eye, EyeOff, AlertCircle, Smartphone, Clock, HelpCircle, DollarSign, Printer } from 'lucide-react';
+import { X, Plus, Trash2, QrCode, MapPin, Users, Settings, Eye, EyeOff, AlertCircle, Smartphone, Clock, HelpCircle, DollarSign } from 'lucide-react';
 import QRCode from 'qrcode';
 import { db } from './firebase';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import AgentSchedulesManager from './AgentSchedulesManager';
 import CheckoutQuestionsManager from './CheckoutQuestionsManager';
 import AdminSalaryManager from './AdminSalaryManager';
-import EduTicketPrinter from './EduTicketPrinter';
 import {
   createOTPUser,
   getOTPUsers,
@@ -27,7 +26,6 @@ const OTPSystemAdmin = ({ onClose }) => {
   const [professors, setProfessors] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [showEduTicket, setShowEduTicket] = useState(false);
 
   // User management form
   const [formData, setFormData] = useState({ name: '', role: 'agent', email: '' });
@@ -377,22 +375,6 @@ const OTPSystemAdmin = ({ onClose }) => {
             >
               <DollarSign className="w-4 h-4" />
               Salaires Profs
-            </button>
-          </div>
-
-          {/* Marketing & Communication */}
-          <div className="flex gap-3">
-            <div className="text-xs font-semibold text-gray-400 uppercase px-2 py-2">📢 Communication</div>
-            <button
-              onClick={() => setActiveTab('tickets')}
-              className={`px-6 py-2 rounded-lg transition flex items-center gap-2 ${
-                activeTab === 'tickets'
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-            >
-              <Printer className="w-4 h-4" />
-              Tickets Éducatifs
             </button>
           </div>
 
@@ -869,55 +851,6 @@ const OTPSystemAdmin = ({ onClose }) => {
           </div>
         )}
 
-        {/* Tickets Tab */}
-        {activeTab === 'tickets' && (
-          <div className="space-y-6">
-            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-              <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-                <Printer className="w-6 h-6 text-purple-400" />
-                Générateur de Tickets Éducatifs
-              </h2>
-
-              <div className="bg-purple-900/30 border border-purple-500 rounded p-4 mb-6 text-purple-200 text-sm">
-                <p><strong>📋 Contenu des tickets:</strong></p>
-                <ul className="list-disc list-inside mt-2 space-y-1">
-                  <li>Consignes de respect des voisins et entourage</li>
-                  <li>QR codes pour télécharger l'application mobile</li>
-                  <li>QR code pour accéder aux manuels d'utilisation</li>
-                  <li>Mise en avant des features clés de l'app</li>
-                </ul>
-              </div>
-
-              <div className="bg-blue-900/30 border border-blue-500 rounded p-4 mb-6 text-blue-200 text-sm">
-                <p><strong>🎯 Features promues:</strong></p>
-                <ul className="list-disc list-inside mt-2 space-y-1">
-                  <li>💰 Suivi des paiements en temps réel</li>
-                  <li>📅 Gestion des absences et emplois du temps</li>
-                  <li>📚 Documentation et support</li>
-                  <li>🔍 Contrôle et pointage</li>
-                </ul>
-              </div>
-
-              <button
-                onClick={() => setShowEduTicket(true)}
-                className="w-full bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-lg flex items-center justify-center gap-2 font-semibold text-lg transition"
-              >
-                <Printer className="w-6 h-6" />
-                Générer le Ticket Éducatif
-              </button>
-            </div>
-
-            <div className="bg-yellow-900/30 border border-yellow-500 rounded p-4 text-yellow-200 text-sm">
-              <p><strong>⚙️ Format d'impression:</strong></p>
-              <ul className="list-disc list-inside mt-2 space-y-1">
-                <li>Format papier thermique idéal: 80mm de largeur</li>
-                <li>Imprimante thermique recommandée</li>
-                <li>Options: Imprimer directement ou télécharger en PDF</li>
-              </ul>
-            </div>
-          </div>
-        )}
-
         {/* Settings Tab */}
         {activeTab === 'settings' && (
           <div className="space-y-6">
@@ -1124,8 +1057,6 @@ const OTPSystemAdmin = ({ onClose }) => {
         </div>
       )}
 
-      {/* Edu Ticket Printer Modal */}
-      {showEduTicket && <EduTicketPrinter onClose={() => setShowEduTicket(false)} />}
     </div>
   );
 };
