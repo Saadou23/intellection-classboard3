@@ -44,32 +44,62 @@ const EduTicketPrinter = ({ onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 overflow-auto">
-      <div className="bg-white rounded-lg w-full max-w-md max-h-screen overflow-auto">
-        {/* Header */}
-        <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
-          <h2 className="text-xl font-bold">Ticket Thermique</h2>
-          <button onClick={onClose} className="text-gray-600 hover:text-gray-900">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <>
+      <style>{`
+        @media print {
+          * {
+            margin: 0 !important;
+            padding: 0 !important;
+            border: 0 !important;
+          }
 
-        {/* Content */}
-        <div className="p-6 space-y-4">
-          {/* Controls */}
-          <div className="flex gap-2 print:hidden">
-            <button
-              onClick={handlePrint}
-              disabled={isPrinting}
-              className="flex-1 bg-black hover:bg-gray-800 disabled:bg-gray-600 text-white px-4 py-2 rounded flex items-center justify-center gap-2 transition font-bold"
-            >
-              <Printer className="w-4 h-4" />
-              {isPrinting ? 'Impression...' : 'Imprimer'}
+          body, html {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 80mm !important;
+            height: auto !important;
+            background: white !important;
+          }
+
+          .print-hide {
+            display: none !important;
+          }
+
+          .ticket-container {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 80mm !important;
+            page-break-after: avoid !important;
+          }
+        }
+      `}</style>
+
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 overflow-auto print-hide">
+        <div className="bg-white rounded-lg w-full max-w-md max-h-screen overflow-auto">
+          {/* Header */}
+          <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
+            <h2 className="text-xl font-bold">Ticket Thermique</h2>
+            <button onClick={onClose} className="text-gray-600 hover:text-gray-900">
+              <X className="w-5 h-5" />
             </button>
           </div>
 
+          {/* Content */}
+          <div className="p-6 space-y-4">
+            {/* Controls */}
+            <div className="flex gap-2">
+              <button
+                onClick={handlePrint}
+                disabled={isPrinting}
+                className="flex-1 bg-black hover:bg-gray-800 disabled:bg-gray-600 text-white px-4 py-2 rounded flex items-center justify-center gap-2 transition font-bold"
+              >
+                <Printer className="w-4 h-4" />
+                {isPrinting ? 'Impression...' : 'Imprimer'}
+              </button>
+            </div>
+
           {/* Ticket Preview - 80mm width */}
-          <div ref={ticketRef} className="mx-auto bg-white" style={{ width: '80mm', fontFamily: 'Bebas Neue, Arial, sans-serif' }}>
+          <div ref={ticketRef} className="ticket-container mx-auto bg-white" style={{ width: '80mm', fontFamily: 'Bebas Neue, Arial, sans-serif' }}>
             <style>{`
               @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue:wght@400;700&display=swap');
 
@@ -203,13 +233,14 @@ const EduTicketPrinter = ({ onClose }) => {
           </div>
 
           {/* Info */}
-          <div className="bg-gray-100 p-3 text-xs border border-gray-300 rounded print:hidden">
+          <div className="bg-gray-100 p-3 text-xs border border-gray-300 rounded">
             <p className="font-bold mb-2">Format thermique 80mm</p>
             <p>Adapté pour imprimante thermique standard</p>
           </div>
         </div>
       </div>
     </div>
+    </>
   );
 };
 
