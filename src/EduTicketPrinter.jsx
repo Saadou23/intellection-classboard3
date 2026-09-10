@@ -89,55 +89,63 @@ const EduTicketPrinter = ({ onClose }) => {
 
     .header {
       text-align: center;
-      border-bottom: 3px solid #000;
-      padding-bottom: 2mm;
+      border-bottom: 4px double #000;
+      padding-bottom: 3mm;
       margin-bottom: 3mm;
+      background: #f9f9f9;
+      padding: 3mm;
+      margin: -3.5mm -3.5mm 3mm -3.5mm;
     }
 
     .header h1 {
-      font-size: 22px;
+      font-size: 24px;
       font-weight: 700;
       letter-spacing: 2px;
-      margin-bottom: 1.5mm;
+      margin-bottom: 2mm;
     }
 
     .header h2 {
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 700;
-      letter-spacing: 1px;
-      margin-bottom: 1.5mm;
+      letter-spacing: 1.5px;
+      margin-bottom: 0;
     }
 
     .section-header {
       background: #000;
       color: #fff;
-      padding: 2.5mm;
+      padding: 3mm 2.5mm;
       text-align: center;
-      font-size: 10px;
+      font-size: 11px;
       font-weight: 700;
-      letter-spacing: 1px;
-      margin: 3mm 0 2mm 0;
-      border: 2px solid #000;
+      letter-spacing: 1.5px;
+      margin: 3mm -3.5mm 2.5mm -3.5mm;
+      border-top: 2px solid #000;
+      border-bottom: 2px solid #000;
     }
 
     .rules {
       font-size: 9px;
       font-weight: 600;
-      margin: 2mm 0;
-      line-height: 1.5;
+      margin: 2.5mm 0;
+      line-height: 1.6;
+      background: #f9f9f9;
+      padding: 2mm;
+      border-left: 3px solid #000;
     }
 
     .rule-item {
       display: flex;
       align-items: flex-start;
-      margin: 1.2mm 0;
+      margin: 1.5mm 0;
     }
 
     .rule-item span:first-child {
-      font-weight: 700;
-      margin-right: 3px;
+      font-weight: 900;
+      margin-right: 4px;
       flex-shrink: 0;
-      font-size: 10px;
+      font-size: 11px;
+      color: #000;
     }
 
     .qr-section {
@@ -177,14 +185,24 @@ const EduTicketPrinter = ({ onClose }) => {
     .features {
       font-size: 9px;
       font-weight: 600;
-      border: 1px solid #000;
-      padding: 1.5mm;
-      margin: 2mm 0;
-      line-height: 1.4;
+      border: 2px solid #000;
+      padding: 2mm;
+      margin: 2.5mm 0;
+      line-height: 1.5;
+      background: #fafafa;
     }
 
     .feature-item {
-      margin: 0.7mm 0;
+      margin: 1mm 0;
+      display: flex;
+      align-items: center;
+    }
+
+    .feature-item:before {
+      content: "▸";
+      margin-right: 4px;
+      font-weight: 900;
+      font-size: 11px;
     }
 
     .footer {
@@ -297,8 +315,9 @@ const EduTicketPrinter = ({ onClose }) => {
 
     <!-- Footer -->
     <div class="footer">
-      <div class="footer-text">www.intellectiongroupe.ma</div>
-      <div class="footer-text">${new Date().toLocaleDateString('fr-FR')}</div>
+      <div class="footer-text" style="font-size: 9px; margin-bottom: 1.5mm;">www.intellectiongroupe.ma</div>
+      <div class="footer-text" style="font-size: 9px; margin-bottom: 1mm;">📞 06 16 13 06 03</div>
+      <div class="footer-text" style="font-size: 7px; color: #333;">${new Date().toLocaleDateString('fr-FR')}</div>
     </div>
   </div>
 </body>
