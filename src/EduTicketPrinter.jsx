@@ -98,22 +98,28 @@ const EduTicketPrinter = ({ onClose }) => {
 
             {/* Ticket Body */}
             <div className="border-2 border-black p-2 text-center" style={{ fontFamily: 'Bebas Neue, Arial, sans-serif', backgroundColor: '#f5f5f5' }}>
-              {/* Logo */}
-              <svg viewBox="0 0 200 60" style={{ width: '100%', height: 'auto', marginBottom: '2px' }}>
-                {/* Diamond symbol */}
-                <polygon points="30,20 40,10 50,20 40,30" fill="#000" />
-                <polygon points="38,20 42,16 46,20 42,24" fill="#fff" />
-                {/* Vertical red bar */}
-                <rect x="52" y="15" width="4" height="20" fill="#000" />
-                {/* Right diamond */}
-                <polygon points="60,20 70,10 80,20 70,30" fill="#000" />
+              {/* Logo - SVG version */}
+              <svg viewBox="0 0 300 80" style={{ width: '100%', height: 'auto', marginBottom: '3px' }}>
+                {/* Left black diamond */}
+                <polygon points="20,40 35,25 50,40 35,55" fill="#000" />
 
-                {/* Text - CENTRE DE SOUTIEN */}
-                <text x="100" y="20" fontSize="8" fontWeight="700" textAnchor="middle" fill="#000" fontFamily="'Bebas Neue', Arial">
-                  CENTRE
+                {/* Red diamond (top center) */}
+                <polygon points="60,15 75,30 60,45 45,30" fill="#000" />
+
+                {/* Right black diamond */}
+                <polygon points="85,40 100,25 115,40 100,55" fill="#000" />
+
+                {/* Red vertical bar */}
+                <rect x="60" y="28" width="8" height="30" fill="#000" />
+
+                {/* Main text INTELLECTION */}
+                <text x="170" y="45" fontSize="28" fontWeight="900" fill="#000" fontFamily="Arial, sans-serif" letterSpacing="2">
+                  INTELLECTION
                 </text>
-                <text x="100" y="28" fontSize="8" fontWeight="700" textAnchor="middle" fill="#000" fontFamily="'Bebas Neue', Arial">
-                  SOUTIEN
+
+                {/* Small text above */}
+                <text x="170" y="20" fontSize="10" fontWeight="700" fill="#000" fontFamily="Arial, sans-serif" letterSpacing="1">
+                  CENTRE DE SOUTIEN
                 </text>
               </svg>
 
