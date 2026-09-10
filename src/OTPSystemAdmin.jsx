@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, QrCode, MapPin, Users, Settings, Eye, EyeOff, AlertCircle, Smartphone, Clock, HelpCircle, DollarSign } from 'lucide-react';
+import { X, Plus, Trash2, QrCode, MapPin, Users, Settings, Eye, EyeOff, AlertCircle, Smartphone, Clock, HelpCircle, DollarSign, Printer } from 'lucide-react';
 import QRCode from 'qrcode';
 import { db } from './firebase';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import AgentSchedulesManager from './AgentSchedulesManager';
 import CheckoutQuestionsManager from './CheckoutQuestionsManager';
 import AdminSalaryManager from './AdminSalaryManager';
+import EduTicketPrinter from './EduTicketPrinter';
 import {
   createOTPUser,
   getOTPUsers,
@@ -26,6 +27,7 @@ const OTPSystemAdmin = ({ onClose }) => {
   const [professors, setProfessors] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showEduTicket, setShowEduTicket] = useState(false);
 
   // User management form
   const [formData, setFormData] = useState({ name: '', role: 'agent', email: '' });
@@ -375,6 +377,18 @@ const OTPSystemAdmin = ({ onClose }) => {
             >
               <DollarSign className="w-4 h-4" />
               Salaires Profs
+            </button>
+          </div>
+
+          {/* Marketing & Communication */}
+          <div className="flex gap-3">
+            <div className="text-xs font-semibold text-gray-400 uppercase px-2 py-2">📢 Communication</div>
+            <button
+              onClick={() => setShowEduTicket(true)}
+              className="bg-purple-600 hover:bg-purple-700 px-6 py-2 rounded-lg transition flex items-center gap-2 text-white font-semibold"
+            >
+              <Printer className="w-4 h-4" />
+              Ticket Éducatif
             </button>
           </div>
 
@@ -1056,6 +1070,9 @@ const OTPSystemAdmin = ({ onClose }) => {
           </div>
         </div>
       )}
+
+      {/* Edu Ticket Printer Modal */}
+      {showEduTicket && <EduTicketPrinter onClose={() => setShowEduTicket(false)} />}
     </div>
   );
 };
