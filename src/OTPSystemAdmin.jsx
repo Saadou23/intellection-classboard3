@@ -384,11 +384,15 @@ const OTPSystemAdmin = ({ onClose }) => {
           <div className="flex gap-3">
             <div className="text-xs font-semibold text-gray-400 uppercase px-2 py-2">📢 Communication</div>
             <button
-              onClick={() => setShowEduTicket(true)}
-              className="bg-purple-600 hover:bg-purple-700 px-6 py-2 rounded-lg transition flex items-center gap-2 text-white font-semibold"
+              onClick={() => setActiveTab('tickets')}
+              className={`px-6 py-2 rounded-lg transition flex items-center gap-2 ${
+                activeTab === 'tickets'
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
             >
               <Printer className="w-4 h-4" />
-              Ticket Éducatif
+              Tickets Éducatifs
             </button>
           </div>
 
@@ -862,6 +866,55 @@ const OTPSystemAdmin = ({ onClose }) => {
         {activeTab === 'salaries' && (
           <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
             <AdminSalaryManager />
+          </div>
+        )}
+
+        {/* Tickets Tab */}
+        {activeTab === 'tickets' && (
+          <div className="space-y-6">
+            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+              <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+                <Printer className="w-6 h-6 text-purple-400" />
+                Générateur de Tickets Éducatifs
+              </h2>
+
+              <div className="bg-purple-900/30 border border-purple-500 rounded p-4 mb-6 text-purple-200 text-sm">
+                <p><strong>📋 Contenu des tickets:</strong></p>
+                <ul className="list-disc list-inside mt-2 space-y-1">
+                  <li>Consignes de respect des voisins et entourage</li>
+                  <li>QR codes pour télécharger l'application mobile</li>
+                  <li>QR code pour accéder aux manuels d'utilisation</li>
+                  <li>Mise en avant des features clés de l'app</li>
+                </ul>
+              </div>
+
+              <div className="bg-blue-900/30 border border-blue-500 rounded p-4 mb-6 text-blue-200 text-sm">
+                <p><strong>🎯 Features promues:</strong></p>
+                <ul className="list-disc list-inside mt-2 space-y-1">
+                  <li>💰 Suivi des paiements en temps réel</li>
+                  <li>📅 Gestion des absences et emplois du temps</li>
+                  <li>📚 Documentation et support</li>
+                  <li>🔍 Contrôle et pointage</li>
+                </ul>
+              </div>
+
+              <button
+                onClick={() => setShowEduTicket(true)}
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-lg flex items-center justify-center gap-2 font-semibold text-lg transition"
+              >
+                <Printer className="w-6 h-6" />
+                Générer le Ticket Éducatif
+              </button>
+            </div>
+
+            <div className="bg-yellow-900/30 border border-yellow-500 rounded p-4 text-yellow-200 text-sm">
+              <p><strong>⚙️ Format d'impression:</strong></p>
+              <ul className="list-disc list-inside mt-2 space-y-1">
+                <li>Format papier thermique idéal: 80mm de largeur</li>
+                <li>Imprimante thermique recommandée</li>
+                <li>Options: Imprimer directement ou télécharger en PDF</li>
+              </ul>
+            </div>
           </div>
         )}
 
