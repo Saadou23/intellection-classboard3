@@ -111,9 +111,9 @@ const EduTicketPrinter = ({ onClose }) => {
     .section-header {
       background: #000;
       color: #fff;
-      padding: 2mm;
+      padding: 2.5mm;
       text-align: center;
-      font-size: 9px;
+      font-size: 10px;
       font-weight: 700;
       letter-spacing: 1px;
       margin: 3mm 0 2mm 0;
@@ -121,28 +121,29 @@ const EduTicketPrinter = ({ onClose }) => {
     }
 
     .rules {
-      font-size: 8px;
+      font-size: 9px;
       font-weight: 600;
       margin: 2mm 0;
-      line-height: 1.4;
+      line-height: 1.5;
     }
 
     .rule-item {
       display: flex;
       align-items: flex-start;
-      margin: 1mm 0;
+      margin: 1.2mm 0;
     }
 
     .rule-item span:first-child {
       font-weight: 700;
       margin-right: 3px;
       flex-shrink: 0;
+      font-size: 10px;
     }
 
     .qr-section {
       display: flex;
       justify-content: space-around;
-      margin: 2mm 0;
+      margin: 2.5mm 0;
       gap: 2mm;
     }
 
@@ -152,30 +153,38 @@ const EduTicketPrinter = ({ onClose }) => {
     }
 
     .qr-item img {
-      width: 65px;
-      height: 65px;
-      margin: 1mm 0;
+      width: 70px;
+      height: 70px;
+      margin: 1.5mm 0;
       border: 1px solid #000;
     }
 
     .qr-label {
-      font-size: 7px;
+      font-size: 8px;
       font-weight: 700;
       margin: 1mm 0;
       word-break: break-word;
     }
 
+    .store-logo {
+      width: 20px;
+      height: 20px;
+      display: inline-block;
+      margin: 0 2px;
+      vertical-align: middle;
+    }
+
     .features {
-      font-size: 8px;
+      font-size: 9px;
       font-weight: 600;
       border: 1px solid #000;
       padding: 1.5mm;
       margin: 2mm 0;
-      line-height: 1.3;
+      line-height: 1.4;
     }
 
     .feature-item {
-      margin: 0.5mm 0;
+      margin: 0.7mm 0;
     }
 
     .footer {
@@ -239,14 +248,26 @@ const EduTicketPrinter = ({ onClose }) => {
 
     <div class="qr-section">
       <div class="qr-item">
-        <div class="qr-label">iOS</div>
+        <div class="qr-label">
+          <svg class="store-logo" viewBox="0 0 24 24" fill="black">
+            <path d="M17.05 13.5c-.91 0-1.64.7-1.64 1.56.91 0 1.64.7 1.64 1.56s-.73 1.56-1.64 1.56c-1.82 0-3.28-1.46-3.28-3.27 0-1.82 1.46-3.27 3.28-3.27 1.06 0 2 .5 2.64 1.29l-1.06.85c-.39-.52-1.02-.86-1.58-.86zm-5.08 4.66c.99 0 1.8-.8 1.8-1.79 0-.99-.81-1.79-1.8-1.79-.99 0-1.8.8-1.8 1.79 0 .99.81 1.79 1.8 1.79z"/>
+            <text x="12" y="20" font-size="3" text-anchor="middle" font-weight="bold">APPLE</text>
+          </svg>
+          iOS
+        </div>
         ${qrCodes.ios ? `<img src="${qrCodes.ios}" alt="iOS">` : ''}
-        <div style="font-size: 6px;">Apple</div>
+        <div style="font-size: 7px; font-weight: 700;">APP STORE</div>
       </div>
       <div class="qr-item">
-        <div class="qr-label">Android</div>
+        <div class="qr-label">
+          <svg class="store-logo" viewBox="0 0 24 24" fill="black">
+            <path d="M3,13.5V3.2C3,2.1,3.9,1,5,1h14c1.1,0,2,0.9,2,2v10.3M3,13.5c0,1.1,0.9,2,2,2h14c1.1,0,2-0.9,2-2M3,13.5h16M5,4h2v2H5V4z M9,4h2v2H9V4z M13,4h2v2h-2V4z M17,4h2v2h-2V4z M5,8h2v2H5V8z M9,8h2v2H9V8z M13,8h2v2h-2V8z M17,8h2v2h-2V8z"/>
+            <text x="12" y="20" font-size="3" text-anchor="middle" font-weight="bold">PLAY</text>
+          </svg>
+          Android
+        </div>
         ${qrCodes.android ? `<img src="${qrCodes.android}" alt="Android">` : ''}
-        <div style="font-size: 6px;">Play Store</div>
+        <div style="font-size: 7px; font-weight: 700;">PLAY STORE</div>
       </div>
     </div>
 
@@ -271,7 +292,7 @@ const EduTicketPrinter = ({ onClose }) => {
 
     <!-- Footer -->
     <div class="footer">
-      <div class="footer-text">www.intellection.edu.ma</div>
+      <div class="footer-text">www.intellectiongroupe.ma</div>
       <div class="footer-text">${new Date().toLocaleDateString('fr-FR')}</div>
     </div>
   </div>
