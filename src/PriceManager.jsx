@@ -125,12 +125,29 @@ const PriceManager = ({ onBack }) => {
   };
 
   const handleSaveAll = async () => {
+    console.log('💾 Tentative de sauvegarde...');
+    console.log('📊 Données à sauvegarder:', prices);
+
+    // Vérifier s'il y a au moins un prix
+    const hasPrices = Object.values(prices).some(level =>
+      Object.values(level).some(subject =>
+        Object.values(subject).some(prof => prof.unitPrice || prof.packPrice)
+      )
+    );
+
+    if (!hasPrices) {
+      alert('⚠️ Aucun prix à sauvegarder. Veuillez d\'abord remplir au moins un prix!');
+      return;
+    }
+
     setSaving(true);
     try {
       const pricesRef = doc(db, 'settings', 'prices');
       await setDoc(pricesRef, prices);
+      console.log('✅ Sauvegarde réussie!');
       alert('✅ Tous les prix ont été sauvegardés!');
     } catch (error) {
+      console.error('❌ Erreur sauvegarde:', error);
       alert('Erreur sauvegarde: ' + error.message);
     } finally {
       setSaving(false);
