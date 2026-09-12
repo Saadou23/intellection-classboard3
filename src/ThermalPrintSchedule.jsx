@@ -6,7 +6,7 @@ import { filterSessionsByPeriod, getPeriodIcon } from './periodUtils';
 import { sessionIncludesLevel, getSessionLevels } from './levelUtils';
 import { Printer, X } from 'lucide-react';
 import { db } from './firebase';
-import { ref, get } from 'firebase/database';
+import { doc, getDoc } from 'firebase/firestore';
 
 const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => {
   const [selectedBranch, setSelectedBranch] = useState('');
@@ -59,10 +59,10 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
 
   const loadPrices = async () => {
     try {
-      const pricesRef = ref(db, 'prices');
-      const snapshot = await get(pricesRef);
-      if (snapshot.exists()) {
-        setPrices(snapshot.val());
+      const pricesRef = doc(db, 'settings', 'prices');
+      const pricesSnap = await getDoc(pricesRef);
+      if (pricesSnap.exists()) {
+        setPrices(pricesSnap.data());
       }
     } catch (error) {
       console.error('Erreur chargement prix:', error);
@@ -220,6 +220,13 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
     });
 
     return result;
+  };
+
+  const getPricesForLevel = () => {
+    if (!selectedLevel || selectedLevel === 'ALL' || !prices[selectedLevel]) {
+      return {};
+    }
+    return prices[selectedLevel];
   };
 
   const handlePrint = () => {
@@ -461,34 +468,38 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
     // Ajouter tableau des prix si demandé
     if (showPrices) {
       const priceTable = generatePriceTable();
-      const hasAnyPrice = Object.values(priceTable).some(profs =>
-        profs.some(prof => prices[Object.keys(priceTable).find(s => priceTable[s].includes(prof))]?.[prof])
+      const levelPrices = getPricesForLevel();
+      const hasAnyPrice = Object.entries(priceTable).some(([subject, profs]) =>
+        profs.some(prof => levelPrices[subject]?.[prof])
       );
 
-      if (hasAnyPrice) {
+      if (hasAnyPrice && Object.keys(levelPrices).length > 0) {
         printContent += `
   <div class="price-section">
-    <div class="day-header">TARIFS</div>
+    <div class="day-header">TARIFS - ${selectedLevel}</div>
 `;
 
         Object.entries(priceTable).forEach(([subject, profList]) => {
-          printContent += `
+          const subjectPrices = levelPrices[subject];
+          if (subjectPrices) {
+            printContent += `
     <div class="subject-group">
       <div class="subject-header">${subject}</div>
 `;
-          profList.forEach(professor => {
-            const priceData = prices[subject]?.[professor];
-            if (priceData) {
-              printContent += `
+            profList.forEach(professor => {
+              const priceData = subjectPrices[professor];
+              if (priceData) {
+                printContent += `
       <div class="price-row">
         <div class="prof-name">${professor}</div>
         <div class="price-unit">${priceData.unitPrice} DH</div>
         <div class="price-pack">${priceData.packPrice} DH</div>
       </div>
 `;
-            }
-          });
-          printContent += `    </div>`;
+              }
+            });
+            printContent += `    </div>`;
+          }
         });
 
         printContent += `
