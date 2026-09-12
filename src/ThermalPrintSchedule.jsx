@@ -61,11 +61,19 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
     try {
       const pricesRef = doc(db, 'settings', 'prices');
       const pricesSnap = await getDoc(pricesRef);
+      console.log('📊 Snapshot existe:', pricesSnap.exists());
+      console.log('📊 Données prix:', pricesSnap.data());
       if (pricesSnap.exists()) {
-        setPrices(pricesSnap.data());
+        const data = pricesSnap.data();
+        console.log('✅ Prix chargés:', data);
+        setPrices(data);
+      } else {
+        console.warn('⚠️ Aucun document prices trouvé');
+        setPrices({});
       }
     } catch (error) {
-      console.error('Erreur chargement prix:', error);
+      console.error('❌ Erreur chargement prix:', error);
+      setPrices({});
     }
   };
 
@@ -488,9 +496,16 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
     }
 
     // Ajouter tableau des prix si demandé
-    if (showPrices && Object.keys(prices).length > 0) {
+    if (showPrices) {
+      console.log('🎯 Affichage des prix demandé');
+      console.log('📊 Prices state:', prices);
+      console.log('📋 Prix keys:', Object.keys(prices));
+
       const priceTable = generatePriceTable();
       const levelPrices = getPricesForLevel();
+
+      console.log('📋 Prix table:', priceTable);
+      console.log('💰 Level prices:', levelPrices);
 
       if (Object.keys(levelPrices).length > 0) {
         const levelText = selectedLevel && selectedLevel !== 'ALL' ? ` - ${selectedLevel}` : '';
