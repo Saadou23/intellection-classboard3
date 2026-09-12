@@ -70,10 +70,12 @@ const PriceManager = ({ onBack }) => {
 
         const sessionLevels = getSessionLevels(session);
         sessionLevels.forEach(level => {
-          const key = `${level}|${session.subject}|${session.professor}`;
+          // Normaliser le niveau (trim)
+          const normalizedLevel = level.trim();
+          const key = `${normalizedLevel}|${session.subject}|${session.professor}`;
           if (!combinations.has(key)) {
             combinations.set(key, {
-              level,
+              level: normalizedLevel,
               subject: session.subject,
               professor: session.professor
             });

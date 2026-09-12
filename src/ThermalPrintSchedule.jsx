@@ -84,9 +84,14 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
       const levelsSet = new Set();
       branchSessions.forEach(s => {
         const sessionLevels = getSessionLevels(s);
-        sessionLevels.forEach(level => levelsSet.add(level));
+        sessionLevels.forEach(level => {
+          // Normaliser le niveau (trim et cohérence)
+          const normalizedLevel = level.trim();
+          levelsSet.add(normalizedLevel);
+        });
       });
       const levels = [...levelsSet].sort();
+      console.log('📚 Niveaux disponibles extraits:', levels);
       setAvailableLevels(levels);
       setSelectedLevel('ALL');
     } else {
@@ -231,7 +236,8 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
   };
 
   const getPricesForLevel = () => {
-    console.log('🔍 getPricesForLevel - selectedLevel:', selectedLevel);
+    const normalizedSelectedLevel = selectedLevel ? selectedLevel.trim() : '';
+    console.log('🔍 getPricesForLevel - selectedLevel (normalized):', normalizedSelectedLevel);
     console.log('🔍 getPricesForLevel - prices keys:', Object.keys(prices));
 
     if (!prices || Object.keys(prices).length === 0) {
@@ -240,10 +246,10 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
     }
 
     // Si un niveau spécifique est sélectionné
-    if (selectedLevel && selectedLevel !== 'ALL') {
-      console.log(`🔍 Cherchant prix pour niveau: "${selectedLevel}"`);
-      const levelPrices = prices[selectedLevel];
-      console.log(`🔍 Résultat pour "${selectedLevel}":`, levelPrices);
+    if (normalizedSelectedLevel && normalizedSelectedLevel !== 'ALL') {
+      console.log(`🔍 Cherchant prix pour niveau: "${normalizedSelectedLevel}"`);
+      const levelPrices = prices[normalizedSelectedLevel];
+      console.log(`🔍 Résultat pour "${normalizedSelectedLevel}":`, levelPrices);
       return levelPrices || {};
     }
 
