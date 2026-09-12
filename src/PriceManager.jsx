@@ -221,14 +221,14 @@ const PriceManager = ({ onBack }) => {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-blue-100 border-b-2 border-blue-300 sticky top-0">
+                <table className="w-full border-collapse">
+                  <thead className="bg-blue-600 text-white sticky top-0 z-10">
                     <tr>
-                      <th className="px-6 py-4 text-left text-sm font-bold text-blue-900">Niveau</th>
-                      <th className="px-6 py-4 text-left text-sm font-bold text-blue-900">Matière</th>
-                      <th className="px-6 py-4 text-left text-sm font-bold text-blue-900">Professeur</th>
-                      <th className="px-6 py-4 text-center text-sm font-bold text-blue-900">Prix Unitaire (DH)</th>
-                      <th className="px-6 py-4 text-center text-sm font-bold text-blue-900">Prix Pack +3 (DH)</th>
+                      <th className="px-6 py-4 text-left text-sm font-bold border border-blue-700">Niveau</th>
+                      <th className="px-6 py-4 text-left text-sm font-bold border border-blue-700">Matière</th>
+                      <th className="px-6 py-4 text-left text-sm font-bold border border-blue-700">Professeur</th>
+                      <th className="px-6 py-4 text-center text-sm font-bold border border-blue-700">Prix Unitaire (DH)</th>
+                      <th className="px-6 py-4 text-center text-sm font-bold border border-blue-700">Prix Pack +3 (DH)</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -237,12 +237,12 @@ const PriceManager = ({ onBack }) => {
                       return (
                         <tr
                           key={`${row.level}-${row.subject}-${row.professor}`}
-                          className={idx % 2 === 0 ? 'bg-white hover:bg-blue-50' : 'bg-gray-50 hover:bg-blue-50'}
+                          className={idx % 2 === 0 ? 'bg-white hover:bg-blue-50 border' : 'bg-gray-50 hover:bg-blue-50 border'}
                         >
-                          <td className="px-6 py-4 text-sm font-semibold text-blue-700">{row.level}</td>
-                          <td className="px-6 py-4 text-sm">{row.subject}</td>
-                          <td className="px-6 py-4 text-sm">{row.professor}</td>
-                          <td className="px-6 py-4 text-center">
+                          <td className="px-6 py-4 text-sm font-semibold text-blue-700 border border-gray-200">{row.level}</td>
+                          <td className="px-6 py-4 text-sm border border-gray-200">{row.subject}</td>
+                          <td className="px-6 py-4 text-sm border border-gray-200">{row.professor}</td>
+                          <td className="px-6 py-4 text-center border border-gray-200">
                             <input
                               type="number"
                               value={priceData.unitPrice || ''}
@@ -257,10 +257,10 @@ const PriceManager = ({ onBack }) => {
                                 setPrices(updated);
                               }}
                               placeholder="0"
-                              className="w-20 p-2 border border-gray-300 rounded text-center focus:ring-2 focus:ring-blue-500"
+                              className="w-24 px-3 py-2 border border-gray-300 rounded text-center focus:ring-2 focus:ring-blue-500 focus:outline-none"
                             />
                           </td>
-                          <td className="px-6 py-4 text-center">
+                          <td className="px-6 py-4 text-center border border-gray-200">
                             <input
                               type="number"
                               value={priceData.packPrice || ''}
@@ -275,7 +275,7 @@ const PriceManager = ({ onBack }) => {
                                 setPrices(updated);
                               }}
                               placeholder="0"
-                              className="w-20 p-2 border border-gray-300 rounded text-center focus:ring-2 focus:ring-blue-500"
+                              className="w-24 px-3 py-2 border border-gray-300 rounded text-center focus:ring-2 focus:ring-blue-500 focus:outline-none"
                             />
                           </td>
                         </tr>
