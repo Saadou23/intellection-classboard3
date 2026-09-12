@@ -438,6 +438,18 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
       margin-bottom: 0.5mm;
     }
 
+    .price-header {
+      display: flex;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 0.5mm 2mm;
+      border-left: 3px solid #000;
+      background: #f5f5f5;
+      margin-bottom: 0.3mm;
+      align-items: center;
+      gap: 2mm;
+    }
+
     .price-row {
       display: flex;
       font-size: 11px;
@@ -538,6 +550,11 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
             printContent += `
     <div class="subject-group">
       <div class="subject-header">${subject}</div>
+      <div class="price-header">
+        <div class="prof-name">Prof</div>
+        <div class="price-unit">Unitaire</div>
+        <div class="price-pack">Pack +3</div>
+      </div>
 `;
             profList.forEach(professor => {
               const priceData = subjectPrices[professor];
