@@ -19,21 +19,22 @@ const PriceManager = ({ onBack }) => {
 
   const loadData = async () => {
     try {
-      // Charger les branches
-      const docRef = doc(db, 'settings', 'global');
-      const docSnap = await getDoc(docRef);
+      // Charger les branches depuis settings/global
+      const globalRef = doc(db, 'settings', 'global');
+      const globalSnap = await getDoc(globalRef);
 
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setBranches(data.branches || ['Hay Salam', 'Doukkali', 'Saada']);
+      let branchList = ['Hay Salam', 'Doukkali', 'Saada'];
+      if (globalSnap.exists()) {
+        const data = globalSnap.data();
+        branchList = data.branches || branchList;
+        setBranches(branchList);
       }
 
       // Charger les sessions de toutes les branches
       const allSessions = {};
-      const branchList = branches.length > 0 ? branches : ['Hay Salam', 'Doukkali', 'Saada'];
 
       for (const branch of branchList) {
-        const branchRef = doc(db, 'emploi-du-temps', branch);
+        const branchRef = doc(db, 'branches', branch);
         const branchSnap = await getDoc(branchRef);
         if (branchSnap.exists()) {
           allSessions[branch] = branchSnap.data().sessions || [];
