@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart3, TrendingUp, AlertCircle, Calendar, Clock, Building2, FileDown, ArrowLeft, Printer } from 'lucide-react';
+import { BarChart3, TrendingUp, AlertCircle, Calendar, Clock, Building2, FileDown, ArrowLeft, Printer, DollarSign } from 'lucide-react';
 import ThermalPrintSchedule from './ThermalPrintSchedule';
 import MessageManager from './MessageManager';
 import AdvertisementManager from './AdvertisementManager';
@@ -207,6 +207,13 @@ const Dashboard = ({ sessions, onBack }) => {
               >
                 <Printer className="w-4 h-4" />
                 Ticket Thermique
+              </button>
+              <button
+                onClick={() => window.location.href = '/admin/prix'}
+                className="bg-amber-600 hover:bg-amber-700 px-4 py-2 rounded-lg flex items-center gap-2 transition-all text-white"
+              >
+                <DollarSign className="w-4 h-4" />
+                Gestion des Prix
               </button>
               <button
                 onClick={exportToExcel}
