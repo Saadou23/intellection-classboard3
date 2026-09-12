@@ -440,25 +440,28 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
 
     .price-row {
       display: flex;
-      font-size: 12px;
-      padding: 0.8mm 2mm;
+      font-size: 11px;
+      padding: 0.6mm 2mm;
       border-left: 3px solid #ddd;
       page-break-inside: avoid;
+      align-items: center;
+      gap: 2mm;
     }
 
     .prof-name {
-      flex: 2;
+      flex: 1.5;
       font-weight: 600;
+      min-width: 40%;
     }
 
     .price-unit {
-      flex: 1;
+      flex: 0.8;
       text-align: right;
-      padding-right: 4px;
+      padding-right: 2px;
     }
 
     .price-pack {
-      flex: 1;
+      flex: 0.8;
       text-align: right;
       padding-right: 0;
     }
@@ -542,8 +545,8 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
                 printContent += `
       <div class="price-row">
         <div class="prof-name">${professor}</div>
-        <div class="price-unit">${priceData.unitPrice || '-'} DH</div>
-        <div class="price-pack">${priceData.packPrice || '-'} DH</div>
+        <div class="price-unit">${priceData.unitPrice || '-'}</div>
+        <div class="price-pack">${priceData.packPrice || '-'}</div>
       </div>
 `;
               }
