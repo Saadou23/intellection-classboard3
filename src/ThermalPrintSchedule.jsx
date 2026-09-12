@@ -223,10 +223,32 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
   };
 
   const getPricesForLevel = () => {
-    if (!selectedLevel || selectedLevel === 'ALL' || !prices[selectedLevel]) {
+    if (!prices || Object.keys(prices).length === 0) {
       return {};
     }
-    return prices[selectedLevel];
+
+    // Si un niveau spécifique est sélectionné
+    if (selectedLevel && selectedLevel !== 'ALL') {
+      return prices[selectedLevel] || {};
+    }
+
+    // Si 'ALL' ou pas de niveau: retourner tous les prix de tous les niveaux
+    const allPrices = {};
+    Object.entries(prices).forEach(([level, subjects]) => {
+      if (subjects && typeof subjects === 'object') {
+        Object.entries(subjects).forEach(([subject, profs]) => {
+          if (!allPrices[subject]) {
+            allPrices[subject] = {};
+          }
+          Object.entries(profs).forEach(([prof, priceData]) => {
+            if (!allPrices[subject][prof]) {
+              allPrices[subject][prof] = priceData;
+            }
+          });
+        });
+      }
+    });
+    return allPrices;
   };
 
   const handlePrint = () => {
@@ -466,34 +488,32 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
     }
 
     // Ajouter tableau des prix si demandé
-    if (showPrices) {
+    if (showPrices && Object.keys(prices).length > 0) {
       const priceTable = generatePriceTable();
       const levelPrices = getPricesForLevel();
-      const hasAnyPrice = Object.entries(priceTable).some(([subject, profs]) =>
-        profs.some(prof => levelPrices[subject]?.[prof])
-      );
 
-      if (hasAnyPrice && Object.keys(levelPrices).length > 0) {
+      if (Object.keys(levelPrices).length > 0) {
+        const levelText = selectedLevel && selectedLevel !== 'ALL' ? ` - ${selectedLevel}` : '';
         printContent += `
   <div class="price-section">
-    <div class="day-header">TARIFS - ${selectedLevel}</div>
+    <div class="day-header">TARIFS${levelText}</div>
 `;
 
         Object.entries(priceTable).forEach(([subject, profList]) => {
           const subjectPrices = levelPrices[subject];
-          if (subjectPrices) {
+          if (subjectPrices && Object.keys(subjectPrices).length > 0) {
             printContent += `
     <div class="subject-group">
       <div class="subject-header">${subject}</div>
 `;
             profList.forEach(professor => {
               const priceData = subjectPrices[professor];
-              if (priceData) {
+              if (priceData && (priceData.unitPrice || priceData.packPrice)) {
                 printContent += `
       <div class="price-row">
         <div class="prof-name">${professor}</div>
-        <div class="price-unit">${priceData.unitPrice} DH</div>
-        <div class="price-pack">${priceData.packPrice} DH</div>
+        <div class="price-unit">${priceData.unitPrice || '-'} DH</div>
+        <div class="price-pack">${priceData.packPrice || '-'} DH</div>
       </div>
 `;
               }
