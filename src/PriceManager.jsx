@@ -62,7 +62,11 @@ const PriceManager = ({ onBack }) => {
   const generatePriceTable = (allSessions) => {
     const combinations = new Map();
 
+    console.log('🔄 Génération du tableau de prix...');
+    console.log('📚 Sessions disponibles:', allSessions);
+
     Object.entries(allSessions).forEach(([branch, branchSessions]) => {
+      console.log(`📍 Branche ${branch}:`, branchSessions?.length, 'sessions');
       if (!Array.isArray(branchSessions)) return;
 
       branchSessions.forEach(session => {
@@ -90,6 +94,7 @@ const PriceManager = ({ onBack }) => {
       return a.professor.localeCompare(b.professor);
     });
 
+    console.log('✅ Tableau généré:', table.length, 'combinaisons');
     setPriceTable(table);
   };
 
@@ -202,6 +207,9 @@ const PriceManager = ({ onBack }) => {
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
             <p className="text-blue-900 font-bold">📋 Tableau pré-rempli avec les combinaisons extraites des emplois du temps</p>
             <p className="text-blue-800 text-sm mt-2">Total: <strong>{priceTable.length}</strong> combinaisons niveau/matière/professeur</p>
+            {priceTable.length === 0 && (
+              <p className="text-red-600 text-sm mt-2 font-bold">⚠️ Aucune combinaison trouvée! Vérifiez que vous avez des séances.</p>
+            )}
           </div>
 
           {/* Table Section */}
