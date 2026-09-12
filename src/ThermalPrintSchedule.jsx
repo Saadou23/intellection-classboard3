@@ -231,16 +231,24 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
   };
 
   const getPricesForLevel = () => {
+    console.log('🔍 getPricesForLevel - selectedLevel:', selectedLevel);
+    console.log('🔍 getPricesForLevel - prices keys:', Object.keys(prices));
+
     if (!prices || Object.keys(prices).length === 0) {
+      console.log('🔍 Pas de prix du tout');
       return {};
     }
 
     // Si un niveau spécifique est sélectionné
     if (selectedLevel && selectedLevel !== 'ALL') {
-      return prices[selectedLevel] || {};
+      console.log(`🔍 Cherchant prix pour niveau: "${selectedLevel}"`);
+      const levelPrices = prices[selectedLevel];
+      console.log(`🔍 Résultat pour "${selectedLevel}":`, levelPrices);
+      return levelPrices || {};
     }
 
     // Si 'ALL' ou pas de niveau: retourner tous les prix de tous les niveaux
+    console.log('🔍 Mode ALL - fusionner tous les prix');
     const allPrices = {};
     Object.entries(prices).forEach(([level, subjects]) => {
       if (subjects && typeof subjects === 'object') {
@@ -256,6 +264,7 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
         });
       }
     });
+    console.log('🔍 AllPrices fusionnés:', allPrices);
     return allPrices;
   };
 
