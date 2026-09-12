@@ -5,6 +5,8 @@ import React, { useState, useEffect } from 'react';
 import { filterSessionsByPeriod, getPeriodIcon } from './periodUtils';
 import { sessionIncludesLevel, getSessionLevels } from './levelUtils';
 import { Printer, X } from 'lucide-react';
+import { db } from './firebase';
+import { ref, get } from 'firebase/database';
 
 const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => {
   const [selectedBranch, setSelectedBranch] = useState('');
@@ -16,6 +18,8 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
   const [filterLastGroupOnly, setFilterLastGroupOnly] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState('ALL');
   const [availableGroups, setAvailableGroups] = useState([]);
+  const [showPrices, setShowPrices] = useState(false);
+  const [prices, setPrices] = useState({});
 
   const daysOfWeek = [
     { value: 1, label: 'Lundi' },
@@ -45,6 +49,25 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
       setAvailablePeriods(periods);
     }
   }, [branchesData]);
+
+  // Charger les prix si "Afficher les prix" est coché
+  useEffect(() => {
+    if (showPrices) {
+      loadPrices();
+    }
+  }, [showPrices]);
+
+  const loadPrices = async () => {
+    try {
+      const pricesRef = ref(db, 'prices');
+      const snapshot = await get(pricesRef);
+      if (snapshot.exists()) {
+        setPrices(snapshot.val());
+      }
+    } catch (error) {
+      console.error('Erreur chargement prix:', error);
+    }
+  };
 
   useEffect(() => {
     if (selectedBranch) {
@@ -171,6 +194,32 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
 
   const formatTime = (time) => {
     return time.substring(0, 5);
+  };
+
+  const generatePriceTable = () => {
+    const schedule = generateSchedule(selectedBranch, selectedLevel, selectedPeriod, selectedGroup);
+    const subjectsMap = {};
+
+    daysOfWeek.forEach(day => {
+      const dayData = schedule[day.value];
+      if (dayData) {
+        dayData.sessions.forEach(session => {
+          if (!subjectsMap[session.subject]) {
+            subjectsMap[session.subject] = new Set();
+          }
+          if (session.professor) {
+            subjectsMap[session.subject].add(session.professor);
+          }
+        });
+      }
+    });
+
+    const result = {};
+    Object.entries(subjectsMap).forEach(([subject, profSet]) => {
+      result[subject] = Array.from(profSet).sort();
+    });
+
+    return result;
   };
 
   const handlePrint = () => {
@@ -317,6 +366,50 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
       font-size: 11px;
       margin-top: 1mm;
     }
+
+    .price-section {
+      margin-top: 4mm;
+      page-break-inside: avoid;
+    }
+
+    .subject-group {
+      margin-bottom: 2mm;
+      page-break-inside: avoid;
+    }
+
+    .subject-header {
+      background: #e8e8e8;
+      padding: 1mm 2mm;
+      font-size: 13px;
+      font-weight: 700;
+      border-left: 3px solid #000;
+      margin-bottom: 0.5mm;
+    }
+
+    .price-row {
+      display: flex;
+      font-size: 12px;
+      padding: 0.8mm 2mm;
+      border-left: 3px solid #ddd;
+      page-break-inside: avoid;
+    }
+
+    .prof-name {
+      flex: 2;
+      font-weight: 600;
+    }
+
+    .price-unit {
+      flex: 1;
+      text-align: right;
+      padding-right: 4px;
+    }
+
+    .price-pack {
+      flex: 1;
+      text-align: right;
+      padding-right: 0;
+    }
   </style>
 </head>
 <body>
@@ -363,6 +456,45 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
     AUCUN COURS PROGRAMME
   </div>
 `;
+    }
+
+    // Ajouter tableau des prix si demandé
+    if (showPrices) {
+      const priceTable = generatePriceTable();
+      const hasAnyPrice = Object.values(priceTable).some(profs =>
+        profs.some(prof => prices[Object.keys(priceTable).find(s => priceTable[s].includes(prof))]?.[prof])
+      );
+
+      if (hasAnyPrice) {
+        printContent += `
+  <div class="price-section">
+    <div class="day-header">TARIFS</div>
+`;
+
+        Object.entries(priceTable).forEach(([subject, profList]) => {
+          printContent += `
+    <div class="subject-group">
+      <div class="subject-header">${subject}</div>
+`;
+          profList.forEach(professor => {
+            const priceData = prices[subject]?.[professor];
+            if (priceData) {
+              printContent += `
+      <div class="price-row">
+        <div class="prof-name">${professor}</div>
+        <div class="price-unit">${priceData.unitPrice} DH</div>
+        <div class="price-pack">${priceData.packPrice} DH</div>
+      </div>
+`;
+            }
+          });
+          printContent += `    </div>`;
+        });
+
+        printContent += `
+  </div>
+`;
+      }
     }
 
     printContent += `
@@ -486,6 +618,19 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
             />
             <label htmlFor="filterLastGroup" className="text-sm font-medium text-gray-700 cursor-pointer flex-1">
               📌 Afficher uniquement le dernier groupe (G2 si G1+G2)
+            </label>
+          </div>
+
+          <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <input
+              type="checkbox"
+              id="showPrices"
+              checked={showPrices}
+              onChange={(e) => setShowPrices(e.target.checked)}
+              className="w-5 h-5 cursor-pointer"
+            />
+            <label htmlFor="showPrices" className="text-sm font-medium text-gray-700 cursor-pointer flex-1">
+              💰 Afficher le tableau des prix (matière/professeur)
             </label>
           </div>
         </div>

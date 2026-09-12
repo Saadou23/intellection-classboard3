@@ -16,6 +16,7 @@ import OTPPointagePanel from './OTPPointagePanel';
 import ProfessorSalaryCollection from './ProfessorSalaryCollection';
 import WhatsAppGroups from './WhatsAppGroups';
 import SubjectScheduleMatrix from './SubjectScheduleMatrix';
+import PriceManager from './PriceManager';
 import './App.css';
 
 function App() {
@@ -55,6 +56,8 @@ function App() {
     pageComponent = <SubjectScheduleMatrix />;
   } else if (path === '/manuels') {
     pageComponent = <ManualDownloadPage onBack={() => window.history.back()} />;
+  } else if (path === '/admin/prix') {
+    pageComponent = <PriceManager onBack={() => window.history.back()} />;
   } else {
     pageComponent = <ClassBoard />;
   }
