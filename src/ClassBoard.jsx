@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Edit2, Trash2, Save, X, Monitor, Settings, AlertCircle, Maximize, Clock, BarChart3, Sliders, Building2, Calendar, Printer, Moon, FileDown, MapPin, BookOpen, Users, Bell, MessageSquare, MessageCircle, Shield, CheckCircle, Upload, Smartphone } from 'lucide-react';
+import { Plus, Edit2, Trash2, Save, X, Monitor, Settings, AlertCircle, Maximize, Clock, BarChart3, Sliders, Building2, Calendar, Printer, Moon, FileDown, MapPin, BookOpen, Users, Bell, MessageSquare, MessageCircle, Shield, CheckCircle, Upload, Smartphone, DollarSign } from 'lucide-react';
 import { db } from './firebase';
 import SecurityService from './SecurityService';
 import { doc, setDoc, getDoc, onSnapshot, collection, deleteDoc } from 'firebase/firestore';
@@ -1585,6 +1585,13 @@ const branchNames = branchesArray.map(b => b.name) || [];
               >
                 <Users className="w-4 h-4" />
                 Étudiants - Accès Cours Individuels
+              </button>
+              <button
+                onClick={() => window.location.href = '/admin/prix'}
+                className="bg-amber-600 hover:bg-amber-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm text-white"
+              >
+                <DollarSign className="w-4 h-4" />
+                Gestion des Prix
               </button>
             </div>
 
