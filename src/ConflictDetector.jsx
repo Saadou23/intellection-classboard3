@@ -6,8 +6,8 @@ const ConflictDetector = ({ sessions, currentSession, currentBranch }) => {
   
   const detectConflicts = () => {
     const conflicts = [];
-    
-    if (!currentSession.dayOfWeek || !currentSession.startTime || !currentSession.endTime) {
+
+    if (currentSession.dayOfWeek === undefined || currentSession.dayOfWeek === null || !currentSession.startTime || !currentSession.endTime) {
       return conflicts;
     }
 
@@ -133,7 +133,7 @@ export const hasConflicts = (sessions, currentSession, currentBranch) => {
     return hours * 60 + minutes;
   };
 
-  if (!currentSession.dayOfWeek || !currentSession.startTime || !currentSession.endTime) {
+  if (currentSession.dayOfWeek === undefined || currentSession.dayOfWeek === null || !currentSession.startTime || !currentSession.endTime) {
     return false;
   }
 
