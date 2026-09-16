@@ -3,6 +3,8 @@ import {
   BarChart3, TrendingUp, AlertCircle, Calendar, Clock, Building2,
   FileDown, ArrowLeft, Printer, Share2, Download, User, MapPin
 } from 'lucide-react';
+import { db } from './firebase';
+import { doc, getDoc } from 'firebase/firestore';
 import PDFExporter from './PDFExporter';
 import RoomSlots from './RoomSlots';
 import RoomAvailabilityTable from './RoomAvailabilityTable';
@@ -16,13 +18,43 @@ const DashboardOptimized = ({ sessions, onBack }) => {
   const [showRoomAvailability, setShowRoomAvailability] = useState(false);
   const [showRoomAvailabilityTable, setShowRoomAvailabilityTable] = useState(false);
   const [showAvailableSlots, setShowAvailableSlots] = useState(false);
+  const [branchConfig, setBranchConfig] = useState(null);
 
-  // Configuration des filiales
-  const branchConfig = {
+  // Configuration par défaut (fallback)
+  const defaultBranchConfig = {
     'Hay Salam': { rooms: 8, color: 'blue' },
     'Doukkali': { rooms: 4, color: 'green' },
     'Saada': { rooms: 4, color: 'purple' }
   };
+
+  // Charger la configuration des filiales depuis Firestore
+  useEffect(() => {
+    const loadBranchConfig = async () => {
+      try {
+        const docRef = doc(db, 'settings', 'branches');
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists() && docSnap.data().branches) {
+          const branches = docSnap.data().branches;
+          const config = {};
+          branches.forEach(branch => {
+            config[branch.name] = {
+              rooms: branch.rooms,
+              color: branch.color || 'gray'
+            };
+          });
+          setBranchConfig(config);
+        } else {
+          setBranchConfig(defaultBranchConfig);
+        }
+      } catch (error) {
+        console.error('Erreur de chargement des filiales:', error);
+        setBranchConfig(defaultBranchConfig);
+      }
+    };
+
+    loadBranchConfig();
+  }, []);
 
   // Horaires d'ouverture
   const openingHours = {
@@ -48,10 +80,11 @@ const DashboardOptimized = ({ sessions, onBack }) => {
   // Calcul des analytics avec useMemo pour optimisation
   const analyticsData = useMemo(() => {
     const newAnalytics = {};
+    const config = branchConfig || defaultBranchConfig;
 
-    Object.keys(branchConfig).forEach(branch => {
+    Object.keys(config).forEach(branch => {
       const branchSessions = sessions[branch] || [];
-      const rooms = branchConfig[branch].rooms;
+      const rooms = config[branch].rooms;
 
       // Calculer les heures programmées par jour
       const hoursByDay = {};
@@ -109,7 +142,7 @@ const DashboardOptimized = ({ sessions, onBack }) => {
     });
 
     return newAnalytics;
-  }, [sessions]);
+  }, [sessions, branchConfig]);
 
   useEffect(() => {
     setAnalytics(analyticsData);
@@ -187,7 +220,8 @@ const DashboardOptimized = ({ sessions, onBack }) => {
     csvContent += "RÉSUMÉ PAR FILIALE\n";
     csvContent += "Filiale,Salles,Capacité Hebdo (h),Programmé (h),Disponible (h),Taux d'Occupation (%),Nombre de Séances\n";
     
-    Object.keys(branchConfig).forEach(branch => {
+    const config = branchConfig || defaultBranchConfig;
+    Object.keys(config).forEach(branch => {
       const data = analytics[branch];
       if (data) {
         csvContent += `${branch},${data.rooms},${data.weekly.capacity},${data.weekly.programmed.toFixed(1)},${data.weekly.available.toFixed(1)},${data.weekly.rate.toFixed(1)},${data.totalSessions}\n`;
@@ -195,13 +229,13 @@ const DashboardOptimized = ({ sessions, onBack }) => {
     });
 
     csvContent += "\n\nDÉTAILS PAR JOUR ET FILIALE\n";
-    
-    Object.keys(branchConfig).forEach(branch => {
+
+    Object.keys(config).forEach(branch => {
       const data = analytics[branch];
       if (data) {
         csvContent += `\n${branch}\n`;
         csvContent += "Jour,Horaires,Capacité (h),Programmé (h),Disponible (h),Séances,Taux (%)\n";
-        
+
         daysOfWeek.forEach(day => {
           const dayData = data.hoursByDay[day.value];
           const hours = openingHours[day.value];
@@ -212,8 +246,8 @@ const DashboardOptimized = ({ sessions, onBack }) => {
 
     csvContent += "\n\nOPPORTUNITÉS D'OPTIMISATION\n";
     csvContent += "Filiale,Jour,Heures Disponibles,Taux Actuel (%),Cours Supplémentaires Possibles\n";
-    
-    Object.keys(branchConfig).forEach(branch => {
+
+    Object.keys(config).forEach(branch => {
       const data = analytics[branch];
       if (data && data.underutilizedSlots.length > 0) {
         data.underutilizedSlots.forEach(slot => {
@@ -306,7 +340,7 @@ const DashboardOptimized = ({ sessions, onBack }) => {
                   <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-xl z-50 border border-gray-200">
                     <div className="p-2">
                       <div className="text-xs font-semibold text-gray-500 px-3 py-2">PAR CENTRE</div>
-                      {Object.keys(branchConfig).map(branch => (
+                      {Object.keys(branchConfig || defaultBranchConfig).map(branch => (
                         <PDFExporter
                           key={branch}
                           sessions={sessions[branch] || []}
@@ -360,7 +394,7 @@ const DashboardOptimized = ({ sessions, onBack }) => {
                       <div className="space-y-3">
                         <div>
                           <div className="text-xs font-semibold text-gray-500 mb-2">SÉANCES DU JOUR</div>
-                          {Object.keys(branchConfig).map(branch => (
+                          {Object.keys(branchConfig || defaultBranchConfig).map(branch => (
                             <button
                               key={branch}
                               onClick={() => generatePublicLink('today', null, branch)}
@@ -374,7 +408,7 @@ const DashboardOptimized = ({ sessions, onBack }) => {
 
                         <div className="border-t border-gray-200 pt-3">
                           <div className="text-xs font-semibold text-gray-500 mb-2">PAR FILIALE</div>
-                          {Object.keys(branchConfig).map(branch => (
+                          {Object.keys(branchConfig || defaultBranchConfig).map(branch => (
                             <button
                               key={branch}
                               onClick={() => generatePublicLink('branch', branch)}
@@ -427,15 +461,16 @@ const DashboardOptimized = ({ sessions, onBack }) => {
           </h2>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {Object.keys(branchConfig).map(branch => {
+            {Object.keys(branchConfig || defaultBranchConfig).map(branch => {
               const data = analytics[branch];
               if (!data) return null;
+              const config = branchConfig || defaultBranchConfig;
 
               return (
                 <div key={branch} className="border-2 border-gray-200 rounded-xl p-6 hover:shadow-lg transition-all">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-xl font-bold text-gray-800">{branch}</h3>
-                    <Building2 className={`w-6 h-6 text-${branchConfig[branch].color}-600`} />
+                    <Building2 className={`w-6 h-6 text-${config[branch].color}-600`} />
                   </div>
                   
                   <div className="space-y-3">

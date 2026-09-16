@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart3, TrendingUp, AlertCircle, Calendar, Clock, Building2, FileDown, ArrowLeft, Printer, DollarSign } from 'lucide-react';
+import { db } from './firebase';
+import { doc, getDoc } from 'firebase/firestore';
 import ThermalPrintSchedule from './ThermalPrintSchedule';
 import MessageManager from './MessageManager';
 import AdvertisementManager from './AdvertisementManager';
@@ -14,13 +16,43 @@ const Dashboard = ({ sessions, onBack }) => {
   const [showRoomAvailability, setShowRoomAvailability] = useState(false);
   const [showRoomAvailabilityTable, setShowRoomAvailabilityTable] = useState(false);
   const [showAvailableSlots, setShowAvailableSlots] = useState(false);
+  const [branchConfig, setBranchConfig] = useState(null);
 
-  // Configuration des filiales
-  const branchConfig = {
+  // Configuration par défaut (fallback)
+  const defaultBranchConfig = {
     'Hay Salam': { rooms: 8, color: 'blue' },
     'Doukkali': { rooms: 4, color: 'green' },
     'Saada': { rooms: 4, color: 'purple' }
   };
+
+  // Charger la configuration des filiales depuis Firestore
+  useEffect(() => {
+    const loadBranchConfig = async () => {
+      try {
+        const docRef = doc(db, 'settings', 'branches');
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists() && docSnap.data().branches) {
+          const branches = docSnap.data().branches;
+          const config = {};
+          branches.forEach(branch => {
+            config[branch.name] = {
+              rooms: branch.rooms,
+              color: branch.color || 'gray'
+            };
+          });
+          setBranchConfig(config);
+        } else {
+          setBranchConfig(defaultBranchConfig);
+        }
+      } catch (error) {
+        console.error('Erreur de chargement des filiales:', error);
+        setBranchConfig(defaultBranchConfig);
+      }
+    };
+
+    loadBranchConfig();
+  }, []);
 
   // Horaires d'ouverture
   const openingHours = {
@@ -47,10 +79,11 @@ const Dashboard = ({ sessions, onBack }) => {
   useEffect(() => {
     const calculateAnalytics = () => {
       const newAnalytics = {};
+      const config = branchConfig || defaultBranchConfig;
 
-      Object.keys(branchConfig).forEach(branch => {
+      Object.keys(config).forEach(branch => {
         const branchSessions = sessions[branch] || [];
-        const rooms = branchConfig[branch].rooms;
+        const rooms = config[branch].rooms;
 
         // Calculer les heures programmées par jour
         const hoursByDay = {};
@@ -115,7 +148,7 @@ const Dashboard = ({ sessions, onBack }) => {
     };
 
     calculateAnalytics();
-  }, [sessions]);
+  }, [sessions, branchConfig]);
 
   // Déterminer la couleur selon le taux d'occupation
   const getOccupancyColor = (rate) => {
@@ -133,8 +166,9 @@ const Dashboard = ({ sessions, onBack }) => {
   // Export vers Excel (simulation)
   const exportToExcel = () => {
     let csvContent = "Filiale,Salles,Capacité Hebdo,Heures Programmées,Heures Disponibles,Taux d'Occupation\n";
-    
-    Object.keys(branchConfig).forEach(branch => {
+    const config = branchConfig || defaultBranchConfig;
+
+    Object.keys(config).forEach(branch => {
       const data = analytics[branch];
       if (data) {
         csvContent += `${branch},${data.rooms},${data.weekly.capacity}h,${data.weekly.programmed.toFixed(1)}h,${data.weekly.available.toFixed(1)}h,${data.weekly.rate.toFixed(1)}%\n`;
@@ -242,15 +276,16 @@ const Dashboard = ({ sessions, onBack }) => {
           </h2>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {Object.keys(branchConfig).map(branch => {
+            {Object.keys(branchConfig || defaultBranchConfig).map(branch => {
               const data = analytics[branch];
               if (!data) return null;
+              const config = branchConfig || defaultBranchConfig;
 
               return (
                 <div key={branch} className="border-2 border-gray-200 rounded-xl p-6 hover:shadow-lg transition-all">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-xl font-bold text-gray-800">{branch}</h3>
-                    <Building2 className={`w-6 h-6 text-${branchConfig[branch].color}-600`} />
+                    <Building2 className={`w-6 h-6 text-${config[branch].color}-600`} />
                   </div>
                   
                   <div className="space-y-3">
