@@ -21,7 +21,7 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
   const [showPrices, setShowPrices] = useState(false);
   const [prices, setPrices] = useState({});
   const [printMode, setPrintMode] = useState('standard'); // 'standard' ou 'custom'
-  const [availableProfessors, setAvailableProfessors] = useState([]); // Professors for selected level
+  const [professorsBySubject, setProfessorsBySubject] = useState({}); // { subject: [professors] }
   const [selectedProfessors, setSelectedProfessors] = useState(new Set()); // Set of selected professors
 
   const daysOfWeek = [
@@ -53,7 +53,7 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
     }
   }, [branchesData]);
 
-  // Extraire les professeurs du niveau sélectionné pour le mode personnalisé
+  // Extraire les professeurs du niveau sélectionné, groupés par matière
   useEffect(() => {
     if (selectedBranch && selectedLevel && selectedLevel !== 'ALL' && printMode === 'custom') {
       let branchSessions = sessions[selectedBranch] || [];
@@ -68,19 +68,29 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
       // Filtrer par niveau sélectionné
       branchSessions = branchSessions.filter(s => sessionIncludesLevel(s, selectedLevel));
 
-      // Extraire les professeurs uniques pour ce niveau
-      const profsSet = new Set();
+      // Grouper les professeurs par matière
+      const subjToProfs = {};
       branchSessions.forEach(session => {
-        if (session.professor) {
-          profsSet.add(session.professor);
+        if (session.subject && session.professor) {
+          if (!subjToProfs[session.subject]) {
+            subjToProfs[session.subject] = new Set();
+          }
+          subjToProfs[session.subject].add(session.professor);
         }
       });
 
-      const profs = Array.from(profsSet).sort();
-      setAvailableProfessors(profs);
+      // Convertir Sets en Arrays triés
+      const result = {};
+      Object.keys(subjToProfs)
+        .sort()
+        .forEach(subject => {
+          result[subject] = Array.from(subjToProfs[subject]).sort();
+        });
+
+      setProfessorsBySubject(result);
       setSelectedProfessors(new Set()); // Réinitialiser la sélection
     } else {
-      setAvailableProfessors([]);
+      setProfessorsBySubject({});
       setSelectedProfessors(new Set());
     }
   }, [selectedBranch, selectedLevel, selectedPeriod, printMode, sessions]);
@@ -754,33 +764,43 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
             </div>
           )}
 
-          {printMode === 'custom' && selectedBranch && selectedLevel && selectedLevel !== '' && availableProfessors.length > 0 && (
+          {printMode === 'custom' && selectedBranch && selectedLevel && selectedLevel !== '' && Object.keys(professorsBySubject).length > 0 && (
             <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
               <label className="block text-sm font-bold text-indigo-900 mb-3">👨‍🏫 Professeurs du niveau {selectedLevel}</label>
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {availableProfessors.map(prof => (
-                  <label key={prof} className="flex items-center gap-3 cursor-pointer p-2 hover:bg-indigo-100 rounded">
-                    <input
-                      type="checkbox"
-                      checked={selectedProfessors.has(prof)}
-                      onChange={(e) => {
-                        const newProfs = new Set(selectedProfessors);
-                        if (e.target.checked) {
-                          newProfs.add(prof);
-                        } else {
-                          newProfs.delete(prof);
-                        }
-                        setSelectedProfessors(newProfs);
-                        setShowPrices(newProfs.size > 0);
-                      }}
-                      className="w-5 h-5 cursor-pointer"
-                    />
-                    <span className="text-gray-700 font-medium">{prof}</span>
-                  </label>
+              <div className="space-y-3 max-h-80 overflow-y-auto">
+                {Object.entries(professorsBySubject).map(([subject, professors]) => (
+                  <div key={subject} className="bg-white rounded-lg p-3 border border-indigo-200">
+                    <div className="font-bold text-indigo-800 mb-2 text-sm flex items-center gap-2">
+                      <span>📚</span>
+                      <span>{subject}</span>
+                    </div>
+                    <div className="space-y-1 ml-6">
+                      {professors.map(prof => (
+                        <label key={prof} className="flex items-center gap-3 cursor-pointer p-1.5 hover:bg-indigo-50 rounded">
+                          <input
+                            type="checkbox"
+                            checked={selectedProfessors.has(prof)}
+                            onChange={(e) => {
+                              const newProfs = new Set(selectedProfessors);
+                              if (e.target.checked) {
+                                newProfs.add(prof);
+                              } else {
+                                newProfs.delete(prof);
+                              }
+                              setSelectedProfessors(newProfs);
+                              setShowPrices(newProfs.size > 0);
+                            }}
+                            className="w-4 h-4 cursor-pointer"
+                          />
+                          <span className="text-gray-700 text-sm">{prof}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
               {selectedProfessors.size > 0 && (
-                <div className="mt-3 text-sm text-indigo-700 font-bold bg-white p-2 rounded">
+                <div className="mt-3 text-sm text-indigo-700 font-bold bg-white p-2.5 rounded border border-indigo-300">
                   ✅ {selectedProfessors.size} professeur(s) sélectionné(s)
                 </div>
               )}
