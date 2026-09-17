@@ -21,7 +21,7 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
   const [showPrices, setShowPrices] = useState(false);
   const [prices, setPrices] = useState({});
   const [printMode, setPrintMode] = useState('standard'); // 'standard' ou 'custom'
-  const [subjectsByProfessor, setSubjectsByProfessor] = useState({}); // { subject: [professors] }
+  const [availableProfessors, setAvailableProfessors] = useState([]); // Professors for selected level
   const [selectedProfessors, setSelectedProfessors] = useState(new Set()); // Set of selected professors
 
   const daysOfWeek = [
@@ -53,9 +53,9 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
     }
   }, [branchesData]);
 
-  // Extraire les professeurs par matière pour le mode personnalisé
+  // Extraire les professeurs du niveau sélectionné pour le mode personnalisé
   useEffect(() => {
-    if (selectedBranch && printMode === 'custom') {
+    if (selectedBranch && selectedLevel && selectedLevel !== 'ALL' && printMode === 'custom') {
       let branchSessions = sessions[selectedBranch] || [];
 
       // Filtrer par période
@@ -65,27 +65,25 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
         branchSessions = branchSessions.filter(s => s.period === selectedPeriod);
       }
 
-      // Grouper les professeurs par matière
-      const subjToProfs = {};
+      // Filtrer par niveau sélectionné
+      branchSessions = branchSessions.filter(s => sessionIncludesLevel(s, selectedLevel));
+
+      // Extraire les professeurs uniques pour ce niveau
+      const profsSet = new Set();
       branchSessions.forEach(session => {
-        if (session.subject && session.professor) {
-          if (!subjToProfs[session.subject]) {
-            subjToProfs[session.subject] = new Set();
-          }
-          subjToProfs[session.subject].add(session.professor);
+        if (session.professor) {
+          profsSet.add(session.professor);
         }
       });
 
-      // Convertir Sets en Arrays triés
-      const result = {};
-      Object.entries(subjToProfs).forEach(([subject, profs]) => {
-        result[subject] = Array.from(profs).sort();
-      });
-
-      setSubjectsByProfessor(result);
+      const profs = Array.from(profsSet).sort();
+      setAvailableProfessors(profs);
       setSelectedProfessors(new Set()); // Réinitialiser la sélection
+    } else {
+      setAvailableProfessors([]);
+      setSelectedProfessors(new Set());
     }
-  }, [selectedBranch, selectedPeriod, printMode, sessions]);
+  }, [selectedBranch, selectedLevel, selectedPeriod, printMode, sessions]);
 
   // Charger les prix si "Afficher les prix" est coché
   useEffect(() => {
@@ -713,7 +711,7 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
             </select>
           </div>
 
-          {selectedBranch && availableLevels.length > 0 && printMode === 'standard' && (
+          {selectedBranch && availableLevels.length > 0 && (
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2">🎓 Niveau</label>
               <select
@@ -721,10 +719,21 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
                 onChange={(e) => setSelectedLevel(e.target.value)}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
               >
-                <option value="ALL">Tous les niveaux</option>
-                {availableLevels.map(level => (
-                  <option key={level} value={level}>{level}</option>
-                ))}
+                {printMode === 'standard' ? (
+                  <>
+                    <option value="ALL">Tous les niveaux</option>
+                    {availableLevels.map(level => (
+                      <option key={level} value={level}>{level}</option>
+                    ))}
+                  </>
+                ) : (
+                  <>
+                    <option value="">-- Sélectionner un niveau --</option>
+                    {availableLevels.map(level => (
+                      <option key={level} value={level}>{level}</option>
+                    ))}
+                  </>
+                )}
               </select>
             </div>
           )}
@@ -745,40 +754,33 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
             </div>
           )}
 
-          {printMode === 'custom' && selectedBranch && Object.keys(subjectsByProfessor).length > 0 && (
+          {printMode === 'custom' && selectedBranch && selectedLevel && selectedLevel !== '' && availableProfessors.length > 0 && (
             <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
-              <label className="block text-sm font-bold text-indigo-900 mb-3">👨‍🏫 Sélectionner les professeurs par matière</label>
-              <div className="space-y-3 max-h-64 overflow-y-auto">
-                {Object.entries(subjectsByProfessor).map(([subject, professors]) => (
-                  <div key={subject} className="bg-white p-3 rounded border border-indigo-200">
-                    <div className="font-bold text-indigo-800 mb-2 text-sm">{subject}</div>
-                    <div className="space-y-2 ml-2">
-                      {professors.map(prof => (
-                        <label key={prof} className="flex items-center gap-2 cursor-pointer text-sm">
-                          <input
-                            type="checkbox"
-                            checked={selectedProfessors.has(prof)}
-                            onChange={(e) => {
-                              const newProfs = new Set(selectedProfessors);
-                              if (e.target.checked) {
-                                newProfs.add(prof);
-                              } else {
-                                newProfs.delete(prof);
-                              }
-                              setSelectedProfessors(newProfs);
-                              setShowPrices(newProfs.size > 0);
-                            }}
-                            className="w-4 h-4"
-                          />
-                          <span className="text-gray-700">{prof}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
+              <label className="block text-sm font-bold text-indigo-900 mb-3">👨‍🏫 Professeurs du niveau {selectedLevel}</label>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {availableProfessors.map(prof => (
+                  <label key={prof} className="flex items-center gap-3 cursor-pointer p-2 hover:bg-indigo-100 rounded">
+                    <input
+                      type="checkbox"
+                      checked={selectedProfessors.has(prof)}
+                      onChange={(e) => {
+                        const newProfs = new Set(selectedProfessors);
+                        if (e.target.checked) {
+                          newProfs.add(prof);
+                        } else {
+                          newProfs.delete(prof);
+                        }
+                        setSelectedProfessors(newProfs);
+                        setShowPrices(newProfs.size > 0);
+                      }}
+                      className="w-5 h-5 cursor-pointer"
+                    />
+                    <span className="text-gray-700 font-medium">{prof}</span>
+                  </label>
                 ))}
               </div>
               {selectedProfessors.size > 0 && (
-                <div className="mt-3 text-sm text-indigo-700 font-medium">
+                <div className="mt-3 text-sm text-indigo-700 font-bold bg-white p-2 rounded">
                   ✅ {selectedProfessors.size} professeur(s) sélectionné(s)
                 </div>
               )}
