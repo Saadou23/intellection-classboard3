@@ -20,6 +20,9 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
   const [availableGroups, setAvailableGroups] = useState([]);
   const [showPrices, setShowPrices] = useState(false);
   const [prices, setPrices] = useState({});
+  const [printMode, setPrintMode] = useState('standard'); // 'standard' ou 'custom'
+  const [subjectsByProfessor, setSubjectsByProfessor] = useState({}); // { subject: [professors] }
+  const [selectedProfessors, setSelectedProfessors] = useState(new Set()); // Set of selected professors
 
   const daysOfWeek = [
     { value: 1, label: 'Lundi' },
@@ -49,6 +52,40 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
       setAvailablePeriods(periods);
     }
   }, [branchesData]);
+
+  // Extraire les professeurs par matière pour le mode personnalisé
+  useEffect(() => {
+    if (selectedBranch && printMode === 'custom') {
+      let branchSessions = sessions[selectedBranch] || [];
+
+      // Filtrer par période
+      if (selectedPeriod === 'normal') {
+        branchSessions = branchSessions.filter(s => !s.period || s.period === null);
+      } else {
+        branchSessions = branchSessions.filter(s => s.period === selectedPeriod);
+      }
+
+      // Grouper les professeurs par matière
+      const subjToProfs = {};
+      branchSessions.forEach(session => {
+        if (session.subject && session.professor) {
+          if (!subjToProfs[session.subject]) {
+            subjToProfs[session.subject] = new Set();
+          }
+          subjToProfs[session.subject].add(session.professor);
+        }
+      });
+
+      // Convertir Sets en Arrays triés
+      const result = {};
+      Object.entries(subjToProfs).forEach(([subject, profs]) => {
+        result[subject] = Array.from(profs).sort();
+      });
+
+      setSubjectsByProfessor(result);
+      setSelectedProfessors(new Set()); // Réinitialiser la sélection
+    }
+  }, [selectedBranch, selectedPeriod, printMode, sessions]);
 
   // Charger les prix si "Afficher les prix" est coché
   useEffect(() => {
@@ -128,7 +165,7 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
     }
   }, [selectedBranch, selectedLevel, sessions]);
 
-  const generateSchedule = (branch, level = 'ALL', period = 'normal', group = 'ALL') => {
+  const generateSchedule = (branch, level = 'ALL', period = 'normal', group = 'ALL', customProfessors = null) => {
     let branchSessions = sessions[branch] || [];
 
     if (period === 'normal') {
@@ -151,6 +188,11 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
         }
         return false;
       });
+    }
+
+    // Filtrer par professeurs sélectionnés si en mode personnalisé
+    if (customProfessors && customProfessors.size > 0) {
+      filteredSessions = filteredSessions.filter(s => customProfessors.has(s.professor));
     }
 
     if (filterLastGroupOnly) {
@@ -210,7 +252,8 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
   };
 
   const generatePriceTable = () => {
-    const schedule = generateSchedule(selectedBranch, selectedLevel, selectedPeriod, selectedGroup);
+    const customProfs = printMode === 'custom' ? selectedProfessors : null;
+    const schedule = generateSchedule(selectedBranch, selectedLevel, selectedPeriod, selectedGroup, customProfs);
     const subjectsMap = {};
 
     daysOfWeek.forEach(day => {
@@ -280,9 +323,15 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
       return;
     }
 
+    if (printMode === 'custom' && selectedProfessors.size === 0) {
+      alert('Veuillez sélectionner au moins un professeur');
+      return;
+    }
+
     setIsPrinting(true);
 
-    const schedule = generateSchedule(selectedBranch, selectedLevel, selectedPeriod, selectedGroup);
+    const customProfs = printMode === 'custom' ? selectedProfessors : null;
+    const schedule = generateSchedule(selectedBranch, selectedLevel, selectedPeriod, selectedGroup, customProfs);
     const printWindow = window.open('', '_blank');
     
     const periodName = selectedPeriod === 'normal' 
@@ -293,11 +342,16 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
     if (selectedPeriod !== 'normal') {
       title += ` - ${periodName}`;
     }
-    if (selectedLevel !== 'ALL') {
-      title += ` - ${selectedLevel}`;
-    }
-    if (selectedGroup !== 'ALL') {
-      title += ` - ${selectedGroup}`;
+    if (printMode === 'custom' && selectedProfessors.size > 0) {
+      const profList = Array.from(selectedProfessors).sort().join(', ');
+      title += ` - ${profList}`;
+    } else {
+      if (selectedLevel !== 'ALL') {
+        title += ` - ${selectedLevel}`;
+      }
+      if (selectedGroup !== 'ALL') {
+        title += ` - ${selectedGroup}`;
+      }
     }
     
     // HTML OPTIMISÉ avec Bebas Neue
@@ -618,13 +672,31 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
 
         <div className="p-6 space-y-6 overflow-y-auto flex-1">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h3 className="font-bold text-blue-900 mb-2">✨ Optimisations appliquées</h3>
-            <ul className="text-sm text-blue-800 space-y-1">
-              <li>• Police Bebas Neue (grande et grasse)</li>
-              <li>• Format compact pour ticket court</li>
-              <li>• Espacement réduit entre les éléments</li>
-              <li>• Lecture optimale sur ticket 80mm</li>
-            </ul>
+            <h3 className="font-bold text-blue-900 mb-2">✨ Mode d'impression</h3>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="printMode"
+                  value="standard"
+                  checked={printMode === 'standard'}
+                  onChange={(e) => setPrintMode(e.target.value)}
+                  className="w-4 h-4"
+                />
+                <span className="text-sm text-blue-800">📋 Emploi du temps standard</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="printMode"
+                  value="custom"
+                  checked={printMode === 'custom'}
+                  onChange={(e) => setPrintMode(e.target.value)}
+                  className="w-4 h-4"
+                />
+                <span className="text-sm text-blue-800">🎯 Ticket personnalisé</span>
+              </label>
+            </div>
           </div>
 
           <div>
@@ -641,7 +713,7 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
             </select>
           </div>
 
-          {selectedBranch && availableLevels.length > 0 && (
+          {selectedBranch && availableLevels.length > 0 && printMode === 'standard' && (
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2">🎓 Niveau</label>
               <select
@@ -657,7 +729,7 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
             </div>
           )}
 
-          {selectedBranch && availableGroups.length > 0 && (
+          {selectedBranch && availableGroups.length > 0 && printMode === 'standard' && (
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2">👥 Groupe</label>
               <select
@@ -670,6 +742,46 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
                   <option key={group} value={group}>{group}</option>
                 ))}
               </select>
+            </div>
+          )}
+
+          {printMode === 'custom' && selectedBranch && Object.keys(subjectsByProfessor).length > 0 && (
+            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+              <label className="block text-sm font-bold text-indigo-900 mb-3">👨‍🏫 Sélectionner les professeurs par matière</label>
+              <div className="space-y-3 max-h-64 overflow-y-auto">
+                {Object.entries(subjectsByProfessor).map(([subject, professors]) => (
+                  <div key={subject} className="bg-white p-3 rounded border border-indigo-200">
+                    <div className="font-bold text-indigo-800 mb-2 text-sm">{subject}</div>
+                    <div className="space-y-2 ml-2">
+                      {professors.map(prof => (
+                        <label key={prof} className="flex items-center gap-2 cursor-pointer text-sm">
+                          <input
+                            type="checkbox"
+                            checked={selectedProfessors.has(prof)}
+                            onChange={(e) => {
+                              const newProfs = new Set(selectedProfessors);
+                              if (e.target.checked) {
+                                newProfs.add(prof);
+                              } else {
+                                newProfs.delete(prof);
+                              }
+                              setSelectedProfessors(newProfs);
+                              setShowPrices(newProfs.size > 0);
+                            }}
+                            className="w-4 h-4"
+                          />
+                          <span className="text-gray-700">{prof}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {selectedProfessors.size > 0 && (
+                <div className="mt-3 text-sm text-indigo-700 font-medium">
+                  ✅ {selectedProfessors.size} professeur(s) sélectionné(s)
+                </div>
+              )}
             </div>
           )}
 
@@ -689,18 +801,20 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
             </select>
           </div>
 
-          <div className="flex items-center gap-3 p-4 bg-orange-50 border border-orange-200 rounded-lg">
-            <input
-              type="checkbox"
-              id="filterLastGroup"
-              checked={filterLastGroupOnly}
-              onChange={(e) => setFilterLastGroupOnly(e.target.checked)}
-              className="w-5 h-5 cursor-pointer"
-            />
-            <label htmlFor="filterLastGroup" className="text-sm font-medium text-gray-700 cursor-pointer flex-1">
-              📌 Afficher uniquement le dernier groupe (G2 si G1+G2)
-            </label>
-          </div>
+          {printMode === 'standard' && (
+            <div className="flex items-center gap-3 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+              <input
+                type="checkbox"
+                id="filterLastGroup"
+                checked={filterLastGroupOnly}
+                onChange={(e) => setFilterLastGroupOnly(e.target.checked)}
+                className="w-5 h-5 cursor-pointer"
+              />
+              <label htmlFor="filterLastGroup" className="text-sm font-medium text-gray-700 cursor-pointer flex-1">
+                📌 Afficher uniquement le dernier groupe (G2 si G1+G2)
+              </label>
+            </div>
+          )}
 
           <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
             <input
@@ -708,10 +822,12 @@ const ThermalPrintSchedule = ({ sessions, branches, branchesData, onClose }) => 
               id="showPrices"
               checked={showPrices}
               onChange={(e) => setShowPrices(e.target.checked)}
-              className="w-5 h-5 cursor-pointer"
+              disabled={printMode === 'custom' && selectedProfessors.size === 0}
+              className="w-5 h-5 cursor-pointer disabled:opacity-50"
             />
             <label htmlFor="showPrices" className="text-sm font-medium text-gray-700 cursor-pointer flex-1">
               💰 Afficher le tableau des prix (matière/professeur)
+              {printMode === 'custom' && <span className="text-xs text-gray-500 ml-2">(Auto-activé)</span>}
             </label>
           </div>
         </div>
