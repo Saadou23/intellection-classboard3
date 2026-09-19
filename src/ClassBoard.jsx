@@ -102,6 +102,7 @@ const [showWhatsAppAutomation, setShowWhatsAppAutomation] = useState(false);
   const [viewDayFilter, setViewDayFilter] = useState(null); // null = tous les jours, 0-6 = jour spécifique
   const [viewLevelFilter, setViewLevelFilter] = useState(null); // null = tous, "1BAC" = niveau spécifique
   const [viewGroupFilter, setViewGroupFilter] = useState(null); // null = tous, "G1" = groupe spécifique
+  const [viewSubjectFilter, setViewSubjectFilter] = useState(null); // null = tous, "Mathématiques" = matière spécifique
   const [showMessageManager, setShowMessageManager] = useState(false);
   const [showAdvertisementManager, setShowAdvertisementManager] = useState(false);
   const [showPromotionManager, setShowPromotionManager] = useState(false);
@@ -2388,6 +2389,47 @@ const branchNames = branchesArray.map(b => b.name) || [];
                     </div>
                   </div>
 
+                  {/* Filtre par matière */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      📚 Filtrer par matière :
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => setViewSubjectFilter(null)}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                          viewSubjectFilter === null
+                            ? 'bg-orange-600 text-white'
+                            : 'bg-white text-gray-700 border border-gray-300 hover:border-orange-400'
+                        }`}
+                      >
+                        Tous
+                      </button>
+                      {(() => {
+                        const subjectsSet = new Set();
+                        (sessions[selectedBranch] || []).forEach(s => {
+                          if (s.subject) {
+                            subjectsSet.add(s.subject);
+                          }
+                        });
+                        const subjectsList = [...subjectsSet].sort();
+                        return subjectsList.map(subject => (
+                          <button
+                            key={subject}
+                            onClick={() => setViewSubjectFilter(subject)}
+                            className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                              viewSubjectFilter === subject
+                                ? 'bg-orange-600 text-white'
+                                : 'bg-white text-gray-700 border border-gray-300 hover:border-orange-400'
+                            }`}
+                          >
+                            {subject}
+                          </button>
+                        ));
+                      })()}
+                    </div>
+                  </div>
+
                   {/* Filtre par groupe (dépend du niveau) */}
                   {viewLevelFilter && (
                     <div>
@@ -2478,16 +2520,24 @@ const branchNames = branchesArray.map(b => b.name) || [];
                             });
                           }
 
+                          // Filtre par matière
+                          if (viewSubjectFilter !== null) {
+                            filtered = filtered.filter(s => s.subject === viewSubjectFilter);
+                          }
+
                           return filtered.length;
                         })()}
                       </span>
                     </span>
                     
-                    {(viewPeriodFilter !== null || viewDayFilter !== null) && (
+                    {(viewPeriodFilter !== null || viewDayFilter !== null || viewLevelFilter !== null || viewGroupFilter !== null || viewSubjectFilter !== null) && (
                       <button
                         onClick={() => {
                           setViewPeriodFilter(null);
                           setViewDayFilter(null);
+                          setViewLevelFilter(null);
+                          setViewGroupFilter(null);
+                          setViewSubjectFilter(null);
                         }}
                         className="text-xs bg-red-100 text-red-700 px-3 py-1 rounded-full hover:bg-red-200 transition-all"
                       >
@@ -2556,6 +2606,11 @@ const branchNames = branchesArray.map(b => b.name) || [];
                           }
                           return false;
                         });
+                      }
+
+                      // Filtre par matière
+                      if (viewSubjectFilter !== null) {
+                        filtered = filtered.filter(s => s.subject === viewSubjectFilter);
                       }
 
                       return filtered.sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.startTime.localeCompare(b.startTime));
