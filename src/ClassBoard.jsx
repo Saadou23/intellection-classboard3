@@ -120,6 +120,13 @@ const [showWhatsAppAutomation, setShowWhatsAppAutomation] = useState(false);
   const [studentMatricule, setStudentMatricule] = useState('');
   const [showSubjectScheduleMatrix, setShowSubjectScheduleMatrix] = useState(false);
   const [showStudentMatriculeModal, setShowStudentMatriculeModal] = useState(false);
+  const [timeOffsetTemp, setTimeOffsetTemp] = useState(timeOffset);
+  const [timeOffsetSaved, setTimeOffsetSaved] = useState(false);
+
+  // Synchroniser timeOffsetTemp avec timeOffset
+  useEffect(() => {
+    setTimeOffsetTemp(timeOffset);
+  }, [timeOffset]);
 
   // ========== SÉCURITÉ - PROTECTION ANTI-BRUTE FORCE ==========
   const [loginAttempts, setLoginAttempts] = useState(0);
@@ -1791,30 +1798,53 @@ const branchNames = branchesArray.map(b => b.name) || [];
       {showTimeSettings && (
         <div className="bg-yellow-50 border-b border-yellow-200 p-4">
           <div className="max-w-7xl mx-auto">
-            <h3 className="text-lg font-bold text-gray-800 mb-3">Réglage de l'heure</h3>
-            <div className="flex items-center gap-4">
+            <h3 className="text-lg font-bold text-gray-800 mb-3">⏱️ Réglage de l'heure</h3>
+            <div className="flex flex-wrap items-center gap-4">
               <div className="text-sm text-gray-600">
-                Heure système: {new Date().toLocaleTimeString('fr-FR')}
+                <span className="font-medium">Heure système:</span> {new Date().toLocaleTimeString('fr-FR')}
               </div>
               <div className="text-sm text-gray-600">
-                Heure affichée: {currentTime.toLocaleTimeString('fr-FR')}
+                <span className="font-medium">Heure affichée:</span> {new Date(new Date().getTime() + timeOffset * 60000).toLocaleTimeString('fr-FR')}
               </div>
               <div className="flex items-center gap-2">
                 <label className="text-sm font-medium text-gray-700">Décalage (minutes):</label>
                 <input
                   type="number"
-                  value={timeOffset}
-                  onChange={(e) => saveTimeOffset(parseInt(e.target.value) || 0)}
-                  className="border border-gray-300 rounded px-3 py-1 w-20 text-sm"
+                  value={timeOffsetTemp}
+                  onChange={(e) => {
+                    setTimeOffsetTemp(parseInt(e.target.value) || 0);
+                    setTimeOffsetSaved(false);
+                  }}
+                  className="border-2 border-gray-300 rounded px-3 py-1 w-24 text-sm focus:border-blue-500 outline-none"
                   placeholder="0"
                 />
               </div>
               <button
-                onClick={() => saveTimeOffset(0)}
-                className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-sm"
+                onClick={() => {
+                  saveTimeOffset(timeOffsetTemp);
+                  setTimeOffsetSaved(true);
+                  setTimeout(() => setTimeOffsetSaved(false), 3000);
+                }}
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-1 rounded text-sm font-medium transition-all"
               >
-                Réinitialiser
+                ✅ Enregistrer
               </button>
+              <button
+                onClick={() => {
+                  setTimeOffsetTemp(0);
+                  saveTimeOffset(0);
+                  setTimeOffsetSaved(true);
+                  setTimeout(() => setTimeOffsetSaved(false), 3000);
+                }}
+                className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-1 rounded text-sm font-medium transition-all"
+              >
+                🔄 Réinitialiser
+              </button>
+              {timeOffsetSaved && (
+                <span className="text-sm text-green-600 font-semibold animate-pulse">
+                  ✓ Sauvegardé !
+                </span>
+              )}
             </div>
           </div>
         </div>
