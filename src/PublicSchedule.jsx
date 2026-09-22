@@ -8,6 +8,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import PromotionDisplay from './PromotionDisplay';
 import CategoryLevelSelect from './CategoryLevelSelect';
+import CascadeLevelSelector from './CascadeLevelSelector';
 
 const daysOfWeek = [
   { value: 1, label: 'Lundi',    ar: 'الإثنين' },
@@ -172,6 +173,7 @@ const PublicSchedule = () => {
   /* schedule filters */
   const [filterBranch, setFilterBranch]               = useState('');
   const [filterLevel, setFilterLevel]                 = useState('');
+  const [filterCategory, setFilterCategory]           = useState(null);
   const [filterPeriod, setFilterPeriod]               = useState('normal');
   const [filterLastGroupOnly, setFilterLastGroupOnly] = useState(false);
   const [filterGroup, setFilterGroup]                 = useState('');
@@ -811,6 +813,20 @@ const PublicSchedule = () => {
           </a>
         </div>
       </header>
+
+      {/* Cascade Level Selector: Centre → Catégorie → Niveau */}
+      <div className="max-w-4xl mx-auto px-4 py-4">
+        <CascadeLevelSelector
+          branches={branches}
+          selectedBranch={filterBranch}
+          onBranchChange={setFilterBranch}
+          selectedCategory={filterCategory}
+          onCategoryChange={setFilterCategory}
+          selectedLevel={filterLevel}
+          onLevelChange={setFilterLevel}
+          allSessions={allSessions}
+        />
+      </div>
 
       {/* Avertissement: Deux professeurs pour la même matière */}
       {hasDuplicateSubjects && (
