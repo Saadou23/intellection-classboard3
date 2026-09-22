@@ -67,55 +67,63 @@ const CascadeLevelSelector = ({ branches, selectedBranch, onBranchChange, onCate
   const availableCategories = getAvailableCategoriesWithLevels();
   const levelsInSelectedCategory = selectedCategory ? availableCategories[selectedCategory] || [] : [];
 
+  // Déterminer l'étape actuelle
+  let currentStep = 1;
+  if (selectedBranch && !selectedCategory) currentStep = 2;
+  if (selectedBranch && selectedCategory) currentStep = 3;
+
   return (
-    <div className="bg-gradient-to-r from-blue-50 to-green-50 border-2 border-blue-200 rounded-xl p-4 mb-4">
-      <div className="space-y-3">
+    <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 mb-6">
+      <div className="space-y-4">
         {/* STEP 1: Branch Selection */}
-        <div>
-          <label className="text-sm font-semibold text-gray-700 mb-2 block">
-            📍 Étape 1 : Sélectionnez un centre
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {branches.map(branch => (
-              <button
-                key={branch}
-                onClick={() => {
-                  onBranchChange(branch);
-                  onCategoryChange(null);
-                  onLevelChange('');
-                }}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center gap-2 ${
-                  selectedBranch === branch
-                    ? 'bg-blue-600 text-white shadow-lg scale-105'
-                    : 'bg-white text-gray-700 border-2 border-blue-300 hover:border-blue-500 hover:bg-blue-50'
-                }`}
-              >
-                {selectedBranch === branch && <ChevronRight className="w-4 h-4" />}
-                {branch}
-              </button>
-            ))}
+        {currentStep === 1 && (
+          <div>
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">
+              📍 Sélectionnez votre centre
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {branches.map(branch => (
+                <button
+                  key={branch}
+                  onClick={() => {
+                    onBranchChange(branch);
+                    onCategoryChange(null);
+                    onLevelChange('');
+                  }}
+                  className="px-6 py-4 rounded-lg font-semibold text-lg transition-all transform hover:scale-105 bg-white text-gray-700 border-3 border-blue-300 hover:border-blue-600 hover:bg-blue-50 shadow-sm hover:shadow-lg active:scale-95"
+                >
+                  {branch}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* STEP 2: Category Selection */}
-        {selectedBranch && (
+        {currentStep === 2 && (
           <div>
-            <label className="text-sm font-semibold text-gray-700 mb-2 block">
-              📚 Étape 2 : Sélectionnez une catégorie
-            </label>
-            <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => {
+                onBranchChange('');
+                onCategoryChange(null);
+                onLevelChange('');
+              }}
+              className="mb-4 text-blue-600 hover:text-blue-800 font-semibold text-sm flex items-center gap-1"
+            >
+              ← Changer de centre
+            </button>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">
+              📚 Sélectionnez une catégorie
+            </h2>
+            <p className="text-sm text-gray-600 mb-4">Centre : <span className="font-semibold text-blue-600">{selectedBranch}</span></p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               <button
                 onClick={() => {
                   onCategoryChange(null);
                   onLevelChange('');
                 }}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center gap-2 ${
-                  !selectedCategory
-                    ? 'bg-green-600 text-white shadow-lg scale-105'
-                    : 'bg-white text-gray-700 border-2 border-green-300 hover:border-green-500 hover:bg-green-50'
-                }`}
+                className="px-6 py-4 rounded-lg font-semibold text-lg transition-all transform hover:scale-105 bg-white text-gray-700 border-3 border-green-300 hover:border-green-600 hover:bg-green-50 shadow-sm hover:shadow-lg active:scale-95"
               >
-                {!selectedCategory && <ChevronRight className="w-4 h-4" />}
                 Tous les niveaux
               </button>
               {Object.entries(availableCategories).map(([category, levels]) => (
@@ -125,15 +133,10 @@ const CascadeLevelSelector = ({ branches, selectedBranch, onBranchChange, onCate
                     onCategoryChange(category);
                     onLevelChange('');
                   }}
-                  className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center gap-2 ${
-                    selectedCategory === category
-                      ? 'bg-green-600 text-white shadow-lg scale-105'
-                      : 'bg-white text-gray-700 border-2 border-green-300 hover:border-green-500 hover:bg-green-50'
-                  }`}
+                  className="px-6 py-4 rounded-lg font-semibold transition-all transform hover:scale-105 bg-white text-gray-700 border-3 border-green-300 hover:border-green-600 hover:bg-green-50 shadow-sm hover:shadow-lg active:scale-95"
                 >
-                  {selectedCategory === category && <ChevronRight className="w-4 h-4" />}
-                  <span>{category}</span>
-                  <span className="text-xs opacity-75">({levels.length})</span>
+                  <div>{category}</div>
+                  <div className="text-xs text-gray-500 mt-1">({levels.length} niveau{levels.length > 1 ? 'x' : ''})</div>
                 </button>
               ))}
             </div>
@@ -141,47 +144,42 @@ const CascadeLevelSelector = ({ branches, selectedBranch, onBranchChange, onCate
         )}
 
         {/* STEP 3: Level Selection */}
-        {selectedBranch && selectedCategory && (
+        {currentStep === 3 && (
           <div>
-            <label className="text-sm font-semibold text-gray-700 mb-2 block">
-              🎓 Étape 3 : Sélectionnez un niveau
-            </label>
-            <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => {
+                onCategoryChange(null);
+                onLevelChange('');
+              }}
+              className="mb-4 text-blue-600 hover:text-blue-800 font-semibold text-sm flex items-center gap-1"
+            >
+              ← Changer de catégorie
+            </button>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">
+              🎓 Sélectionnez un niveau
+            </h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Centre : <span className="font-semibold text-blue-600">{selectedBranch}</span>
+              {' → '}
+              Catégorie : <span className="font-semibold text-green-600">{selectedCategory}</span>
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               <button
                 onClick={() => onLevelChange('')}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center gap-2 ${
-                  !selectedLevel
-                    ? 'bg-purple-600 text-white shadow-lg scale-105'
-                    : 'bg-white text-gray-700 border-2 border-purple-300 hover:border-purple-500 hover:bg-purple-50'
-                }`}
+                className="px-6 py-4 rounded-lg font-semibold text-lg transition-all transform hover:scale-105 bg-white text-gray-700 border-3 border-purple-300 hover:border-purple-600 hover:bg-purple-50 shadow-sm hover:shadow-lg active:scale-95"
               >
-                {!selectedLevel && <ChevronRight className="w-4 h-4" />}
                 Tous les niveaux
               </button>
               {levelsInSelectedCategory.map(level => (
                 <button
                   key={level}
                   onClick={() => onLevelChange(level)}
-                  className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center gap-2 ${
-                    selectedLevel === level
-                      ? 'bg-purple-600 text-white shadow-lg scale-105'
-                      : 'bg-white text-gray-700 border-2 border-purple-300 hover:border-purple-500 hover:bg-purple-50'
-                  }`}
+                  className="px-6 py-4 rounded-lg font-semibold text-lg transition-all transform hover:scale-105 bg-white text-gray-700 border-3 border-purple-300 hover:border-purple-600 hover:bg-purple-50 shadow-sm hover:shadow-lg active:scale-95"
                 >
-                  {selectedLevel === level && <ChevronRight className="w-4 h-4" />}
                   {level}
                 </button>
               ))}
             </div>
-          </div>
-        )}
-
-        {/* Summary */}
-        {selectedBranch && (
-          <div className="bg-white border-2 border-gray-200 rounded-lg p-3 text-sm font-medium text-gray-700">
-            <span>📍 {selectedBranch}</span>
-            {selectedCategory && <span> → 📚 {selectedCategory}</span>}
-            {selectedLevel && <span> → 🎓 {selectedLevel}</span>}
           </div>
         )}
       </div>
