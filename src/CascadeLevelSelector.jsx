@@ -67,10 +67,11 @@ const CascadeLevelSelector = ({ branches, selectedBranch, onBranchChange, onCate
   const availableCategories = getAvailableCategoriesWithLevels();
   const levelsInSelectedCategory = selectedCategory ? availableCategories[selectedCategory] || [] : [];
 
-  // Déterminer l'étape actuelle
+  // Déterminer l'étape actuelle (sur 4)
   let currentStep = 1;
   if (selectedBranch && !selectedCategory) currentStep = 2;
-  if (selectedBranch && selectedCategory) currentStep = 3;
+  if (selectedBranch && selectedCategory && !selectedLevel) currentStep = 3;
+  if (selectedBranch && selectedCategory && selectedLevel) currentStep = 4;
 
   return (
     <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 mb-6">
@@ -78,6 +79,7 @@ const CascadeLevelSelector = ({ branches, selectedBranch, onBranchChange, onCate
         {/* STEP 1: Branch Selection */}
         {currentStep === 1 && (
           <div>
+            <div className="mb-3 text-sm text-gray-600">Étape 1 / 4 · الخطوة 1 من 4</div>
             <h2 className="text-2xl font-bold text-gray-800 mb-4">
               📍 Sélectionnez votre centre
             </h2>
@@ -102,6 +104,7 @@ const CascadeLevelSelector = ({ branches, selectedBranch, onBranchChange, onCate
         {/* STEP 2: Category Selection */}
         {currentStep === 2 && (
           <div>
+            <div className="mb-3 text-sm text-gray-600">Étape 2 / 4 · الخطوة 2 من 4</div>
             <button
               onClick={() => {
                 onBranchChange('');
@@ -110,12 +113,12 @@ const CascadeLevelSelector = ({ branches, selectedBranch, onBranchChange, onCate
               }}
               className="mb-4 text-blue-600 hover:text-blue-800 font-semibold text-sm flex items-center gap-1"
             >
-              ← Changer de centre
+              ← Retour · رجوع
             </button>
             <h2 className="text-2xl font-bold text-gray-800 mb-2">
               📚 Sélectionnez une catégorie
             </h2>
-            <p className="text-sm text-gray-600 mb-4">Centre : <span className="font-semibold text-blue-600">{selectedBranch}</span></p>
+            <p className="text-sm text-gray-600 mb-4">{selectedBranch}</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               <button
                 onClick={() => {
@@ -146,6 +149,7 @@ const CascadeLevelSelector = ({ branches, selectedBranch, onBranchChange, onCate
         {/* STEP 3: Level Selection */}
         {currentStep === 3 && (
           <div>
+            <div className="mb-3 text-sm text-gray-600">Étape 3 / 4 · الخطوة 3 من 4</div>
             <button
               onClick={() => {
                 onCategoryChange(null);
@@ -153,15 +157,16 @@ const CascadeLevelSelector = ({ branches, selectedBranch, onBranchChange, onCate
               }}
               className="mb-4 text-blue-600 hover:text-blue-800 font-semibold text-sm flex items-center gap-1"
             >
-              ← Changer de catégorie
+              ← Retour · رجوع
             </button>
             <h2 className="text-2xl font-bold text-gray-800 mb-2">
-              🎓 Sélectionnez un niveau
+              🎓 Choisissez votre niveau
             </h2>
+            <p className="text-xs text-gray-500 mb-4 text-right" dir="rtl">
+              اختر مستواك الدراسي
+            </p>
             <p className="text-sm text-gray-600 mb-4">
-              Centre : <span className="font-semibold text-blue-600">{selectedBranch}</span>
-              {' → '}
-              Catégorie : <span className="font-semibold text-green-600">{selectedCategory}</span>
+              {selectedBranch}
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               <button
