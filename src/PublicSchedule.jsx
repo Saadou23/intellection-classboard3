@@ -7,6 +7,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import PromotionDisplay from './PromotionDisplay';
+import CategoryLevelSelect from './CategoryLevelSelect';
 
 const daysOfWeek = [
   { value: 1, label: 'Lundi',    ar: 'الإثنين' },
@@ -830,18 +831,13 @@ const PublicSchedule = () => {
             📚 {filteredSessions.length} cours
           </span>
 
-          {/* Level filter */}
+          {/* Level filter with categories */}
           {availableLevelsForFilter.length > 0 && (
-            <select
-              value={filterLevel}
-              onChange={e => setFilterLevel(e.target.value)}
-              className="text-sm bg-white border-2 border-green-300 text-gray-800 px-3 py-2 rounded-lg hover:border-green-400 hover:bg-green-50 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 font-semibold"
-            >
-              <option value="">🎓 Tous les niveaux</option>
-              {availableLevelsForFilter.map(level => (
-                <option key={level} value={level}>{level}</option>
-              ))}
-            </select>
+            <CategoryLevelSelect
+              availableLevels={availableLevelsForFilter}
+              selectedLevel={filterLevel}
+              onChange={setFilterLevel}
+            />
           )}
 
           {/* Group filter */}
