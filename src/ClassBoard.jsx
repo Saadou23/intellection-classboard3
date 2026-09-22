@@ -7,6 +7,7 @@ import Dashboard from './DashboardOptimized';
 import SettingsManager from './SettingsManager';
 import SearchableSelect from './SearchableSelect';
 import MultiLevelSelect from './MultiLevelSelect';
+import MultiLevelSelectCategorized from './MultiLevelSelectCategorized';
 import BranchManager from './BranchManager';
 import ConflictDetector, { hasConflicts } from './ConflictDetector';
 import ExceptionalSessionManager from './ExceptionalSessionManager';
@@ -2045,7 +2046,7 @@ const branchNames = branchesArray.map(b => b.name) || [];
                       />
                     </div>
                     <div>
-                      <MultiLevelSelect
+                      <MultiLevelSelectCategorized
                         levels={levels}
                         selectedLevels={formData.levels}
                         onChange={(selectedLevels) => setFormData({ ...formData, levels: selectedLevels })}
