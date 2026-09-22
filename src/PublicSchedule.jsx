@@ -162,7 +162,7 @@ const PublicSchedule = () => {
   const [availablePeriods, setAvailablePeriods] = useState([]);
 
   /* wizard */
-  const [showWizard, setShowWizard]   = useState(true);
+  const [showWizard, setShowWizard]   = useState(!filterBranch);
   const [wizardStep, setWizardStep]   = useState(1);
   const [tempBranch, setTempBranch]   = useState(null);
   const [tempLevel, setTempLevel]     = useState(null);
@@ -814,38 +814,52 @@ const PublicSchedule = () => {
         </div>
       </header>
 
-      {/* Cascade Level Selector: Centre → Catégorie → Niveau */}
-      <div className="max-w-4xl mx-auto px-4 py-4">
-        <CascadeLevelSelector
-          branches={branches}
-          selectedBranch={filterBranch}
-          onBranchChange={setFilterBranch}
-          selectedCategory={filterCategory}
-          onCategoryChange={setFilterCategory}
-          selectedLevel={filterLevel}
-          onLevelChange={setFilterLevel}
-          allSessions={allSessions}
-        />
-      </div>
-
-      {/* Avertissement: Deux professeurs pour la même matière */}
-      {hasDuplicateSubjects && (
-        <div className="bg-red-100 border-l-4 border-red-600 p-4 max-w-4xl mx-auto">
-          <p className="text-red-800 font-semibold text-sm flex items-start gap-3">
-            <span className="text-xl">⚠️</span>
-            <span>
-              <strong>Attention:</strong> Si deux professeurs s'affichent de la même matière, assistez chez le professeur que vous avez choisi lors de votre inscription.
-            </span>
-          </p>
+      {/* Cascade Level Selector: Centre → Catégorie → Niveau (seulement après sélection du centre) */}
+      {filterBranch && (
+        <div className="max-w-4xl mx-auto px-4 py-4">
+          <CascadeLevelSelector
+            branches={branches}
+            selectedBranch={filterBranch}
+            onBranchChange={(branch) => {
+              setFilterBranch(branch);
+              setFilterCategory(null);
+              setFilterLevel('');
+            }}
+            selectedCategory={filterCategory}
+            onCategoryChange={setFilterCategory}
+            selectedLevel={filterLevel}
+            onLevelChange={setFilterLevel}
+            allSessions={allSessions}
+          />
         </div>
       )}
 
-      {/* Sub-bar: filters (level + group) */}
-      <div className="bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-200 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex flex-wrap items-center gap-3">
-          <span className="text-sm font-semibold text-gray-700 mr-auto">
-            📚 {filteredSessions.length} cours
-          </span>
+      {/* Afficher l'emploi du temps seulement si centre, catégorie et niveau sont sélectionnés */}
+      {filterBranch && filterCategory && filterLevel ? (
+        <>
+          {/* Avertissement: Deux professeurs pour la même matière */}
+          {hasDuplicateSubjects && (
+            <div className="bg-red-100 border-l-4 border-red-600 p-4 max-w-4xl mx-auto">
+              <p className="text-red-800 font-semibold text-sm flex items-start gap-3">
+                <span className="text-xl">⚠️</span>
+                <span>
+                  <strong>Attention:</strong> Si deux professeurs s'affichent de la même matière, assistez chez le professeur que vous avez choisi lors de votre inscription.
+                </span>
+              </p>
+            </div>
+          )}
+        </>
+      ) : null}
+
+      {/* Sub-bar: filters et Sessions - affichés seulement si centre, catégorie et niveau sélectionnés */}
+      {filterBranch && filterCategory && filterLevel ? (
+        <>
+          {/* Sub-bar: filters (level + group) */}
+          <div className="bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-200 sticky top-0 z-10 shadow-sm">
+            <div className="max-w-4xl mx-auto px-4 py-3 flex flex-wrap items-center gap-3">
+              <span className="text-sm font-semibold text-gray-700 mr-auto">
+                📚 {filteredSessions.length} cours
+              </span>
 
           {/* Level filter with categories */}
           {availableLevelsForFilter.length > 0 && (
@@ -1003,6 +1017,8 @@ const PublicSchedule = () => {
           <p className="text-xs text-gray-400">Centre de Soutien Intellection</p>
         </div>
       </main>
+        </>
+      ) : null}
     </div>
   );
 };
