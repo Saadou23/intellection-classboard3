@@ -8,6 +8,7 @@ import SettingsManager from './SettingsManager';
 import SearchableSelect from './SearchableSelect';
 import MultiLevelSelect from './MultiLevelSelect';
 import MultiLevelSelectCategorized from './MultiLevelSelectCategorized';
+import LevelCategoriesManager from './LevelCategoriesManager';
 import BranchManager from './BranchManager';
 import ConflictDetector, { hasConflicts } from './ConflictDetector';
 import ExceptionalSessionManager from './ExceptionalSessionManager';
@@ -123,6 +124,7 @@ const [showWhatsAppAutomation, setShowWhatsAppAutomation] = useState(false);
   const [showStudentMatriculeModal, setShowStudentMatriculeModal] = useState(false);
   const [timeOffsetTemp, setTimeOffsetTemp] = useState(timeOffset);
   const [timeOffsetSaved, setTimeOffsetSaved] = useState(false);
+  const [showLevelCategoriesManager, setShowLevelCategoriesManager] = useState(false);
 
   // Synchroniser timeOffsetTemp avec timeOffset
   useEffect(() => {
@@ -1782,6 +1784,13 @@ const branchNames = branchesArray.map(b => b.name) || [];
                 Régler l'heure
               </button>
               <button
+                onClick={() => setShowLevelCategoriesManager(true)}
+                className="bg-purple-700 hover:bg-purple-600 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
+              >
+                <BookOpen className="w-4 h-4" />
+                Catégories de niveaux
+              </button>
+              <button
                 onClick={() => {
                   setView('login');
                   setIsAuthenticated(false);
@@ -2730,6 +2739,14 @@ const branchNames = branchesArray.map(b => b.name) || [];
           </>
         )}
       </div>
+
+      {/* Modal de gestion des catégories de niveaux */}
+      {showLevelCategoriesManager && (
+        <LevelCategoriesManager
+          allLevels={levels}
+          onClose={() => setShowLevelCategoriesManager(false)}
+        />
+      )}
 
       {/* Modal de gestion des paramètres */}
       {showSettingsManager && (

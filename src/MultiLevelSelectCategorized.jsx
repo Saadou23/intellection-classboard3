@@ -1,17 +1,40 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown, ChevronRight, X } from 'lucide-react';
+import { db } from './firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 const MultiLevelSelectCategorized = ({ levels, selectedLevels, onChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState({});
+  const [levelCategories, setLevelCategories] = useState({});
   const dropdownRef = useRef(null);
 
-  // Définir les catégories
-  const levelCategories = {
+  // Charger les catégories depuis Firebase
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  const loadCategories = async () => {
+    try {
+      const docRef = doc(db, 'settings', 'levelCategories');
+      const docSnap = await getDoc(docRef);
+
+      if (docSnap.exists()) {
+        setLevelCategories(docSnap.data().categories || getDefaultCategories());
+      } else {
+        setLevelCategories(getDefaultCategories());
+      }
+    } catch (error) {
+      console.error('Erreur chargement catégories:', error);
+      setLevelCategories(getDefaultCategories());
+    }
+  };
+
+  const getDefaultCategories = () => ({
     '🏫 Primaire': ['6 PRIMAIRE'],
     '🎓 Collège': ['1AC', '2AC', '3AC'],
     '📚 Lycée': ['TRONC COMMUN', '1 BAC SC ECO', '1 BAC SEXP', '1 BAC SM', '2 BAC S.EXP & TECH', '2 BAC ECO', '2 BAC SM A & B'],
-  };
+  });
 
   // Auto-expand toutes les catégories au démarrage
   useEffect(() => {
