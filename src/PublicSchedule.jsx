@@ -162,13 +162,15 @@ const PublicSchedule = () => {
   const [availablePeriods, setAvailablePeriods] = useState([]);
 
   /* wizard */
-  const [showWizard, setShowWizard]   = useState(!filterBranch);
+  const [showWizard, setShowWizard]   = useState(true);
   const [wizardStep, setWizardStep]   = useState(1);
   const [tempBranch, setTempBranch]   = useState(null);
+  const [tempCategory, setTempCategory] = useState(null);
   const [tempLevel, setTempLevel]     = useState(null);
   const [tempGroup, setTempGroup]     = useState(null);
   const [tempGroupsForWizard, setTempGroupsForWizard] = useState([]);
   const [allLevels, setAllLevels]     = useState([]);
+  const [levelCategories, setLevelCategories] = useState({});
 
   /* schedule filters */
   const [filterBranch, setFilterBranch]               = useState('');
@@ -179,6 +181,38 @@ const PublicSchedule = () => {
   const [filterGroup, setFilterGroup]                 = useState('');
   const [availableGroups, setAvailableGroups]         = useState([]);
   const [availableLevelsForFilter, setAvailableLevelsForFilter] = useState([]);
+
+  // Charger les catégories depuis Firebase
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const docRef = doc(db, 'settings', 'levelCategories');
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setLevelCategories(docSnap.data().categories || getDefaultCategories());
+        } else {
+          setLevelCategories(getDefaultCategories());
+        }
+      } catch (error) {
+        console.error('Erreur chargement catégories:', error);
+        setLevelCategories(getDefaultCategories());
+      }
+    };
+    loadCategories();
+  }, []);
+
+  const getDefaultCategories = () => ({
+    '🏫 Primaire': ['6 PRIMAIRE'],
+    '🎓 Collège': ['1AC', '2AC', '3AC'],
+    '📚 Lycée': ['TRONC COMMUN', '1 BAC SC ECO', '1 BAC SEXP', '1 BAC SM', '2 BAC S.EXP & TECH', '2 BAC ECO', '2 BAC SM A & B'],
+  });
+
+  // Fermer le wizard quand le centre est sélectionné
+  useEffect(() => {
+    if (filterBranch) {
+      setShowWizard(false);
+    }
+  }, [filterBranch]);
 
   /* ── Load all data on mount ── */
   useEffect(() => {
@@ -361,10 +395,12 @@ const PublicSchedule = () => {
 
   const handleWizardComplete = (period) => {
     setFilterBranch(tempBranch);
+    setFilterCategory(tempCategory);
     setFilterLevel(tempLevel);
     setFilterGroup(tempGroup);
     setFilterPeriod(period);
     setShowWizard(false);
+    setWizardStep(1);
   };
 
   const handleReset = () => {
@@ -617,12 +653,12 @@ const PublicSchedule = () => {
               </div>
             )}
 
-            {/* ── Step 2 : Niveau ── */}
+            {/* ── Step 2 : Catégorie ── */}
             {wizardStep === 2 && (
               <div>
                 <Bi
-                  fr="Choisissez votre niveau"
-                  ar="اختر مستواك الدراسي"
+                  fr="Sélectionnez une catégorie"
+                  ar="اختر الفئة"
                   className="text-center text-gray-900 font-black text-2xl mb-3"
                 />
                 <p className="text-center text-sm text-gray-500 mb-5 font-semibold">Étape 2 / 4 · الخطوة 2 من 4</p>
@@ -632,14 +668,53 @@ const PublicSchedule = () => {
                   </span>
                 </div>
 
-                {allLevels.length === 0 ? (
-                  <p className="text-center text-gray-400 text-sm py-8">Chargement des niveaux…</p>
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  {Object.entries(levelCategories).map(([category, levels]) => (
+                    <button
+                      key={category}
+                      onClick={() => { setTempCategory(category); setWizardStep(3); }}
+                      className="p-6 border-3 border-green-200 rounded-2xl hover:border-red-500 hover:bg-gradient-to-br hover:from-red-50 hover:to-red-100 transition-all group text-center shadow-md hover:shadow-lg"
+                    >
+                      <div className="w-14 h-14 bg-green-100 group-hover:bg-red-200 rounded-2xl mx-auto mb-3 flex items-center justify-center transition-colors shadow-sm">
+                        <BookOpen className="w-7 h-7 text-green-600 group-hover:text-red-700 transition-colors" />
+                      </div>
+                      <div className="font-black text-gray-900 text-sm group-hover:text-red-700 transition-colors">{category}</div>
+                      <div className="text-xs text-gray-500 mt-1">({levels.length} niveau{levels.length > 1 ? 'x' : ''})</div>
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => { setWizardStep(1); setTempBranch(null); setTempCategory(null); }}
+                  className="w-full py-2.5 flex items-center justify-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4" /> Retour · رجوع
+                </button>
+              </div>
+            )}
+
+            {/* ── Step 3 : Niveau ── */}
+            {wizardStep === 3 && (
+              <div>
+                <Bi
+                  fr="Choisissez votre niveau"
+                  ar="اختر مستواك الدراسي"
+                  className="text-center text-gray-900 font-black text-2xl mb-3"
+                />
+                <p className="text-center text-sm text-gray-500 mb-5 font-semibold">Étape 3 / 4 · الخطوة 3 من 4</p>
+                <div className="flex justify-center flex-wrap gap-2 mb-4">
+                  <span className="px-3 py-1 bg-red-50 text-red-700 text-xs rounded-full font-semibold">{tempBranch}</span>
+                  <span className="px-3 py-1 bg-green-100 text-green-700 text-xs rounded-full font-semibold">{tempCategory}</span>
+                </div>
+
+                {levelCategories[tempCategory]?.length === 0 ? (
+                  <p className="text-center text-gray-400 text-sm py-8">Aucun niveau disponible</p>
                 ) : (
                   <div className="grid grid-cols-2 gap-4 mb-6">
-                    {allLevels.map(level => (
+                    {levelCategories[tempCategory]?.map(level => (
                       <button
                         key={level}
-                        onClick={() => { setTempLevel(level); setWizardStep(3); }}
+                        onClick={() => { setTempLevel(level); setWizardStep(4); }}
                         className="p-6 border-3 border-blue-200 rounded-2xl hover:border-red-500 hover:bg-gradient-to-br hover:from-red-50 hover:to-red-100 transition-all group text-center shadow-md hover:shadow-lg"
                       >
                         <div className="w-14 h-14 bg-blue-100 group-hover:bg-red-200 rounded-2xl mx-auto mb-3 flex items-center justify-center transition-colors shadow-sm">
@@ -652,7 +727,7 @@ const PublicSchedule = () => {
                 )}
 
                 <button
-                  onClick={() => { setWizardStep(1); setTempBranch(null); }}
+                  onClick={() => { setWizardStep(2); setTempCategory(null); }}
                   className="w-full py-2.5 flex items-center justify-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 transition-colors"
                 >
                   <ChevronLeft className="w-4 h-4" /> Retour · رجوع
@@ -660,17 +735,18 @@ const PublicSchedule = () => {
               </div>
             )}
 
-            {/* ── Step 3 : Groupe ── */}
-            {wizardStep === 3 && (
+            {/* ── Step 4 : Groupe ── */}
+            {wizardStep === 4 && (
               <div>
                 <Bi
                   fr="Choisissez votre groupe"
                   ar="اختر مجموعتك"
                   className="text-center text-gray-900 font-black text-2xl mb-3"
                 />
-                <p className="text-center text-sm text-gray-500 mb-5 font-semibold">Étape 3 / 4 · الخطوة 3 من 4</p>
+                <p className="text-center text-sm text-gray-500 mb-5 font-semibold">Étape 4 / 4 · الخطوة 4 من 4</p>
                 <div className="flex justify-center flex-wrap gap-2 mb-4">
                   <span className="px-3 py-1 bg-red-50 text-red-700 text-xs rounded-full font-semibold">{tempBranch}</span>
+                  <span className="px-3 py-1 bg-green-100 text-green-700 text-xs rounded-full font-semibold">{tempCategory}</span>
                   <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-semibold">{tempLevel}</span>
                 </div>
 

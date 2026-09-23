@@ -120,28 +120,25 @@ const CascadeLevelSelector = ({ branches, selectedBranch, onBranchChange, onCate
             </h2>
             <p className="text-sm text-gray-600 mb-4">{selectedBranch}</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              <button
-                onClick={() => {
-                  onCategoryChange(null);
-                  onLevelChange('');
-                }}
-                className="px-6 py-4 rounded-lg font-semibold text-lg transition-all transform hover:scale-105 bg-white text-gray-700 border-3 border-green-300 hover:border-green-600 hover:bg-green-50 shadow-sm hover:shadow-lg active:scale-95"
-              >
-                Tous les niveaux
-              </button>
-              {Object.entries(availableCategories).map(([category, levels]) => (
-                <button
-                  key={category}
-                  onClick={() => {
-                    onCategoryChange(category);
-                    onLevelChange('');
-                  }}
-                  className="px-6 py-4 rounded-lg font-semibold transition-all transform hover:scale-105 bg-white text-gray-700 border-3 border-green-300 hover:border-green-600 hover:bg-green-50 shadow-sm hover:shadow-lg active:scale-95"
-                >
-                  <div>{category}</div>
-                  <div className="text-xs text-gray-500 mt-1">({levels.length} niveau{levels.length > 1 ? 'x' : ''})</div>
-                </button>
-              ))}
+              {Object.entries(availableCategories).length > 0 ? (
+                <>
+                  {Object.entries(availableCategories).map(([category, levels]) => (
+                    <button
+                      key={category}
+                      onClick={() => {
+                        onCategoryChange(category);
+                        onLevelChange('');
+                      }}
+                      className="px-6 py-4 rounded-lg font-semibold transition-all transform hover:scale-105 bg-white text-gray-700 border-3 border-green-300 hover:border-green-600 hover:bg-green-50 shadow-sm hover:shadow-lg active:scale-95"
+                    >
+                      <div>{category}</div>
+                      <div className="text-xs text-gray-500 mt-1">({levels.length} niveau{levels.length > 1 ? 'x' : ''})</div>
+                    </button>
+                  ))}
+                </>
+              ) : (
+                <p className="text-gray-500">Aucune catégorie disponible</p>
+              )}
             </div>
           </div>
         )}
