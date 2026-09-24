@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Edit2, Trash2, Save, X, Monitor, Settings, AlertCircle, Maximize, Clock, BarChart3, Sliders, Building2, Calendar, Printer, Moon, FileDown, MapPin, BookOpen, Users, Bell, MessageSquare, MessageCircle, Shield, CheckCircle, Upload, Smartphone, DollarSign } from 'lucide-react';
+import { Plus, Edit2, Trash2, Save, X, Monitor, Settings, AlertCircle, Maximize, Clock, BarChart3, Sliders, Building2, Calendar, Printer, Moon, FileDown, MapPin, BookOpen, Users, Bell, MessageSquare, MessageCircle, Shield, CheckCircle, Upload, Smartphone, DollarSign, FileSpreadsheet } from 'lucide-react';
 import { db } from './firebase';
 import SecurityService from './SecurityService';
 import { doc, setDoc, getDoc, onSnapshot, collection, deleteDoc } from 'firebase/firestore';
@@ -23,6 +23,7 @@ import SoundSystem from './SoundSystem';
 import ThermalPrintSchedule from './ThermalPrintSchedule';
 import WhatsAppAutomationAdmin from './WhatsAppAutomationAdmin';
 import PDFExportModal from './PDFExportModal';
+import ScheduleExcelExport from './ScheduleExcelExport';
 import DisciplineBoard from './DisciplineBoard';
 import ProfPresenceModal from './ProfPresenceModal';
 import ProfessorSettingsManager from './ProfessorSettingsManager';
@@ -93,6 +94,7 @@ const [soundEnabled, setSoundEnabled] = useState(true);
 const [showThermalPrint, setShowThermalPrint] = useState(false);
 const [showWhatsAppAutomation, setShowWhatsAppAutomation] = useState(false);
   const [showPDFExport, setShowPDFExport] = useState(false);
+  const [showExcelExport, setShowExcelExport] = useState(false);
   const [showDisciplineBoard, setShowDisciplineBoard] = useState(false);
   const [presenceRecordId, setPresenceRecordId] = useState(null);
   const [showPresenceModal, setShowPresenceModal] = useState(false);
@@ -1669,6 +1671,13 @@ const branchNames = branchesArray.map(b => b.name) || [];
                 <FileDown className="w-4 h-4" />
                 📄 Export PDF
               </button>
+              <button
+                onClick={() => setShowExcelExport(true)}
+                className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                📊 Export Excel
+              </button>
             </div>
 
             {/* Groupes & Contrôle */}
@@ -2854,6 +2863,15 @@ const branchNames = branchesArray.map(b => b.name) || [];
           branches={branches}
           branchesData={branchesData}
           onClose={() => setShowPDFExport(false)}
+        />
+      )}
+
+      {showExcelExport && (
+        <ScheduleExcelExport
+          sessions={sessions}
+          branches={branches}
+          branchesData={branchesData}
+          onClose={() => setShowExcelExport(false)}
         />
       )}
 
