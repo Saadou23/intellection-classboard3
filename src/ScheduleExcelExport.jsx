@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { X, FileSpreadsheet, Building2, GraduationCap, Search } from 'lucide-react';
+import { X, FileSpreadsheet, Building2, GraduationCap, Search, Calendar } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { getSessionLevels } from './levelUtils';
 import { getAllPeriods } from './periodUtils';
@@ -49,6 +49,7 @@ const ScheduleExcelExport = ({ sessions, branches, branchesData, onClose }) => {
   const [selectedPeriod, setSelectedPeriod] = useState('normal');
   const [sheetMode, setSheetMode] = useState('branch'); // 'single' | 'branch' | 'level'
   const [includeOneOff, setIncludeOneOff] = useState(false);
+  const [filterDate, setFilterDate] = useState('');
 
   const availablePeriods = useMemo(() => getAllPeriods(branchesData), [branchesData]);
 
@@ -57,7 +58,22 @@ const ScheduleExcelExport = ({ sessions, branches, branchesData, onClose }) => {
     return Array.from(all);
   }, [branches, sessions]);
 
-  // Sessions des filiales cochées, filtrées par période (avant filtre niveau)
+  // Fonction pour vérifier si une session correspond au filtre jour
+  const matchesDateFilter = (session) => {
+    if (!filterDate) return true;
+
+    // Pour les sessions ponctuelles avec date spécifique
+    if (session.sessionDate || session.specificDate) {
+      return (session.sessionDate || session.specificDate) === filterDate;
+    }
+
+    // Pour les sessions récurrentes, vérifier le jour de la semaine
+    const filterDateObj = new Date(filterDate);
+    const filterDayOfWeek = filterDateObj.getDay();
+    return session.dayOfWeek === filterDayOfWeek;
+  };
+
+  // Sessions des filiales cochées, filtrées par période et jour (avant filtre niveau)
   const periodSessions = useMemo(() => {
     const result = [];
     selectedBranches.forEach(branch => {
@@ -67,11 +83,12 @@ const ScheduleExcelExport = ({ sessions, branches, branchesData, onClose }) => {
           : session.period === selectedPeriod;
         if (!matchesPeriod) return;
         if (!includeOneOff && isOneOff(session)) return;
+        if (!matchesDateFilter(session)) return;
         result.push({ ...session, branch });
       });
     });
     return result;
-  }, [sessions, selectedBranches, selectedPeriod, includeOneOff]);
+  }, [sessions, selectedBranches, selectedPeriod, includeOneOff, filterDate]);
 
   // Niveaux présents dans les filiales sélectionnées
   const availableLevels = useMemo(() => {
@@ -163,8 +180,9 @@ const ScheduleExcelExport = ({ sessions, branches, branchesData, onClose }) => {
         ? 'Toutes-filiales'
         : selectedBranches.join('-');
       const periodPart = selectedPeriod === 'normal' ? '' : `_${periodName}`;
+      const filterDatePart = filterDate ? `_${filterDate}` : '';
       const datePart = new Date().toISOString().split('T')[0];
-      const fileName = `Emploi_${branchPart}${periodPart}_${datePart}.xlsx`.replace(/[\\/:*?"<>|\s]+/g, '_');
+      const fileName = `Emploi_${branchPart}${periodPart}${filterDatePart}_${datePart}.xlsx`.replace(/[\\/:*?"<>|\s]+/g, '_');
 
       XLSX.writeFile(wb, fileName);
     } catch (error) {
@@ -203,6 +221,32 @@ const ScheduleExcelExport = ({ sessions, branches, branchesData, onClose }) => {
         </div>
 
         <div className="p-6 space-y-6 overflow-y-auto flex-1">
+          {/* Filtre Jour */}
+          <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
+            <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
+              <Calendar size={18} /> Filtre par Jour (Optionnel)
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="date"
+                value={filterDate}
+                onChange={(e) => setFilterDate(e.target.value)}
+                className="flex-1 px-4 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              {filterDate && (
+                <button
+                  onClick={() => setFilterDate('')}
+                  className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition"
+                >
+                  ✕ Réinitialiser
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-gray-600 mt-2">
+              {filterDate ? `Affichage des séances pour ${new Date(filterDate).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}` : 'Aucun filtre jour actif'}
+            </p>
+          </div>
+
           {/* Période */}
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-2">📅 Période</label>

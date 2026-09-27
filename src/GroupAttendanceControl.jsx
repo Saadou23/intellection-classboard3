@@ -14,12 +14,28 @@ const GroupAttendanceControl = ({ onClose }) => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [history, setHistory] = useState([]);
+  const [filterDay, setFilterDay] = useState('');
+  const [filteredHistory, setFilteredHistory] = useState([]);
   const printRef = useRef(null);
 
   useEffect(() => {
     loadGroups();
-    loadHistory();
+    loadHistoryInitial();
   }, []);
+
+  const loadHistoryInitial = async () => {
+    try {
+      const snapshot = await getDocs(collection(db, 'attendance_records'));
+      const records = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+      const historySlice = records.slice(0, 20);
+      setHistory(historySlice);
+      setFilteredHistory(historySlice);
+    } catch (error) {
+      console.error('Erreur lors du chargement de l\'historique:', error);
+    }
+  };
 
   const loadGroups = async () => {
     try {
@@ -40,9 +56,20 @@ const GroupAttendanceControl = ({ onClose }) => {
       const records = snapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() }))
         .sort((a, b) => new Date(b.date) - new Date(a.date));
-      setHistory(records.slice(0, 20));
+      const historySlice = records.slice(0, 20);
+      setHistory(historySlice);
+      applyDayFilter(historySlice, filterDay);
     } catch (error) {
       console.error('Erreur lors du chargement de l\'historique:', error);
+    }
+  };
+
+  const applyDayFilter = (historyData, day) => {
+    if (!day) {
+      setFilteredHistory(historyData);
+    } else {
+      const filtered = historyData.filter(record => record.date === day);
+      setFilteredHistory(filtered);
     }
   };
 
@@ -334,6 +361,114 @@ const GroupAttendanceControl = ({ onClose }) => {
     XLSX.writeFile(wb, fileName);
 
     setMessage('✅ Fichier Excel exporté');
+    setTimeout(() => setMessage(''), 3000);
+  };
+
+  const handleExportHistoryXls = () => {
+    if (filteredHistory.length === 0) {
+      setMessage('❌ Aucune donnée à exporter');
+      setTimeout(() => setMessage(''), 3000);
+      return;
+    }
+
+    const data = [];
+
+    // En-tête
+    data.push({
+      'Date': '',
+      'Groupe': '',
+      'Salle': '',
+      'Présents': '',
+      'Absents': '',
+      'Non Inscrits': ''
+    });
+
+    data.push({
+      'Date': 'RAPPORT D\'HISTORIQUE DES CONTRÔLES',
+      'Groupe': '',
+      'Salle': '',
+      'Présents': '',
+      'Absents': '',
+      'Non Inscrits': ''
+    });
+
+    if (filterDay) {
+      data.push({
+        'Date': `Jour du filtre: ${filterDay}`,
+        'Groupe': '',
+        'Salle': '',
+        'Présents': '',
+        'Absents': '',
+        'Non Inscrits': ''
+      });
+    }
+
+    data.push({
+      'Date': `Total d'enregistrements: ${filteredHistory.length}`,
+      'Groupe': '',
+      'Salle': '',
+      'Présents': '',
+      'Absents': '',
+      'Non Inscrits': ''
+    });
+
+    data.push({
+      'Date': '',
+      'Groupe': '',
+      'Salle': '',
+      'Présents': '',
+      'Absents': '',
+      'Non Inscrits': ''
+    });
+
+    // En-têtes de colonnes
+    data.push({
+      'Date': 'DATE',
+      'Groupe': 'GROUPE',
+      'Salle': 'SALLE',
+      'Présents': 'PRÉSENTS',
+      'Absents': 'ABSENTS',
+      'Non Inscrits': 'NON INSCRITS'
+    });
+
+    // Ajouter les données filtrées
+    filteredHistory.forEach(record => {
+      const nonInscritCount = record.analysis.matriculesNonInscritPartout ?
+        record.analysis.matriculesNonInscritPartout.length :
+        (record.analysis.pasInscritGroupe ? record.analysis.pasInscritGroupe.length : 0);
+
+      data.push({
+        'Date': record.date,
+        'Groupe': record.group,
+        'Salle': record.room,
+        'Présents': record.analysis.conforme ? record.analysis.conforme.length : 0,
+        'Absents': record.analysis.absents ? record.analysis.absents.length : 0,
+        'Non Inscrits': nonInscritCount
+      });
+    });
+
+    // Créer le workbook
+    const ws = XLSX.utils.json_to_sheet(data);
+
+    // Formater les colonnes
+    ws['!cols'] = [
+      { wch: 12 }, // Date
+      { wch: 15 }, // Groupe
+      { wch: 15 }, // Salle
+      { wch: 12 }, // Présents
+      { wch: 12 }, // Absents
+      { wch: 15 }  // Non Inscrits
+    ];
+
+    // Créer le classeur
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Historique');
+
+    // Télécharger
+    const fileName = filterDay ? `historique_${filterDay}.xlsx` : `historique_complet.xlsx`;
+    XLSX.writeFile(wb, fileName);
+
+    setMessage('✅ Fichier historique exporté');
     setTimeout(() => setMessage(''), 3000);
   };
 
@@ -660,8 +795,55 @@ const GroupAttendanceControl = ({ onClose }) => {
           {/* Historique */}
           {history.length > 0 && !analysis && (
             <div className="border-t-2 border-gray-200 pt-6">
+              <div className="mb-6 bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <h3 className="text-lg font-bold text-gray-900 mb-4">🔍 Filtre et Export - Historique</h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                      <Calendar size={18} /> Filtrer par Jour
+                    </label>
+                    <input
+                      type="date"
+                      value={filterDay}
+                      onChange={(e) => {
+                        setFilterDay(e.target.value);
+                        applyDayFilter(history, e.target.value);
+                      }}
+                      className="w-full px-4 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <p className="text-xs text-gray-600 mt-2">
+                      {filterDay ? `${filteredHistory.length} enregistrement(s) trouvé(s) pour ${filterDay}` : `${history.length} enregistrement(s) affichés`}
+                    </p>
+                  </div>
+
+                  <div className="md:col-span-2 flex items-end gap-2">
+                    <button
+                      onClick={handleExportHistoryXls}
+                      disabled={filteredHistory.length === 0}
+                      className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-400 transition flex items-center gap-2 font-semibold flex-1"
+                    >
+                      <Download size={18} />
+                      📊 Exporter Filtré en XLS
+                    </button>
+
+                    {filterDay && (
+                      <button
+                        onClick={() => {
+                          setFilterDay('');
+                          applyDayFilter(history, '');
+                        }}
+                        className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition flex items-center gap-2 font-semibold"
+                      >
+                        ✕ Réinitialiser
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold text-gray-900">📜 Historique récent ({history.length})</h3>
+                <h3 className="text-lg font-bold text-gray-900">📜 Historique récent ({filteredHistory.length}/{history.length})</h3>
                 <button
                   onClick={deleteAllHistory}
                   className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition flex items-center gap-2 text-sm font-semibold"
@@ -683,7 +865,7 @@ const GroupAttendanceControl = ({ onClose }) => {
                     </tr>
                   </thead>
                   <tbody>
-                    {history.map((record) => (
+                    {filteredHistory.map((record) => (
                       <tr key={record.id} className="border-t border-gray-300 hover:bg-gray-100">
                         <td className="px-4 py-2">{record.date}</td>
                         <td className="px-4 py-2 font-semibold text-blue-600">{record.group}</td>
@@ -709,6 +891,11 @@ const GroupAttendanceControl = ({ onClose }) => {
                     ))}
                   </tbody>
                 </table>
+                {filteredHistory.length === 0 && (
+                  <div className="p-6 text-center text-gray-600">
+                    <p>Aucun enregistrement trouvé pour le filtre sélectionné.</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
