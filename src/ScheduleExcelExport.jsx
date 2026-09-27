@@ -18,7 +18,6 @@ const COLUMNS = [
   { key: 'subject', header: 'Matière', width: 20 },
   { key: 'groupes', header: 'Groupe(s)', width: 14 },
   { key: 'professor', header: 'Professeur', width: 22 },
-  { key: 'room', header: 'Salle', width: 8 },
 ];
 
 const getGroupes = (session) =>
@@ -121,7 +120,6 @@ const ScheduleExcelExport = ({ sessions, branches, branchesData, onClose }) => {
     subject: s.subject || '',
     groupes: getGroupes(s).join(', '),
     professor: s.professor || '',
-    room: s.room ?? '',
   });
 
   const sortSessions = (list) => [...list].sort((a, b) =>

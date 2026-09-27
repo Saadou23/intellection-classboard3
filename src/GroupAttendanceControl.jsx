@@ -381,7 +381,6 @@ const GroupAttendanceControl = ({ onClose }) => {
     data.push({
       'Date': '',
       'Groupe': '',
-      'Salle': '',
       'Présents': '',
       'Absents': '',
       'Non Inscrits': ''
@@ -390,7 +389,6 @@ const GroupAttendanceControl = ({ onClose }) => {
     data.push({
       'Date': 'RAPPORT D\'HISTORIQUE DES CONTRÔLES',
       'Groupe': '',
-      'Salle': '',
       'Présents': '',
       'Absents': '',
       'Non Inscrits': ''
@@ -401,7 +399,6 @@ const GroupAttendanceControl = ({ onClose }) => {
       data.push({
         'Date': `Jours du filtre: ${selectedDaysFilter.map(d => dayNames[d]).join(', ')}`,
         'Groupe': '',
-        'Salle': '',
         'Présents': '',
         'Absents': '',
         'Non Inscrits': ''
@@ -411,7 +408,6 @@ const GroupAttendanceControl = ({ onClose }) => {
     data.push({
       'Date': `Total d'enregistrements: ${filteredHistory.length}`,
       'Groupe': '',
-      'Salle': '',
       'Présents': '',
       'Absents': '',
       'Non Inscrits': ''
@@ -420,7 +416,6 @@ const GroupAttendanceControl = ({ onClose }) => {
     data.push({
       'Date': '',
       'Groupe': '',
-      'Salle': '',
       'Présents': '',
       'Absents': '',
       'Non Inscrits': ''
@@ -430,7 +425,6 @@ const GroupAttendanceControl = ({ onClose }) => {
     data.push({
       'Date': 'DATE',
       'Groupe': 'GROUPE',
-      'Salle': 'SALLE',
       'Présents': 'PRÉSENTS',
       'Absents': 'ABSENTS',
       'Non Inscrits': 'NON INSCRITS'
@@ -445,7 +439,6 @@ const GroupAttendanceControl = ({ onClose }) => {
       data.push({
         'Date': record.date,
         'Groupe': record.group,
-        'Salle': record.room,
         'Présents': record.analysis.conforme ? record.analysis.conforme.length : 0,
         'Absents': record.analysis.absents ? record.analysis.absents.length : 0,
         'Non Inscrits': nonInscritCount
@@ -459,7 +452,6 @@ const GroupAttendanceControl = ({ onClose }) => {
     ws['!cols'] = [
       { wch: 12 }, // Date
       { wch: 15 }, // Groupe
-      { wch: 15 }, // Salle
       { wch: 12 }, // Présents
       { wch: 12 }, // Absents
       { wch: 15 }  // Non Inscrits
