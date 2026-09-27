@@ -14,7 +14,7 @@ const GroupAttendanceControl = ({ onClose }) => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [history, setHistory] = useState([]);
-  const [filterDay, setFilterDay] = useState('');
+  const [selectedDaysFilter, setSelectedDaysFilter] = useState([]);
   const [filteredHistory, setFilteredHistory] = useState([]);
   const printRef = useRef(null);
 
@@ -31,7 +31,7 @@ const GroupAttendanceControl = ({ onClose }) => {
         .sort((a, b) => new Date(b.date) - new Date(a.date));
       const historySlice = records.slice(0, 20);
       setHistory(historySlice);
-      setFilteredHistory(historySlice);
+      applyDayFilter(historySlice, selectedDaysFilter);
     } catch (error) {
       console.error('Erreur lors du chargement de l\'historique:', error);
     }
@@ -58,17 +58,21 @@ const GroupAttendanceControl = ({ onClose }) => {
         .sort((a, b) => new Date(b.date) - new Date(a.date));
       const historySlice = records.slice(0, 20);
       setHistory(historySlice);
-      applyDayFilter(historySlice, filterDay);
+      applyDayFilter(historySlice, selectedDaysFilter);
     } catch (error) {
       console.error('Erreur lors du chargement de l\'historique:', error);
     }
   };
 
-  const applyDayFilter = (historyData, day) => {
-    if (!day) {
+  const applyDayFilter = (historyData, selectedDays) => {
+    if (selectedDays.length === 0) {
       setFilteredHistory(historyData);
     } else {
-      const filtered = historyData.filter(record => record.date === day);
+      const filtered = historyData.filter(record => {
+        const recordDate = new Date(record.date);
+        const dayOfWeek = recordDate.getDay();
+        return selectedDays.includes(dayOfWeek);
+      });
       setFilteredHistory(filtered);
     }
   };
@@ -392,9 +396,10 @@ const GroupAttendanceControl = ({ onClose }) => {
       'Non Inscrits': ''
     });
 
-    if (filterDay) {
+    if (selectedDaysFilter.length > 0) {
+      const dayNames = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
       data.push({
-        'Date': `Jour du filtre: ${filterDay}`,
+        'Date': `Jours du filtre: ${selectedDaysFilter.map(d => dayNames[d]).join(', ')}`,
         'Groupe': '',
         'Salle': '',
         'Présents': '',
@@ -465,7 +470,10 @@ const GroupAttendanceControl = ({ onClose }) => {
     XLSX.utils.book_append_sheet(wb, ws, 'Historique');
 
     // Télécharger
-    const fileName = filterDay ? `historique_${filterDay}.xlsx` : `historique_complet.xlsx`;
+    const dayNames = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+    const fileName = selectedDaysFilter.length > 0
+      ? `historique_${selectedDaysFilter.map(d => dayNames[d]).join('-')}.xlsx`
+      : `historique_complet.xlsx`;
     XLSX.writeFile(wb, fileName);
 
     setMessage('✅ Fichier historique exporté');
@@ -798,47 +806,59 @@ const GroupAttendanceControl = ({ onClose }) => {
               <div className="mb-6 bg-blue-50 p-4 rounded-lg border border-blue-200">
                 <h3 className="text-lg font-bold text-gray-900 mb-4">🔍 Filtre et Export - Historique</h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                      <Calendar size={18} /> Filtrer par Jour
-                    </label>
-                    <input
-                      type="date"
-                      value={filterDay}
-                      onChange={(e) => {
-                        setFilterDay(e.target.value);
-                        applyDayFilter(history, e.target.value);
-                      }}
-                      className="w-full px-4 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <p className="text-xs text-gray-600 mt-2">
-                      {filterDay ? `${filteredHistory.length} enregistrement(s) trouvé(s) pour ${filterDay}` : `${history.length} enregistrement(s) affichés`}
-                    </p>
-                  </div>
-
-                  <div className="md:col-span-2 flex items-end gap-2">
-                    <button
-                      onClick={handleExportHistoryXls}
-                      disabled={filteredHistory.length === 0}
-                      className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-400 transition flex items-center gap-2 font-semibold flex-1"
-                    >
-                      <Download size={18} />
-                      📊 Exporter Filtré en XLS
-                    </button>
-
-                    {filterDay && (
+                <div className="mb-4">
+                  <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                    <Calendar size={18} /> Filtrer par Jours ({selectedDaysFilter.length}/7)
+                  </label>
+                  <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 mb-3">
+                    {['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'].map((day, index) => (
                       <button
+                        key={index}
                         onClick={() => {
-                          setFilterDay('');
-                          applyDayFilter(history, '');
+                          const newDays = selectedDaysFilter.includes(index)
+                            ? selectedDaysFilter.filter(d => d !== index)
+                            : [...selectedDaysFilter, index];
+                          setSelectedDaysFilter(newDays);
+                          applyDayFilter(history, newDays);
                         }}
-                        className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition flex items-center gap-2 font-semibold"
+                        className={`py-2 px-1 text-xs font-semibold rounded-lg border-2 transition-all ${
+                          selectedDaysFilter.includes(index)
+                            ? 'border-blue-500 bg-blue-200 text-blue-900'
+                            : 'border-gray-300 bg-white text-gray-700 hover:border-blue-300'
+                        }`}
                       >
-                        ✕ Réinitialiser
+                        {day.slice(0, 3)}
                       </button>
-                    )}
+                    ))}
                   </div>
+                  <p className="text-xs text-gray-600 mb-4">
+                    {selectedDaysFilter.length > 0
+                      ? `${filteredHistory.length} enregistrement(s) pour: ${selectedDaysFilter.map(d => ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'][d]).join(', ')}`
+                      : `${history.length} enregistrement(s) - aucun filtre actif`}
+                  </p>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleExportHistoryXls}
+                    disabled={filteredHistory.length === 0}
+                    className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-400 transition flex items-center gap-2 font-semibold flex-1"
+                  >
+                    <Download size={18} />
+                    📊 Exporter Filtré en XLS
+                  </button>
+
+                  {selectedDaysFilter.length > 0 && (
+                    <button
+                      onClick={() => {
+                        setSelectedDaysFilter([]);
+                        applyDayFilter(history, []);
+                      }}
+                      className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition flex items-center gap-2 font-semibold"
+                    >
+                      ✕ Réinitialiser
+                    </button>
+                  )}
                 </div>
               </div>
 
