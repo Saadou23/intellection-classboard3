@@ -403,6 +403,18 @@ const PublicSchedule = () => {
     setWizardStep(1);
   };
 
+  // Trouver les branches où un niveau est disponible
+  const getBranchesWithLevel = (level) => {
+    if (!level) return [];
+    const branchesSet = new Set();
+    allSessions.forEach(s => {
+      if (s.status !== 'cancelled' && sessionIncludesLevel(s, level)) {
+        branchesSet.add(s.branch);
+      }
+    });
+    return Array.from(branchesSet).sort();
+  };
+
   const handleReset = () => {
     setShowWizard(true);
     setWizardStep(1);
@@ -1000,6 +1012,37 @@ const PublicSchedule = () => {
             </div>
             <p className="text-gray-500 font-semibold">Aucun cours programmé</p>
             <p className="text-gray-400 text-sm" dir="rtl" style={{ fontFamily: "'Cairo','Segoe UI',sans-serif" }}>لا توجد حصص مبرمجة</p>
+
+            {filterLevel && filterBranch && (
+              (() => {
+                const branchesWithLevel = getBranchesWithLevel(filterLevel);
+                const otherBranches = branchesWithLevel.filter(b => b !== filterBranch);
+
+                return otherBranches.length > 0 ? (
+                  <div className="mt-6 p-5 bg-blue-50 rounded-xl border-2 border-blue-200 max-w-md">
+                    <p className="text-center text-sm text-blue-900 font-semibold mb-3">
+                      ℹ️ {filterLevel} n'est pas disponible à {filterBranch}
+                    </p>
+                    <p className="text-center text-sm text-blue-700 mb-3">Disponible à :</p>
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      {otherBranches.map(branch => (
+                        <button
+                          key={branch}
+                          onClick={() => {
+                            setFilterBranch(branch);
+                            setFilterGroup('');
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg font-semibold transition-colors"
+                        >
+                          {branch}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null;
+              })()
+            )}
           </div>
         ) : (
           <div className="space-y-8">
