@@ -48,6 +48,7 @@ import BlancExamAdmin from './BlancExamAdmin';
 import BlancExamStudent from './BlancExamStudent';
 import PromotionManager from './PromotionManager';
 import SubjectScheduleMatrix from './SubjectScheduleMatrix';
+import RoomFloorPlan from './RoomFloorPlan';
 
 const ClassBoard = () => {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -90,6 +91,7 @@ const ClassBoard = () => {
   const [shouldAutoScroll, setShouldAutoScroll] = useState(false);
   const [branchesData, setBranchesData] = useState([]);
 const [showAvailableRooms, setShowAvailableRooms] = useState(false);
+const [showRoomSwapManager, setShowRoomSwapManager] = useState(false);
 const [soundEnabled, setSoundEnabled] = useState(true);
 const [showThermalPrint, setShowThermalPrint] = useState(false);
 const [showWhatsAppAutomation, setShowWhatsAppAutomation] = useState(false);
@@ -267,6 +269,49 @@ const branchNames = branchesArray.map(b => b.name) || [];
     } catch (error) {
       console.error('Erreur de sauvegarde:', error);
       alert('Erreur lors de la sauvegarde. Vérifiez votre connexion.');
+    }
+  };
+
+  const handleRoomSwap = async (swappedSession1, swappedSession2, branchName) => {
+    try {
+      console.log('🔄 handleRoomSwap reçu:', { swappedSession1, swappedSession2, branchName });
+      console.log('📍 Sessions disponibles:', Object.keys(sessions));
+      const branch = branchName || selectedBranch;
+      console.log('🏢 Branch utilisée:', branch);
+      const branchSessions = sessions[branch] || [];
+      console.log('📋 Branch sessions:', branchSessions);
+
+      // Mettre à jour les séances
+      const updatedSessions = branchSessions.map(s => {
+        if (s.id === swappedSession1.id) {
+          console.log('✏️ Mise à jour session1:', swappedSession1);
+          return swappedSession1;
+        }
+        // Si swappedSession2 n'existe pas, c'est un simple déplacement
+        if (swappedSession2 && s.id === swappedSession2.id) {
+          console.log('✏️ Mise à jour session2:', swappedSession2);
+          return swappedSession2;
+        }
+        return s;
+      });
+
+      console.log('💾 Sessions mise à jour:', updatedSessions);
+
+      // Sauvegarder en Firebase
+      await saveBranchData(branch, updatedSessions);
+
+      // Mettre à jour l'état local
+      setSessions({
+        ...sessions,
+        [branch]: updatedSessions
+      });
+
+      console.log('✅ Sauvegarde réussie');
+      return true;
+    } catch (error) {
+      console.error('❌ Erreur lors de la permutation/déplacement:', error);
+      alert('Erreur lors de la modification des salles');
+      return false;
     }
   };
 
@@ -1580,6 +1625,13 @@ const branchNames = branchesArray.map(b => b.name) || [];
                 <MapPin className="w-4 h-4" />
                 Vérifier les Salles Disponibles
               </button>
+              <button
+                onClick={() => setShowRoomSwapManager(true)}
+                className="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-all text-sm"
+              >
+                <Building2 className="w-4 h-4" />
+                Permutation des Salles
+              </button>
             </div>
 
             {/* Configuration du Système */}
@@ -2840,8 +2892,20 @@ const branchNames = branchesArray.map(b => b.name) || [];
 )}
       {/* Modal de gestion des filiales */}
       {showBranchManager && (
-        <BranchManager 
-          onClose={() => setShowBranchManager(false)} 
+        <BranchManager
+          onClose={() => setShowBranchManager(false)}
+        />
+      )}
+
+      {/* Modal Plan du Centre - Permutation des Salles */}
+      {showRoomSwapManager && (
+        <RoomFloorPlan
+          sessions={sessions}
+          branches={branches}
+          branchesData={branchesData}
+          initialBranch={selectedBranch}
+          onSwap={handleRoomSwap}
+          onClose={() => setShowRoomSwapManager(false)}
         />
       )}
 
