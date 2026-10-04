@@ -6,6 +6,9 @@ import 'jspdf-autotable';
 const AvailableRoomSlots = ({ sessions, branches, branchesData, onClose }) => {
   const [selectedBranch, setSelectedBranch] = useState(branches[0] || 'Hay Salam');
   const [selectedDay, setSelectedDay] = useState(new Date().getDay()); // Jour actuel
+  const [desiredDuration, setDesiredDuration] = useState(1.5); // Durée souhaitée en heures
+  const [searchStartTime, setSearchStartTime] = useState('16:00'); // Heure de début de recherche
+  const [searchEndTime, setSearchEndTime] = useState('21:00'); // Heure de fin de recherche
 
   const daysOfWeek = [
     { value: 0, label: 'Dimanche' },
@@ -64,6 +67,9 @@ const AvailableRoomSlots = ({ sessions, branches, branchesData, onClose }) => {
   const getAvailableSlots = (room) => {
     const branchSessions = sessions[selectedBranch] || [];
     const hours = openingHours[selectedDay];
+    const durationInMinutes = desiredDuration * 60;
+    const searchStartMinutes = timeToMinutes(searchStartTime);
+    const searchEndMinutes = timeToMinutes(searchEndTime);
 
     // Sessions occupant cette salle ce jour
     const roomSessions = branchSessions
@@ -74,19 +80,19 @@ const AvailableRoomSlots = ({ sessions, branches, branchesData, onClose }) => {
       })
       .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
 
-    // Créer les créneaux disponibles
-    const slots = [];
-    let currentTime = hours.start * 60;
-    const endTime = hours.end * 60;
+    // Créer les créneaux disponibles bruts
+    const allSlots = [];
+    let currentTime = Math.max(hours.start * 60, searchStartMinutes);
+    const endTime = Math.min(hours.end * 60, searchEndMinutes);
 
     roomSessions.forEach(session => {
       const sessionStart = timeToMinutes(session.startTime);
       const sessionEnd = timeToMinutes(session.endTime);
 
       if (currentTime < sessionStart) {
-        slots.push({
-          start: minutesToTime(currentTime),
-          end: minutesToTime(sessionStart)
+        allSlots.push({
+          start: currentTime,
+          end: Math.min(sessionStart, endTime)
         });
       }
 
@@ -94,11 +100,20 @@ const AvailableRoomSlots = ({ sessions, branches, branchesData, onClose }) => {
     });
 
     if (currentTime < endTime) {
-      slots.push({
-        start: minutesToTime(currentTime),
-        end: minutesToTime(endTime)
+      allSlots.push({
+        start: currentTime,
+        end: endTime
       });
     }
+
+    // Filtrer les créneaux qui ont la durée souhaitée
+    const slots = allSlots
+      .filter(slot => (slot.end - slot.start) >= durationInMinutes)
+      .map(slot => ({
+        start: minutesToTime(slot.start),
+        end: minutesToTime(slot.end),
+        duration: (slot.end - slot.start) / 60
+      }));
 
     return slots;
   };
@@ -115,7 +130,13 @@ const AvailableRoomSlots = ({ sessions, branches, branchesData, onClose }) => {
     pdf.setFontSize(10);
     pdf.text(`${daysOfWeek[selectedDay].label}`, 15, yPosition + 8);
 
-    yPosition += 20;
+    // Paramètres de recherche
+    pdf.setFontSize(9);
+    pdf.setTextColor(100, 100, 100);
+    pdf.text(`Durée demandée: ${desiredDuration}h | Plage: ${searchStartTime} - ${searchEndTime}`, 15, yPosition + 16);
+    pdf.setTextColor(0, 0, 0);
+
+    yPosition += 25;
 
     const rooms = getAllRooms();
 
@@ -139,12 +160,12 @@ const AvailableRoomSlots = ({ sessions, branches, branchesData, onClose }) => {
 
       if (slots.length === 0) {
         pdf.setTextColor(220, 0, 0);
-        pdf.text('Aucun créneau disponible', 20, yPosition);
+        pdf.text('Aucun créneau disponible avec cette durée', 20, yPosition);
         pdf.setTextColor(0, 0, 0);
         yPosition += 6;
       } else {
         slots.forEach(slot => {
-          pdf.text(`  • ${slot.start} à ${slot.end}`, 20, yPosition);
+          pdf.text(`  • ${slot.start} à ${slot.end} (${slot.duration.toFixed(1)}h)`, 20, yPosition);
           yPosition += 6;
 
           // Nouvelle page si nécessaire
@@ -228,6 +249,45 @@ const AvailableRoomSlots = ({ sessions, branches, branchesData, onClose }) => {
                 ))}
               </select>
             </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Volume horaire souhaité (heures)
+              </label>
+              <input
+                type="number"
+                min="0.5"
+                step="0.5"
+                value={desiredDuration || ''}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value);
+                  setDesiredDuration(isNaN(val) ? 1.5 : val);
+                }}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 outline-none"
+                placeholder="Ex: 1.5"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Plage horaire (Début - Fin)
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="time"
+                  value={searchStartTime}
+                  onChange={(e) => setSearchStartTime(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 outline-none"
+                />
+                <span className="flex items-center text-gray-600">à</span>
+                <input
+                  type="time"
+                  value={searchEndTime}
+                  onChange={(e) => setSearchEndTime(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 outline-none"
+                />
+              </div>
+            </div>
           </div>
 
           {/* Affichage des créneaux */}
@@ -263,12 +323,7 @@ const AvailableRoomSlots = ({ sessions, branches, branchesData, onClose }) => {
                                 {slot.start} à {slot.end}
                               </p>
                               <p className="text-sm text-gray-600">
-                                {(() => {
-                                  const startMin = timeToMinutes(slot.start);
-                                  const endMin = timeToMinutes(slot.end);
-                                  const duration = (endMin - startMin) / 60;
-                                  return `Durée: ${duration.toFixed(1)}h`;
-                                })()}
+                                Créneau disponible: {slot.duration.toFixed(1)}h (demande: {desiredDuration}h)
                               </p>
                             </div>
                           </div>

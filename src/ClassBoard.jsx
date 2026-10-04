@@ -174,7 +174,8 @@ useSessionNotifications(sessions, selectedBranch, currentTime, soundEnabled);
     status: 'normal',
     makeupDate: '',
     makeupTime: '',
-    period: null
+    period: null,
+    delayedStartTime: '' // Heure de début prévisionnel pour les séances retardées
   };
 
   const [formData, setFormData] = useState(formInitialState);
@@ -833,7 +834,8 @@ const branchNames = branchesArray.map(b => b.name) || [];
       status: session.status,
       makeupDate: session.makeupDate || '',
       makeupTime: session.makeupTime || '',
-      period: session.period || null
+      period: session.period || null,
+      delayedStartTime: session.delayedStartTime || '' // Charger l'heure prévisionnel pour les séances retardées
     });
     setPeriodMode(session.period || null);
     setEditingSession(session);
@@ -1364,6 +1366,11 @@ const branchNames = branchesArray.map(b => b.name) || [];
                             {session.status === 'absent' && session.makeupDate && (
                               <div className="text-xs text-yellow-300 mt-1 break-words">
                                 RATTRAPAGE: {new Date(session.makeupDate).toLocaleDateString('fr-FR')} à {formatTime(session.makeupTime)}
+                              </div>
+                            )}
+                            {session.status === 'delayed' && session.delayedStartTime && (
+                              <div className="text-xs text-orange-300 mt-1 break-words font-semibold">
+                                🕐 Début: {formatTime(session.delayedStartTime)}
                               </div>
                             )}
                           </div>
@@ -2045,6 +2052,21 @@ const branchNames = branchesArray.map(b => b.name) || [];
                         ))}
                       </select>
                     </div>
+                    {formData.status === 'delayed' && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          🕐 Heure début prévisionnel (exception)
+                        </label>
+                        <input
+                          type="time"
+                          value={formData.delayedStartTime}
+                          onChange={(e) => setFormData({ ...formData, delayedStartTime: e.target.value })}
+                          className="w-full border border-yellow-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-500 bg-yellow-50"
+                          placeholder="Ex: 19:30"
+                        />
+                        <p className="text-xs text-gray-600 mt-1">Optionnel: saisir l'heure réelle du début du cours</p>
+                      </div>
+                    )}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Heure début</label>
                       <input

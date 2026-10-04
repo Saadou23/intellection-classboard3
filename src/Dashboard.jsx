@@ -421,7 +421,7 @@ const Dashboard = ({ sessions, onBack }) => {
             Occupation par jour de la semaine
           </h2>
           
-          {Object.keys(branchConfig).map(branch => {
+          {branchConfig && Object.keys(branchConfig).map(branch => {
             const data = analytics[branch];
             if (!data) return null;
 
@@ -478,7 +478,7 @@ const Dashboard = ({ sessions, onBack }) => {
       </div>
 
       {/* Modal Disponibilité des Salles */}
-      {showRoomAvailability && (
+      {showRoomAvailability && branchConfig && (
         <RoomSlots
           sessions={sessions}
           branches={Object.keys(branchConfig)}
@@ -492,7 +492,7 @@ const Dashboard = ({ sessions, onBack }) => {
       )}
 
       {/* Modal d'impression thermique */}
-      {showThermalPrint && (
+      {showThermalPrint && branchConfig && (
         <ThermalPrintSchedule
           sessions={sessions}
           branches={Object.keys(branchConfig)}
@@ -501,7 +501,7 @@ const Dashboard = ({ sessions, onBack }) => {
       )}
 
       {/* Modal Tableau Disponibilité */}
-      {showRoomAvailabilityTable && (
+      {showRoomAvailabilityTable && branchConfig && (
         <RoomAvailabilityTable
           sessions={sessions}
           branches={Object.keys(branchConfig)}
@@ -515,7 +515,7 @@ const Dashboard = ({ sessions, onBack }) => {
       )}
 
       {/* Modal Créneaux Disponibles */}
-      {showAvailableSlots && (
+      {showAvailableSlots && branchConfig && (
         <AvailableRoomSlots
           sessions={sessions}
           branches={Object.keys(branchConfig)}
