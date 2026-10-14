@@ -17,6 +17,7 @@ import ProfessorSalaryCollection from './ProfessorSalaryCollection';
 import WhatsAppGroups from './WhatsAppGroups';
 import SubjectScheduleMatrix from './SubjectScheduleMatrix';
 import PriceManager from './PriceManager';
+import ProfessorAbsenceManager from './ProfessorAbsenceManager';
 import './App.css';
 
 function App() {
@@ -58,6 +59,8 @@ function App() {
     pageComponent = <ManualDownloadPage onBack={() => window.history.back()} />;
   } else if (path === '/admin/prix') {
     pageComponent = <PriceManager onBack={() => window.history.back()} />;
+  } else if (path === '/absences') {
+    pageComponent = <ProfessorAbsenceManager />;
   } else {
     pageComponent = <ClassBoard />;
   }

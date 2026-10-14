@@ -62,6 +62,21 @@ export const ProfessorAbsenceService = {
     }
   },
 
+  // Supprimer la date de rattrapage (retour au statut absent)
+  async clearMakeup(absenceId) {
+    try {
+      const absenceRef = doc(db, ABSENCES_COLLECTION, absenceId);
+      await updateDoc(absenceRef, {
+        makeupDate: null,
+        status: 'absent',
+        updatedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      console.error('Erreur lors de la suppression du rattrapage:', error);
+      throw error;
+    }
+  },
+
   // Récupérer les absences d'une date
   async getAbsencesForDate(date) {
     try {
@@ -115,28 +130,21 @@ export const ProfessorAbsenceService = {
   // Récupérer l'historique complet
   async getAbsenceHistory(filters = {}) {
     try {
-      let q = query(collection(db, ABSENCES_COLLECTION));
-
-      // Appliquer les filtres
-      if (filters.status) {
-        q = query(q, where('status', '==', filters.status));
-      }
-
-      if (filters.professorId) {
-        q = query(q, where('professorId', '==', filters.professorId));
-      }
-
-      if (filters.center) {
-        q = query(q, where('center', '==', filters.center));
-      }
-
-      q = query(q, orderBy('date', 'desc'));
+      // Seul le tri par date est fait dans Firestore (pas d'index composite requis).
+      // Les filtres sont appliqués ici pour éviter une erreur "requires an index".
+      const q = query(collection(db, ABSENCES_COLLECTION), orderBy('date', 'desc'));
 
       const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      return snapshot.docs
+        .map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        }))
+        .filter(absence =>
+          (!filters.status || absence.status === filters.status) &&
+          (!filters.professorId || absence.professorId === filters.professorId) &&
+          (!filters.center || absence.center === filters.center)
+        );
     } catch (error) {
       console.error('Erreur lors de la récupération de l\'historique:', error);
       throw error;

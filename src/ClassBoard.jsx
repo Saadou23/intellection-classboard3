@@ -1665,6 +1665,13 @@ const branchNames = branchesArray.map(b => b.name) || [];
                 <DollarSign className="w-4 h-4" />
                 Gestion des Prix
               </button>
+              <button
+                onClick={() => window.location.href = '/absences'}
+                className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm text-white"
+              >
+                <AlertCircle className="w-4 h-4" />
+                Gestion des Absences
+              </button>
             </div>
 
             {/* Communications */}
