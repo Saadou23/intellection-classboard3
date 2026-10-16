@@ -135,6 +135,24 @@ const [showWhatsAppAutomation, setShowWhatsAppAutomation] = useState(false);
     setTimeOffsetTemp(timeOffset);
   }, [timeOffset]);
 
+  // Écoute temps réel des filiales et périodes : une période ajoutée pendant
+  // que le planning est ouvert apparaît sans recharger la page
+  useEffect(() => {
+    const unsubscribe = onSnapshot(doc(db, 'settings', 'branches'), (snap) => {
+      if (snap.exists()) {
+        const branchesArray = snap.data().branches || [];
+        setBranchesData(branchesArray);
+        const branchNames = branchesArray.map(b => b.name);
+        if (branchNames.length > 0) {
+          setBranches(branchNames);
+        }
+      }
+    }, (error) => {
+      console.error('Erreur écoute settings/branches:', error);
+    });
+    return () => unsubscribe();
+  }, []);
+
   // ========== SÉCURITÉ - PROTECTION ANTI-BRUTE FORCE ==========
   const [loginAttempts, setLoginAttempts] = useState(0);
   const [isAccountLocked, setIsAccountLocked] = useState(false);
@@ -888,10 +906,26 @@ const branchNames = branchesArray.map(b => b.name) || [];
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // Libellé de période affiché au-dessus de la filiale (Normal ou période exceptionnelle)
+  const getHeaderPeriodLabel = () => {
+    const cfg = branchesData.find(b => b.name === selectedBranch);
+    const todayStart = new Date(currentTime);
+    todayStart.setHours(0, 0, 0, 0);
+    const active = (cfg?.exceptionalPeriods || []).find(p => {
+      const start = new Date(p.startDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(p.endDate);
+      end.setHours(23, 59, 59, 999);
+      return todayStart >= start && todayStart <= end;
+    });
+    return active ? `${active.type === 'ramadan' ? '🌙' : '📅'} Période : ${active.name}` : '📅 Période : Normale';
+  };
+
   const getTodaySessionsForDisplay = () => {
   const branchSessions = sessions[selectedBranch] || [];
-  const today = currentTime.toISOString().split('T')[0];
-  
+  // Date locale (toISOString donnerait la veille entre minuit et 1h au Maroc)
+  const today = `${currentTime.getFullYear()}-${String(currentTime.getMonth() + 1).padStart(2, '0')}-${String(currentTime.getDate()).padStart(2, '0')}`;
+
   // 🆕 CORRECTION : Détection de la période active POUR CETTE BRANCHE SPÉCIFIQUE
   const branchDataForPeriod = branchesData.find(b => b.name === selectedBranch);
   let activePeriodId = null;
@@ -1235,12 +1269,17 @@ const branchNames = branchesArray.map(b => b.name) || [];
                   </div>
                 </div>
                 <div className="flex items-center gap-6">
-                  <div className="flex items-center gap-2">
-                    <div className="text-sm font-bold text-blue-100 tracking-wide">
-                      FILIALE :
+                  <div className="flex flex-col items-end">
+                    <div className="text-sm font-bold text-yellow-300 mb-1">
+                      {getHeaderPeriodLabel()}
                     </div>
-                    <div className="text-lg font-black text-white">
-                      {selectedBranch}
+                    <div className="flex items-center gap-2">
+                      <div className="text-sm font-bold text-blue-100 tracking-wide">
+                        FILIALE :
+                      </div>
+                      <div className="text-lg font-black text-white">
+                        {selectedBranch}
+                      </div>
                     </div>
                   </div>
                   <div className="w-1 h-7 bg-blue-400 rounded-full opacity-50"></div>

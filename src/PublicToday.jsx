@@ -16,6 +16,7 @@ const PublicToday = () => {
   const [debugInfo, setDebugInfo] = useState('');
   const [showMessage, setShowMessage] = useState(true);
   const [messageCounter, setMessageCounter] = useState(0);
+  const [branchPeriods, setBranchPeriods] = useState(null); // périodes de settings/branches (source à jour)
   const [messages, setMessages] = useState([]);
   const [currentMessage, setCurrentMessage] = useState('');
 
@@ -114,6 +115,19 @@ const PublicToday = () => {
     if (branchParam) setSelectedBranch(branchParam);
   }, []);
 
+  // Périodes de la filiale depuis settings/branches (là où le gestionnaire les enregistre)
+  useEffect(() => {
+    if (!selectedBranch) return;
+    const unsubscribe = onSnapshot(doc(db, 'settings', 'branches'), (snap) => {
+      const list = snap.exists() ? (snap.data().branches || []) : [];
+      const branchConfig = list.find(b => b.name === selectedBranch);
+      setBranchPeriods(branchConfig?.exceptionalPeriods || []);
+    }, (error) => {
+      console.error('Erreur lecture périodes:', error);
+    });
+    return () => unsubscribe();
+  }, [selectedBranch]);
+
   useEffect(() => {
     if (!selectedBranch) return;
     setLoading(true);
@@ -128,11 +142,11 @@ const PublicToday = () => {
         let debug = `📋 BRANCHE: ${selectedBranch}\n`;
         debug += `📚 Total sessions: ${branchSessions.length}\n`;
         
-        const exceptionalPeriods = branchData.exceptionalPeriods || [];
+        const exceptionalPeriods = branchPeriods ?? branchData.exceptionalPeriods ?? [];
         setAvailablePeriods(exceptionalPeriods);
         debug += `🔍 Périodes disponibles: ${exceptionalPeriods.length}\n`;
         
-        const detectedPeriod = getActivePeriodForBranch(branchData);
+        const detectedPeriod = getActivePeriodForBranch({ exceptionalPeriods });
         
         let periodToUse;
         if (selectedPeriod === 'auto') {
@@ -180,7 +194,7 @@ const PublicToday = () => {
     });
 
     return () => unsubscribe();
-  }, [selectedBranch, currentTime, selectedPeriod]);
+  }, [selectedBranch, currentTime, selectedPeriod, branchPeriods]);
 
   const isSessionOngoing = (session) => {
     const [startH, startM] = session.startTime.split(':').map(Number);
@@ -210,6 +224,12 @@ const PublicToday = () => {
       </div>
     );
   }
+
+  // Période en cours pour le libellé d'en-tête (Normal ou période exceptionnelle)
+  const activeNow = getActivePeriodForBranch({ exceptionalPeriods: branchPeriods ?? [] });
+  const periodLabel = activeNow
+    ? `${activeNow.type === 'ramadan' ? '🌙' : '📅'} Période : ${activeNow.name}`
+    : '📅 Période : Normale';
 
   if (!selectedBranch) {
     return (
@@ -250,6 +270,9 @@ const PublicToday = () => {
           <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6">
             <div className="flex items-start justify-between flex-wrap gap-4">
               <div className="flex-1 min-w-[200px]">
+                <div className={`inline-block mb-2 px-4 py-1 rounded-full text-lg font-bold ${activeNow ? 'bg-yellow-300 text-gray-900' : 'bg-white/20 text-white'}`}>
+                  {periodLabel}
+                </div>
                 <h1 className="text-4xl font-bold mb-3">
                   🏢 {selectedBranch} • {today?.label} • {currentTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                 </h1>

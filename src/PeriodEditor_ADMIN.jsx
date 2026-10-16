@@ -26,50 +26,29 @@ const PeriodEditor = () => {
     }
   }, [selectedBranch]);
 
+  // Source unique : settings/branches (lue par ClassBoard et BranchManager)
+  const readSettingsBranches = async () => {
+    const snap = await getDoc(doc(db, 'settings', 'branches'));
+    return snap.exists() ? (snap.data().branches || []) : [];
+  };
+
+  const writeBranchPeriods = async (updatedPeriods) => {
+    const branchList = await readSettingsBranches();
+    const newBranches = branchList.map(b =>
+      b.name === selectedBranch ? { ...b, exceptionalPeriods: updatedPeriods } : b
+    );
+    await setDoc(doc(db, 'settings', 'branches'), {
+      branches: newBranches,
+      lastUpdated: new Date().toISOString()
+    });
+  };
+
   const loadPeriods = async () => {
     setLoading(true);
     try {
-      console.log('🔍 Chargement des périodes pour:', selectedBranch);
-      
-      // ESSAYER D'ABORD : branches/NomBranche
-      const branchDocRef = doc(db, 'branches', selectedBranch);
-      const branchDocSnap = await getDoc(branchDocRef);
-      
-      if (branchDocSnap.exists()) {
-        const branchData = branchDocSnap.data();
-        console.log('📋 Document branches trouvé:', branchData);
-        
-        if (branchData.exceptionalPeriods && branchData.exceptionalPeriods.length > 0) {
-          console.log('✅ Périodes trouvées dans branches/:', branchData.exceptionalPeriods);
-          setPeriods(branchData.exceptionalPeriods);
-          setLoading(false);
-          return;
-        }
-      }
-      
-      // SINON ESSAYER : settings/branches
-      console.log('⚠️ Pas de périodes dans branches/, essai settings/branches...');
-      const settingsDocRef = doc(db, 'settings', 'branches');
-      const settingsDocSnap = await getDoc(settingsDocRef);
-      
-      if (settingsDocSnap.exists()) {
-        const settingsData = settingsDocSnap.data();
-        console.log('📋 Document settings/branches trouvé:', settingsData);
-        
-        // Chercher la branche dans le tableau
-        const branchConfig = settingsData.branches?.find(b => b.name === selectedBranch);
-        
-        if (branchConfig && branchConfig.exceptionalPeriods) {
-          console.log('✅ Périodes trouvées dans settings/branches:', branchConfig.exceptionalPeriods);
-          setPeriods(branchConfig.exceptionalPeriods);
-          setLoading(false);
-          return;
-        }
-      }
-      
-      console.warn('⚠️ Aucune période trouvée pour:', selectedBranch);
-      setPeriods([]);
-      
+      const branchList = await readSettingsBranches();
+      const branchConfig = branchList.find(b => b.name === selectedBranch);
+      setPeriods(branchConfig?.exceptionalPeriods || []);
     } catch (error) {
       console.error('❌ Erreur chargement:', error);
       alert('Erreur lors du chargement des périodes');
@@ -106,12 +85,8 @@ const PeriodEditor = () => {
         p.id === periodId ? editForm : p
       );
 
-      // Sauvegarder dans branches/NomBranche
-      const docRef = doc(db, 'branches', selectedBranch);
-      await setDoc(docRef, { exceptionalPeriods: updatedPeriods }, { merge: true });
-      
-      console.log('✅ Période modifiée dans branches/');
-      
+      await writeBranchPeriods(updatedPeriods);
+
       setPeriods(updatedPeriods);
       setEditingId(null);
       alert('✅ Période modifiée avec succès !');
@@ -131,9 +106,8 @@ const PeriodEditor = () => {
     try {
       const updatedPeriods = periods.filter(p => p.id !== periodId);
 
-      const docRef = doc(db, 'branches', selectedBranch);
-      await setDoc(docRef, { exceptionalPeriods: updatedPeriods }, { merge: true });
-      
+      await writeBranchPeriods(updatedPeriods);
+
       setPeriods(updatedPeriods);
       alert('✅ Période supprimée');
     } catch (error) {
@@ -156,18 +130,16 @@ const PeriodEditor = () => {
 
     setLoading(true);
     try {
-      const newId = `${editForm.type}_${selectedBranch.toLowerCase().replace(/ /g, '_')}`;
-      
+      // ID unique : évite que deux périodes du même type s'écrasent
       const newPeriod = {
         ...editForm,
-        id: newId,
+        id: Date.now().toString(),
         createdAt: new Date().toISOString()
       };
 
       const updatedPeriods = [...periods, newPeriod];
 
-      const docRef = doc(db, 'branches', selectedBranch);
-      await setDoc(docRef, { exceptionalPeriods: updatedPeriods }, { merge: true });
+      await writeBranchPeriods(updatedPeriods);
       
       setPeriods(updatedPeriods);
       setShowAddModal(false);
@@ -176,6 +148,30 @@ const PeriodEditor = () => {
     } catch (error) {
       console.error('❌ Erreur ajout:', error);
       alert('❌ Erreur lors de l\'ajout');
+    }
+    setLoading(false);
+  };
+
+  // Récupère les périodes enregistrées par l'ancien éditeur dans branches/{filiale}
+  const importLegacyPeriods = async () => {
+    setLoading(true);
+    try {
+      const legacySnap = await getDoc(doc(db, 'branches', selectedBranch));
+      const legacyPeriods = legacySnap.exists() ? (legacySnap.data().exceptionalPeriods || []) : [];
+      const existingIds = new Set(periods.map(p => p.id));
+      const toAdd = legacyPeriods.filter(p => !existingIds.has(p.id));
+
+      if (toAdd.length === 0) {
+        alert('Aucune ancienne période à récupérer');
+      } else {
+        const updatedPeriods = [...periods, ...toAdd];
+        await writeBranchPeriods(updatedPeriods);
+        setPeriods(updatedPeriods);
+        alert(`✅ ${toAdd.length} période(s) récupérée(s)`);
+      }
+    } catch (error) {
+      console.error('❌ Erreur import:', error);
+      alert('❌ Erreur lors de la récupération');
     }
     setLoading(false);
   };
@@ -251,16 +247,25 @@ const PeriodEditor = () => {
             <h3 className="text-xl font-bold text-gray-800">
               Périodes de {selectedBranch}
             </h3>
-            <button
-              onClick={() => {
-                setShowAddModal(true);
-                setEditForm({ id: '', name: '', startDate: '', endDate: '', type: 'ramadan' });
-              }}
-              className="flex items-center gap-2 bg-purple-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-purple-700"
-            >
-              <Plus className="w-5 h-5" />
-              Ajouter une période
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={importLegacyPeriods}
+                disabled={loading}
+                className="flex items-center gap-2 bg-gray-200 text-gray-800 px-4 py-3 rounded-lg font-bold hover:bg-gray-300 disabled:opacity-50"
+              >
+                Récupérer les anciennes périodes
+              </button>
+              <button
+                onClick={() => {
+                  setShowAddModal(true);
+                  setEditForm({ id: '', name: '', startDate: '', endDate: '', type: 'ramadan' });
+                }}
+                className="flex items-center gap-2 bg-purple-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-purple-700"
+              >
+                <Plus className="w-5 h-5" />
+                Ajouter une période
+              </button>
+            </div>
           </div>
 
           {/* Debug Info */}
