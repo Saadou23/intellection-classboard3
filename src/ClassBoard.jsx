@@ -12,6 +12,7 @@ import LevelCategoriesManager from './LevelCategoriesManager';
 import BranchManager from './BranchManager';
 import ConflictDetector, { hasConflicts } from './ConflictDetector';
 import ExceptionalSessionManager from './ExceptionalSessionManager';
+import CopyNormalToPeriodModal from './CopyNormalToPeriodModal';
 import { filterSessionsForDate, getTodaySessions, getSessionDisplayStatus } from './sessionFilters';
 import { getAllPeriods, getActivePeriodId, filterSessionsByPeriod, getPeriodIcon, getPeriodName } from './periodUtils';
 import { getSessionLevels, sessionIncludesLevel } from './levelUtils';
@@ -69,6 +70,7 @@ const ClassBoard = () => {
   const [showStudentIndividualLessons, setShowStudentIndividualLessons] = useState(false);
   const [showBranchManager, setShowBranchManager] = useState(false);
   const [showExceptionalSession, setShowExceptionalSession] = useState(false);
+  const [showCopyModal, setShowCopyModal] = useState(false);
   const [professors, setProfessors] = useState([]);
   const [levels, setLevels] = useState([]);
   const [subjects, setSubjects] = useState([]);
@@ -853,6 +855,14 @@ const branchNames = branchesArray.map(b => b.name) || [];
     setFormData(formInitialState);
     setEditingSession(null);
     setShowAddForm(false);
+  };
+
+  // Copie les séances choisies (normal) dans la période active du formulaire
+  const copySessionsToPeriod = async (newSessions) => {
+    const branchSessions = sessions[selectedBranch] || [];
+    await saveBranchData(selectedBranch, [...branchSessions, ...newSessions]);
+    setShowCopyModal(false);
+    alert(`✅ ${newSessions.length} séance(s) copiée(s) vers la période`);
   };
 
   const addExceptionalSession = async (exceptionalSession) => {
@@ -2112,6 +2122,13 @@ const branchNames = branchesArray.map(b => b.name) || [];
                               <p className="text-xs text-purple-700 mt-1">
                                 Elle apparaîtra automatiquement aux dates définies et sera masquée le reste de l'année.
                               </p>
+                              <button
+                                type="button"
+                                onClick={() => setShowCopyModal(true)}
+                                className="mt-3 flex items-center gap-2 bg-white border-2 border-purple-400 text-purple-700 hover:bg-purple-100 px-4 py-2 rounded-lg text-sm font-bold"
+                              >
+                                📋 Copier les horaires du normal
+                              </button>
                             </div>
                           </div>
                         )}
@@ -2956,6 +2973,17 @@ const branchNames = branchesArray.map(b => b.name) || [];
       )}
 
       {/* Modal de séance exceptionnelle */}
+      {showCopyModal && periodMode && (
+        <CopyNormalToPeriodModal
+          branchName={selectedBranch}
+          sessions={sessions[selectedBranch] || []}
+          periodId={periodMode}
+          periodName={getPeriodName(branchesData, periodMode)}
+          onClose={() => setShowCopyModal(false)}
+          onCopy={copySessionsToPeriod}
+        />
+      )}
+
       {showExceptionalSession && (
         <ExceptionalSessionManager
           selectedBranch={selectedBranch}

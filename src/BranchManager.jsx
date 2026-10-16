@@ -311,15 +311,11 @@ const BranchManager = ({ onClose }) => {
       ...periodFormData
     };
 
-    const newBranches = branches.map(b => {
-      if (b.name === branchName) {
-        return {
-          ...b,
-          exceptionalPeriods: [...(b.exceptionalPeriods || []), newPeriod]
-        };
-      }
-      return b;
-    });
+    // Les périodes sont communes à toutes les filiales
+    const newBranches = branches.map(b => ({
+      ...b,
+      exceptionalPeriods: [...(b.exceptionalPeriods || []), newPeriod]
+    }));
 
     setBranches(newBranches);
     const saved = await saveBranches(newBranches);
@@ -333,15 +329,11 @@ const BranchManager = ({ onClose }) => {
 
   const deleteExceptionalPeriod = async (branchName, periodId) => {
     if (confirm('Supprimer cette période exceptionnelle ?\n\nATTENTION : Les sessions saisies pour cette période resteront dans la base de données mais ne seront plus actives.')) {
-      const newBranches = branches.map(b => {
-        if (b.name === branchName) {
-          return {
-            ...b,
-            exceptionalPeriods: b.exceptionalPeriods.filter(p => p.id !== periodId)
-          };
-        }
-        return b;
-      });
+      // Supprimée de toutes les filiales (périodes communes)
+      const newBranches = branches.map(b => ({
+        ...b,
+        exceptionalPeriods: (b.exceptionalPeriods || []).filter(p => p.id !== periodId)
+      }));
 
       setBranches(newBranches);
       const saved = await saveBranches(newBranches);

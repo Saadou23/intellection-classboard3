@@ -16,12 +16,17 @@ const useSessionNotifications = (sessions, branch, currentTime, soundEnabled = t
     if (now - lastCheckRef.current < 1000) return;
     lastCheckRef.current = now;
 
-    const branchSessions = sessions[branch] || [];
+    // Seulement les séances d'aujourd'hui : sinon des séances d'autres jours déclenchent des sons
+    const branchSessions = (sessions[branch] || []).filter(s => s.dayOfWeek === currentTime.getDay());
     const previousBranchSessions = previousSessionsRef.current[branch] || [];
+
+    // Identifiant unique par séance : évite que deux séances à la même case
+    // (jour/heure/salle) se « remplacent » et fassent boucler les sons
+    const keyOf = (s) => s.id || `${s.dayOfWeek}-${s.startTime}-${s.room}-${s.subject}-${s.period || ''}`;
 
     // Détecter les changements de statut
     branchSessions.forEach(session => {
-      const sessionKey = `${session.dayOfWeek}-${session.startTime}-${session.room}`;
+      const sessionKey = keyOf(session);
       const previousStatus = previousStatusesRef.current[sessionKey];
       const currentStatus = session.status || 'normal';
 
@@ -67,7 +72,7 @@ const useSessionNotifications = (sessions, branch, currentTime, soundEnabled = t
 
       // Si le cours est exactement à 30 min (entre 29.5 et 30.5 min)
       if (minutesUntil >= 29.5 && minutesUntil <= 30.5) {
-        const sessionId = `${session.dayOfWeek}-${session.startTime}-${session.room}-${session.subject}`;
+        const sessionId = keyOf(session);
         const wasNotified = previousSessionsRef.current[`notified-${sessionId}`];
 
         if (!wasNotified) {

@@ -4,7 +4,6 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Calendar, Edit2, Save, X, AlertCircle, Trash2, Plus } from 'lucide-react';
 
 const PeriodEditor = () => {
-  const [selectedBranch, setSelectedBranch] = useState('');
   const [periods, setPeriods] = useState([]);
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -21,10 +20,8 @@ const PeriodEditor = () => {
   const branches = ['Hay Salam', 'Doukkali', 'Saada'];
 
   useEffect(() => {
-    if (selectedBranch) {
-      loadPeriods();
-    }
-  }, [selectedBranch]);
+    loadPeriods();
+  }, []);
 
   // Source unique : settings/branches (lue par ClassBoard et BranchManager)
   const readSettingsBranches = async () => {
@@ -32,23 +29,26 @@ const PeriodEditor = () => {
     return snap.exists() ? (snap.data().branches || []) : [];
   };
 
+  // Les périodes sont communes à toutes les filiales : on écrit la même liste partout
   const writeBranchPeriods = async (updatedPeriods) => {
     const branchList = await readSettingsBranches();
-    const newBranches = branchList.map(b =>
-      b.name === selectedBranch ? { ...b, exceptionalPeriods: updatedPeriods } : b
-    );
+    const newBranches = branchList.map(b => ({ ...b, exceptionalPeriods: updatedPeriods }));
     await setDoc(doc(db, 'settings', 'branches'), {
       branches: newBranches,
       lastUpdated: new Date().toISOString()
     });
   };
 
+  // Liste commune : union des périodes (dédoublonnées par ID) de toutes les filiales
   const loadPeriods = async () => {
     setLoading(true);
     try {
       const branchList = await readSettingsBranches();
-      const branchConfig = branchList.find(b => b.name === selectedBranch);
-      setPeriods(branchConfig?.exceptionalPeriods || []);
+      const merged = new Map();
+      branchList.forEach(b => (b.exceptionalPeriods || []).forEach(p => {
+        if (!merged.has(p.id)) merged.set(p.id, p);
+      }));
+      setPeriods([...merged.values()]);
     } catch (error) {
       console.error('❌ Erreur chargement:', error);
       alert('Erreur lors du chargement des périodes');
@@ -156,10 +156,19 @@ const PeriodEditor = () => {
   const importLegacyPeriods = async () => {
     setLoading(true);
     try {
-      const legacySnap = await getDoc(doc(db, 'branches', selectedBranch));
-      const legacyPeriods = legacySnap.exists() ? (legacySnap.data().exceptionalPeriods || []) : [];
+      const legacyPeriods = [];
+      for (const name of branches) {
+        const legacySnap = await getDoc(doc(db, 'branches', name));
+        if (legacySnap.exists()) legacyPeriods.push(...(legacySnap.data().exceptionalPeriods || []));
+      }
       const existingIds = new Set(periods.map(p => p.id));
-      const toAdd = legacyPeriods.filter(p => !existingIds.has(p.id));
+      const toAdd = [];
+      legacyPeriods.forEach(p => {
+        if (!existingIds.has(p.id)) {
+          existingIds.add(p.id);
+          toAdd.push(p);
+        }
+      });
 
       if (toAdd.length === 0) {
         alert('Aucune ancienne période à récupérer');
@@ -223,29 +232,11 @@ const PeriodEditor = () => {
         </div>
       </div>
 
-      {/* Sélection branche */}
-      <div className="bg-white rounded-xl shadow-lg p-6">
-        <label className="block text-sm font-bold text-gray-700 mb-3">
-          Sélectionner une filiale *
-        </label>
-        <select
-          value={selectedBranch}
-          onChange={(e) => setSelectedBranch(e.target.value)}
-          className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-600 text-base"
-        >
-          <option value="">-- Choisir une filiale --</option>
-          {branches.map(b => (
-            <option key={b} value={b}>{b}</option>
-          ))}
-        </select>
-      </div>
-
-      {selectedBranch && (
-        <>
+      <>
           {/* Bouton Ajouter */}
           <div className="flex justify-between items-center">
             <h3 className="text-xl font-bold text-gray-800">
-              Périodes de {selectedBranch}
+              Périodes communes (toutes les filiales : {branches.join(', ')})
             </h3>
             <div className="flex gap-2">
               <button
@@ -443,8 +434,7 @@ const PeriodEditor = () => {
               })}
             </div>
           )}
-        </>
-      )}
+      </>
 
       {/* Modal Ajouter */}
       {showAddModal && (
@@ -506,7 +496,7 @@ const PeriodEditor = () => {
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <p className="text-sm text-blue-800">
-                  ℹ️ L'ID sera généré automatiquement : <code>{editForm.type}_{selectedBranch.toLowerCase().replace(/ /g, '_')}</code>
+                  ℹ️ Cette période sera ajoutée à toutes les filiales ({branches.join(', ')})
                 </p>
               </div>
 
