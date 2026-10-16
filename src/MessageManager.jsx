@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MessageSquare, Save, X, Plus, Trash2, Send, Upload, Zap } from 'lucide-react';
+import { MessageSquare, Save, X, Plus, Trash2, Send, Upload, Zap, Edit2, Check } from 'lucide-react';
 import { db, storage } from './firebase';
 import { doc, setDoc, getDoc, addDoc, collection } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -8,6 +8,8 @@ import { initializeNotePhotos } from './initializeNotePhotos';
 const MessageManager = () => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [editingText, setEditingText] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -225,6 +227,7 @@ const MessageManager = () => {
       setTimeout(() => setSuccess(false), 3000);
     } catch (error) {
       console.error('Erreur lors de la sauvegarde:', error);
+      alert(`❌ Sauvegarde échouée : ${error.code || ''} ${error.message}`);
     }
     setSaving(false);
   };
@@ -244,6 +247,30 @@ const MessageManager = () => {
   // Supprimer un message
   const deleteMessage = (id) => {
     setMessages(messages.filter(msg => msg.id !== id));
+  };
+
+  // Modifier un message existant (enregistré avec le bouton Sauvegarder)
+  const startEditMessage = (msg) => {
+    setEditingMessageId(msg.id);
+    setEditingText(msg.text);
+  };
+
+  const cancelEditMessage = () => {
+    setEditingMessageId(null);
+    setEditingText('');
+  };
+
+  const saveEditMessage = (id) => {
+    if (!editingText.trim()) {
+      alert('Le message ne peut pas être vide');
+      return;
+    }
+    setMessages(messages.map(msg =>
+      msg.id === id
+        ? { ...msg, text: editingText, updatedAt: new Date().toLocaleString('fr-FR') }
+        : msg
+    ));
+    cancelEditMessage();
   };
 
   // Lancer la publicité de l'app
@@ -640,26 +667,66 @@ const MessageManager = () => {
                       #{idx + 1}
                     </span>
                     <span className="text-xs text-gray-500">{msg.createdAt}</span>
+                    {msg.updatedAt && (
+                      <span className="text-xs text-orange-600">(modifié le {msg.updatedAt})</span>
+                    )}
                   </div>
-                  <p className="text-gray-800 font-medium text-lg break-words">
-                    {msg.text}
-                  </p>
+                  {editingMessageId === msg.id ? (
+                    <textarea
+                      value={editingText}
+                      onChange={(e) => setEditingText(e.target.value)}
+                      rows={4}
+                      className="w-full border-2 border-blue-400 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  ) : (
+                    <p className="text-gray-800 font-medium text-lg break-words">
+                      {msg.text}
+                    </p>
+                  )}
                 </div>
                 <div className="ml-4 flex items-center gap-2">
-                  <button
-                    onClick={() => triggerAnnouncement(msg)}
-                    className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition"
-                    title="Annoncer maintenant"
-                  >
-                    <Send className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={() => deleteMessage(msg.id)}
-                    className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition"
-                    title="Supprimer ce message"
-                  >
-                    <Trash2 className="w-5 h-5" />
-                  </button>
+                  {editingMessageId === msg.id ? (
+                    <>
+                      <button
+                        onClick={() => saveEditMessage(msg.id)}
+                        className="p-2 text-green-700 hover:bg-green-100 rounded-lg transition"
+                        title="Enregistrer la modification"
+                      >
+                        <Check className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={cancelEditMessage}
+                        className="p-2 text-gray-600 hover:bg-gray-200 rounded-lg transition"
+                        title="Annuler la modification"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => startEditMessage(msg)}
+                        className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition"
+                        title="Modifier ce message"
+                      >
+                        <Edit2 className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => triggerAnnouncement(msg)}
+                        className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition"
+                        title="Annoncer maintenant"
+                      >
+                        <Send className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => deleteMessage(msg.id)}
+                        className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition"
+                        title="Supprimer ce message"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             ))}
