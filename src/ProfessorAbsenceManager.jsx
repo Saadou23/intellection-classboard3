@@ -38,9 +38,12 @@ export default function ProfessorAbsenceManager() {
   // Période de visualisation de l'historique (dates au format YYYY-MM-DD)
   const [periodStart, setPeriodStart] = useState('');
   const [periodEnd, setPeriodEnd] = useState('');
+  // Ne montrer que les absences dont le rattrapage n'a pas encore été planifié
+  const [onlyUnscheduledMakeup, setOnlyUnscheduledMakeup] = useState(false);
 
   // Absences de l'historique comprises dans la période choisie
   const visibleHistory = absenceHistory.filter(absence => {
+    if (onlyUnscheduledMakeup && absence.makeupDate) return false;
     if (!periodStart && !periodEnd) return true;
     if (!absence.date) return false;
     const absenceDate = absence.date.toDate ? absence.date.toDate() : new Date(absence.date);
@@ -290,6 +293,7 @@ export default function ProfessorAbsenceManager() {
       `Statut : ${filterStatus === 'all' ? 'Tous' : statusLabels[filterStatus]}  |  ` +
       `Centre : ${filterCenter === 'all' ? 'Tous' : filterCenter}  |  ` +
       `Période : ${periodStart || periodEnd ? `${periodStart || 'début'} au ${periodEnd || 'fin'}` : 'Toutes les dates'}  |  ` +
+      `Rattrapage : ${onlyUnscheduledMakeup ? 'non planifié uniquement' : 'Tous'}  |  ` +
       `Généré le ${new Date().toLocaleString('fr-FR')}`,
       14,
       22
@@ -559,6 +563,16 @@ export default function ProfessorAbsenceManager() {
                       Effacer la période
                     </button>
                   )}
+                  <button
+                    onClick={() => setOnlyUnscheduledMakeup(prev => !prev)}
+                    className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                      onlyUnscheduledMakeup
+                        ? 'bg-orange-600 text-white'
+                        : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                    }`}
+                  >
+                    ⚠️ Rattrapage non planifié
+                  </button>
                   <select
                     value={filterCenter}
                     onChange={(e) => setFilterCenter(e.target.value)}
