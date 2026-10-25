@@ -891,6 +891,25 @@ const branchNames = branchesArray.map(b => b.name) || [];
     }
   };
 
+  // Supprime en une fois toutes les séances d'une période exceptionnelle (filiale courante)
+  const deletePeriodSessions = async (periodId) => {
+    const branchSessions = sessions[selectedBranch] || [];
+    const toDelete = branchSessions.filter(s => s.period === periodId);
+    const periodName = getPeriodName(branchesData, periodId);
+
+    if (toDelete.length === 0) {
+      alert(`Aucune séance à supprimer pour ${periodName}.`);
+      return;
+    }
+
+    if (!confirm(`⚠️ Supprimer les ${toDelete.length} séance(s) de "${periodName}" pour ${selectedBranch} ?\n\nCette action est irréversible.`)) {
+      return;
+    }
+
+    await saveBranchData(selectedBranch, branchSessions.filter(s => s.period !== periodId));
+    alert(`✅ ${toDelete.length} séance(s) supprimée(s)`);
+  };
+
   const editSession = (session) => {
     // Convertir level en tableau levels
     const levelsArray = session.level ? session.level.split(' + ') : [];
@@ -2501,6 +2520,16 @@ const branchNames = branchesArray.map(b => b.name) || [];
                         </button>
                       ))}
                     </div>
+                    {viewPeriodFilter && viewPeriodFilter !== 'normal' && (
+                      <button
+                        onClick={() => deletePeriodSessions(viewPeriodFilter)}
+                        className="mt-3 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-all"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Supprimer toutes les séances de {getPeriodName(branchesData, viewPeriodFilter)}
+                        ({(sessions[selectedBranch] || []).filter(s => s.period === viewPeriodFilter).length})
+                      </button>
+                    )}
                   </div>
                   
                   {/* Filtre par jour */}
